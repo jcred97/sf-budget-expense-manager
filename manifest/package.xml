@@ -1,8 +1,9 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
         <members>SpendlyController</members>
         <members>SpendlyControllerTest</members>
+        <members>RecurringExpenseTriggerHandler</members>
         <members>RecurringExpenseTriggerTest</members>
         <members>SpendlyRecurringExpenseBatch</members>
         <members>SpendlyRecurringExpenseBatchTest</members>
@@ -14,6 +15,7 @@
         <members>SpendlyRecurringExpenseServiceTest</members>
         <members>SpendlySettingsService</members>
         <members>SpendlySettingsServiceTest</members>
+        <members>SpendlySettingsTriggerHandler</members>
         <name>ApexClass</name>
     </types>
     <types>

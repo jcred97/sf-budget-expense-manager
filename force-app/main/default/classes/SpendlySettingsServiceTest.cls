@@ -33,7 +33,10 @@ private class SpendlySettingsServiceTest {
     static void testSaveSettingsUpdatesGlobalRunTimeAndSchedule() {
         SpendlySettingsService.getSettings();
 
-        SpendlySettingsService.SettingsState settings = SpendlySettingsService.saveSettings(true, '10:30');
+        SpendlySettingsService.SettingsState settings = SpendlySettingsService.saveSettings(
+            true,
+            '10:30'
+        );
 
         System.assertEquals('10:30', settings.globalRecurringRunTime);
         System.assertEquals(true, settings.recurringScheduleActive);
@@ -47,7 +50,10 @@ private class SpendlySettingsServiceTest {
             FROM Spendly_Settings__c
             LIMIT 1
         ];
-        System.assertEquals(Time.newInstance(10, 30, 0, 0), settingsRecord.Global_Recurring_Run_Time__c);
+        System.assertEquals(
+            Time.newInstance(10, 30, 0, 0),
+            settingsRecord.Global_Recurring_Run_Time__c
+        );
 
         CronTrigger scheduledJob = [
             SELECT CronExpression, CronJobDetail.Name
@@ -64,15 +70,40 @@ private class SpendlySettingsServiceTest {
 
         Boolean exceptionThrown = false;
         try {
-            insert new Spendly_Settings__c(
-                Name = 'Second',
-                Recurring_Expenses_Enabled__c = true
-            );
+            insert new Spendly_Settings__c(Name = 'Second', Recurring_Expenses_Enabled__c = true);
         } catch (DmlException e) {
             exceptionThrown = true;
         }
 
         System.assertEquals(true, exceptionThrown, 'A second settings record should be blocked');
+    }
+
+    @IsTest
+    static void testSingletonTriggerRejectsBulkInsertWhenNoSettingsExist() {
+        List<Spendly_Settings__c> settingsRecords = new List<Spendly_Settings__c>{
+            new Spendly_Settings__c(Name = 'First', Recurring_Expenses_Enabled__c = true),
+            new Spendly_Settings__c(Name = 'Second', Recurring_Expenses_Enabled__c = false)
+        };
+
+        Test.startTest();
+        Database.SaveResult[] results = Database.insert(settingsRecords, false);
+        Test.stopTest();
+
+        System.assertEquals(2, results.size(), 'Both attempted records should return a result.');
+        for (Database.SaveResult result : results) {
+            System.assertEquals(false, result.isSuccess(), 'Every record should be rejected.');
+            System.assert(
+                result.getErrors()[0]
+                    .getMessage()
+                    .contains('Only one Spendly Settings record can exist.'),
+                'The singleton validation message should explain the rejection.'
+            );
+        }
+        System.assertEquals(
+            0,
+            [SELECT COUNT() FROM Spendly_Settings__c],
+            'A rejected bulk insert should not create a settings record.'
+        );
     }
 
     @IsTest
@@ -93,7 +124,11 @@ private class SpendlySettingsServiceTest {
 
         System.assertNotEquals(null, settings.Last_Recurring_Run_DateTime__c);
         System.assertEquals('Completed', settings.Last_Recurring_Run_Status__c);
-        System.assert(settings.Last_Recurring_Run_Message__c.contains('Created 3 expenses from 2 recurring templates.'));
+        System.assert(
+            settings.Last_Recurring_Run_Message__c.contains(
+                'Created 3 expenses from 2 recurring templates.'
+            )
+        );
     }
 
     @IsTest
@@ -108,6 +143,9 @@ private class SpendlySettingsServiceTest {
             LIMIT 1
         ];
 
-        System.assertEquals('No recurring expenses were due.', settings.Last_Recurring_Run_Message__c);
+        System.assertEquals(
+            'No recurring expenses were due.',
+            settings.Last_Recurring_Run_Message__c
+        );
     }
 }
