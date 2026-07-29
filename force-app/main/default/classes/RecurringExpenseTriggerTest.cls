@@ -48,9 +48,15 @@ private class RecurringExpenseTriggerTest {
         Date firstStartDate = Date.newInstance(2026, 6, 1);
         Date secondStartDate = Date.newInstance(2026, 6, 15);
         Date explicitNextRunDate = Date.newInstance(2026, 7, 15);
+        Recurring_Expense__c supplements = createRecurringExpense(
+            'Supplements',
+            category.Id,
+            secondStartDate
+        );
+        supplements.Next_Run_Date__c = explicitNextRunDate;
         List<Recurring_Expense__c> recurringExpenses = new List<Recurring_Expense__c>{
-            createRecurringExpense('Gym', category.Id, firstStartDate, null),
-            createRecurringExpense('Supplements', category.Id, secondStartDate, explicitNextRunDate)
+            createRecurringExpense('Gym', category.Id, firstStartDate),
+            supplements
         };
 
         Test.startTest();
@@ -157,14 +163,15 @@ private class RecurringExpenseTriggerTest {
         Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
         Date originalStartDate = Date.newInstance(2026, 6, 1);
         Date advancedNextRunDate = Date.newInstance(2026, 7, 1);
+        Recurring_Expense__c supplements = createRecurringExpense(
+            'Supplements',
+            category.Id,
+            originalStartDate
+        );
+        supplements.Next_Run_Date__c = advancedNextRunDate;
         List<Recurring_Expense__c> recurringExpenses = new List<Recurring_Expense__c>{
-            createRecurringExpense('Gym', category.Id, originalStartDate, null),
-            createRecurringExpense(
-                'Supplements',
-                category.Id,
-                originalStartDate,
-                advancedNextRunDate
-            )
+            createRecurringExpense('Gym', category.Id, originalStartDate),
+            supplements
         };
         insert recurringExpenses;
 
@@ -208,8 +215,7 @@ private class RecurringExpenseTriggerTest {
     private static Recurring_Expense__c createRecurringExpense(
         String name,
         Id categoryId,
-        Date startDate,
-        Date nextRunDate
+        Date startDate
     ) {
         return new Recurring_Expense__c(
             Name = name,
@@ -217,7 +223,6 @@ private class RecurringExpenseTriggerTest {
             Amount__c = 2850,
             Category__c = categoryId,
             Frequency__c = 'Monthly',
-            Next_Run_Date__c = nextRunDate,
             Start_Date__c = startDate
         );
     }
