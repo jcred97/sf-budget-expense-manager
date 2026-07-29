@@ -15,7 +15,20 @@ import deactivateRecurringExpense from '@salesforce/apex/SpendlyController.deact
 import runDueExpensesBatch from '@salesforce/apex/SpendlyRecurringExpenseService.runDueExpensesBatch';
 
 const CHART_COLORS = ['#0070D2', '#04844B', '#FFB75D', '#E4A201', '#9E5BB5', '#E16032'];
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_NAMES = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec'
+];
 const PAGE_SIZE = 20;
 const LOAD_MORE_SIZE = 10;
 const VIEW_CONFIG = [
@@ -49,7 +62,6 @@ const PHP_COMPACT_CURRENCY = new Intl.NumberFormat('en-PH', {
     notation: 'compact',
     maximumFractionDigits: 1
 });
-const MUTATION_REFRESH_DELAY_MS = 250;
 const DATE_FORMAT = new Intl.DateTimeFormat('en-PH', {
     year: 'numeric',
     month: 'short',
@@ -227,7 +239,10 @@ export default class SpendlyApp extends LightningElement {
     }
 
     get selectedExpenseGroupName() {
-        return this.expenseGroups.find(expenseGroup => expenseGroup.Id === this.expenseGroupId)?.Name || '';
+        return (
+            this.expenseGroups.find(expenseGroup => expenseGroup.Id === this.expenseGroupId)
+                ?.Name || ''
+        );
     }
 
     get categoryExpenseGroupId() {
@@ -294,7 +309,10 @@ export default class SpendlyApp extends LightningElement {
                 value: expenseGroup.Id
             }));
 
-            if (this.expenseGroupId && !data.some(expenseGroup => expenseGroup.Id === this.expenseGroupId)) {
+            if (
+                this.expenseGroupId &&
+                !data.some(expenseGroup => expenseGroup.Id === this.expenseGroupId)
+            ) {
                 this.clearWorkspaceContext();
             }
 
@@ -343,7 +361,7 @@ export default class SpendlyApp extends LightningElement {
 
             this.allRows = data.map(mapExpenseRow);
             this.visibleCount = PAGE_SIZE;
-        } catch (error) {
+        } catch {
             if (requestId !== this._latestLoadRequestId) {
                 return;
             }
@@ -393,7 +411,7 @@ export default class SpendlyApp extends LightningElement {
 
             this.dashboardRows = data.map(mapExpenseRow);
             this.dashboardTrendRaw = trendData || [];
-        } catch (error) {
+        } catch {
             if (requestId !== this._latestDashboardLoadRequestId) {
                 return;
             }
@@ -441,10 +459,16 @@ export default class SpendlyApp extends LightningElement {
                     'recurring-row',
                     row.dueToday ? 'is-due' : '',
                     row.active ? '' : 'is-inactive'
-                ].filter(Boolean).join(' ')
+                ]
+                    .filter(Boolean)
+                    .join(' ')
             }));
         } catch (error) {
-            this.showToast('Error', this.getErrorMessage(error, 'Failed to load recurring expenses.'), 'error');
+            this.showToast(
+                'Error',
+                this.getErrorMessage(error, 'Failed to load recurring expenses.'),
+                'error'
+            );
         } finally {
             this.isRecurringLoading = false;
         }
@@ -456,12 +480,13 @@ export default class SpendlyApp extends LightningElement {
         }
 
         const term = this.searchTerm.toLowerCase();
-        return this.allRows.filter(row =>
-            (row.name || '').toLowerCase().includes(term) ||
-            (row.category || '').toLowerCase().includes(term) ||
-            (row.expenseGroup || '').toLowerCase().includes(term) ||
-            (row.bank || '').toLowerCase().includes(term) ||
-            (row.transactionType || '').toLowerCase().includes(term)
+        return this.allRows.filter(
+            row =>
+                (row.name || '').toLowerCase().includes(term) ||
+                (row.category || '').toLowerCase().includes(term) ||
+                (row.expenseGroup || '').toLowerCase().includes(term) ||
+                (row.bank || '').toLowerCase().includes(term) ||
+                (row.transactionType || '').toLowerCase().includes(term)
         );
     }
 
@@ -523,7 +548,9 @@ export default class SpendlyApp extends LightningElement {
     }
 
     get expenseEmptyTitle() {
-        return this.hasActiveExpenseFilters ? 'No expenses match your filters' : 'No expenses in this period';
+        return this.hasActiveExpenseFilters
+            ? 'No expenses match your filters'
+            : 'No expenses in this period';
     }
 
     get expenseEmptyMessage() {
@@ -543,7 +570,9 @@ export default class SpendlyApp extends LightningElement {
     }
 
     get showDashboardEmptyState() {
-        return this.isDashboardView && this.dashboardRows.length === 0 && !this.isDashboardLoadingState;
+        return (
+            this.isDashboardView && this.dashboardRows.length === 0 && !this.isDashboardLoadingState
+        );
     }
 
     get hasMoreRows() {
@@ -675,7 +704,8 @@ export default class SpendlyApp extends LightningElement {
             return 'PHP 0.00';
         }
 
-        const activeDays = new Set(this.dashboardRows.map(row => row.expenseDate || 'no-date')).size || 1;
+        const activeDays =
+            new Set(this.dashboardRows.map(row => row.expenseDate || 'no-date')).size || 1;
         return formatPHP(this.totalAmount / activeDays);
     }
 
@@ -835,7 +865,9 @@ export default class SpendlyApp extends LightningElement {
     }
 
     get selectedMonthLabel() {
-        const selectedDate = parseDateString(this.isDashboardView ? this.dashboardStartDate : this.startDate) || new Date();
+        const selectedDate =
+            parseDateString(this.isDashboardView ? this.dashboardStartDate : this.startDate) ||
+            new Date();
         return MONTH_LABEL_FORMAT.format(selectedDate);
     }
 
@@ -893,7 +925,9 @@ export default class SpendlyApp extends LightningElement {
     }
 
     setTransactionMonth(monthOffset) {
-        const selectedDate = parseDateString(this.isDashboardView ? this.dashboardStartDate : this.startDate) || new Date();
+        const selectedDate =
+            parseDateString(this.isDashboardView ? this.dashboardStartDate : this.startDate) ||
+            new Date();
         const targetMonth = new Date(
             selectedDate.getFullYear(),
             selectedDate.getMonth() + monthOffset,
@@ -998,19 +1032,12 @@ export default class SpendlyApp extends LightningElement {
         return `workspace-nav-item ${this.activeView === viewName ? 'is-active' : ''}`;
     }
 
-    async handleLoadMore() {
+    handleLoadMore() {
         if (this.visibleCount >= this.filteredRows.length) {
             return;
         }
 
-        this.isLoadingMore = true;
-        try {
-            // eslint-disable-next-line @lwc/lwc/no-async-operation
-            await new Promise(resolve => setTimeout(resolve, 500));
-            this.visibleCount += LOAD_MORE_SIZE;
-        } finally {
-            this.isLoadingMore = false;
-        }
+        this.visibleCount += LOAD_MORE_SIZE;
     }
 
     handleTransactionSelect(event) {
@@ -1051,7 +1078,11 @@ export default class SpendlyApp extends LightningElement {
         this.isRunningRecurring = true;
         try {
             await runDueExpensesBatch();
-            this.showToast('Recurring run started', 'Due recurring expenses are being generated.', 'success');
+            this.showToast(
+                'Recurring run started',
+                'Due recurring expenses are being generated.',
+                'success'
+            );
             await Promise.all([
                 this.loadRecurringExpenses(),
                 this.loadDashboard(),
@@ -1146,17 +1177,9 @@ export default class SpendlyApp extends LightningElement {
         try {
             await deleteExpense({ expenseId: recordId });
             this.showToast('Deleted', 'Expense deleted successfully!', 'success');
-            await this.waitForMutationCommit();
-            await Promise.all([
-                this.loadDashboard(),
-                this.loadExpenses()
-            ]);
+            await Promise.all([this.loadDashboard(), this.loadExpenses()]);
         } catch (error) {
-            this.allRows = [
-                ...this.allRows.slice(0, index),
-                removed,
-                ...this.allRows.slice(index)
-            ];
+            this.allRows = [...this.allRows.slice(0, index), removed, ...this.allRows.slice(index)];
             this.showToast('Error', error?.body?.message || 'Failed to delete expense.', 'error');
         }
     }
@@ -1174,7 +1197,9 @@ export default class SpendlyApp extends LightningElement {
 
         const idsToDelete = [...this.selectedRows];
         const removedRows = this.allRows.filter(row => idsToDelete.includes(row.id));
-        const removedIndexes = removedRows.map(row => this.allRows.findIndex(item => item.id === row.id));
+        const removedIndexes = removedRows.map(row =>
+            this.allRows.findIndex(item => item.id === row.id)
+        );
 
         this.allRows = this.allRows.filter(row => !idsToDelete.includes(row.id));
         this.selectedRows = [];
@@ -1182,11 +1207,7 @@ export default class SpendlyApp extends LightningElement {
         try {
             await deleteExpenses({ expenseIds: idsToDelete });
             this.showToast('Deleted', `${count} expense(s) deleted successfully!`, 'success');
-            await this.waitForMutationCommit();
-            await Promise.all([
-                this.loadDashboard(),
-                this.loadExpenses()
-            ]);
+            await Promise.all([this.loadDashboard(), this.loadExpenses()]);
         } catch (error) {
             const restored = [...this.allRows];
             removedRows.forEach((row, index) => {
@@ -1212,16 +1233,7 @@ export default class SpendlyApp extends LightningElement {
 
     async handleSuccess() {
         this.showToast('Success', 'Expense saved successfully!', 'success');
-        await this.waitForMutationCommit();
-        await Promise.all([
-            this.loadDashboard(),
-            this.loadExpenses()
-        ]);
-    }
-
-    waitForMutationCommit() {
-        // eslint-disable-next-line @lwc/lwc/no-async-operation
-        return new Promise(resolve => setTimeout(resolve, MUTATION_REFRESH_DELAY_MS));
+        await Promise.all([this.loadDashboard(), this.loadExpenses()]);
     }
 
     handlePrint() {
@@ -1233,7 +1245,16 @@ export default class SpendlyApp extends LightningElement {
             return;
         }
 
-        const headers = ['Date', 'Time', 'Expense Name', 'Category', 'Expense Group', 'Bank', 'Type', 'Amount (PHP)'];
+        const headers = [
+            'Date',
+            'Time',
+            'Expense Name',
+            'Category',
+            'Expense Group',
+            'Bank',
+            'Type',
+            'Amount (PHP)'
+        ];
         const rows = this.filteredRows.map(row => [
             row.expenseDate || '',
             row.transactionTimeDisplay === '-' ? '' : row.transactionTimeDisplay,

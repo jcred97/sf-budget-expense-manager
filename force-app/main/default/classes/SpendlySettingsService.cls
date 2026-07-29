@@ -4,31 +4,50 @@ public with sharing class SpendlySettingsService {
     private static final Time DEFAULT_RECURRING_RUN_TIME = Time.newInstance(8, 0, 0, 0);
 
     public class SettingsState {
-        @AuraEnabled public Id settingsId;
-        @AuraEnabled public Boolean recurringExpensesEnabled;
-        @AuraEnabled public String globalRecurringRunTime;
-        @AuraEnabled public Datetime lastRecurringRunDateTime;
-        @AuraEnabled public String lastRecurringRunStatus;
-        @AuraEnabled public String lastRecurringRunMessage;
-        @AuraEnabled public Boolean recurringScheduleActive;
-        @AuraEnabled public String recurringScheduleState;
-        @AuraEnabled public Datetime recurringScheduleNextRunDateTime;
-        @AuraEnabled public String recurringScheduleTimeZone;
-        @AuraEnabled public String recurringScheduleCronExpression;
+        @AuraEnabled
+        public Id settingsId;
+        @AuraEnabled
+        public Boolean recurringExpensesEnabled;
+        @AuraEnabled
+        public String globalRecurringRunTime;
+        @AuraEnabled
+        public Datetime lastRecurringRunDateTime;
+        @AuraEnabled
+        public String lastRecurringRunStatus;
+        @AuraEnabled
+        public String lastRecurringRunMessage;
+        @AuraEnabled
+        public Boolean recurringScheduleActive;
+        @AuraEnabled
+        public String recurringScheduleState;
+        @AuraEnabled
+        public Datetime recurringScheduleNextRunDateTime;
+        @AuraEnabled
+        public String recurringScheduleTimeZone;
+        @AuraEnabled
+        public String recurringScheduleCronExpression;
 
         public SettingsState(Spendly_Settings__c settings) {
             this.settingsId = settings.Id;
             this.recurringExpensesEnabled = settings.Recurring_Expenses_Enabled__c;
-            this.globalRecurringRunTime = formatRunTime(getEffectiveRunTime(settings.Global_Recurring_Run_Time__c));
+            this.globalRecurringRunTime = formatRunTime(
+                getEffectiveRunTime(settings.Global_Recurring_Run_Time__c)
+            );
             this.lastRecurringRunDateTime = settings.Last_Recurring_Run_DateTime__c;
             this.lastRecurringRunStatus = settings.Last_Recurring_Run_Status__c;
             this.lastRecurringRunMessage = settings.Last_Recurring_Run_Message__c;
 
             CronTrigger recurringSchedule = getRecurringSchedule();
-            this.recurringScheduleActive = recurringSchedule != null && recurringSchedule.NextFireTime != null;
-            this.recurringScheduleState = recurringSchedule == null ? 'Not scheduled' : recurringSchedule.State;
+            this.recurringScheduleActive =
+                recurringSchedule != null &&
+                recurringSchedule.NextFireTime != null;
+            this.recurringScheduleState = recurringSchedule == null
+                ? 'Not scheduled'
+                : recurringSchedule.State;
             this.recurringScheduleNextRunDateTime = recurringSchedule?.NextFireTime;
-            this.recurringScheduleTimeZone = recurringSchedule == null ? UserInfo.getTimeZone().getID() : recurringSchedule.TimeZoneSidKey;
+            this.recurringScheduleTimeZone = recurringSchedule == null
+                ? UserInfo.getTimeZone().getID()
+                : recurringSchedule.TimeZoneSidKey;
             this.recurringScheduleCronExpression = recurringSchedule?.CronExpression;
         }
     }
@@ -47,13 +66,30 @@ public with sharing class SpendlySettingsService {
     }
 
     @AuraEnabled
-    public static SettingsState saveSettings(Boolean recurringExpensesEnabled, String globalRecurringRunTime) {
+    public static SettingsState saveSettings(
+        Boolean recurringExpensesEnabled,
+        String globalRecurringRunTime
+    ) {
         Spendly_Settings__c settings = getOrCreateSettings();
         Time originalRunTime = getEffectiveRunTime(settings.Global_Recurring_Run_Time__c);
         Time requestedRunTime = parseRunTime(globalRecurringRunTime);
-        settings.Recurring_Expenses_Enabled__c = recurringExpensesEnabled == null ? false : recurringExpensesEnabled;
+        Boolean requestedEnabled = recurringExpensesEnabled == null
+            ? false
+            : recurringExpensesEnabled;
+        Spendly_Settings__c settingsUpdate = new Spendly_Settings__c(
+            Id = settings.Id,
+            Recurring_Expenses_Enabled__c = requestedEnabled,
+            Global_Recurring_Run_Time__c = requestedRunTime
+        );
+        List<Spendly_Settings__c> updates = (List<Spendly_Settings__c>) Security.stripInaccessible(
+                AccessType.UPDATABLE,
+                new List<Spendly_Settings__c>{ settingsUpdate }
+            )
+            .getRecords();
+        Database.update(updates, AccessLevel.USER_MODE);
+
+        settings.Recurring_Expenses_Enabled__c = requestedEnabled;
         settings.Global_Recurring_Run_Time__c = requestedRunTime;
-        update settings;
 
         if (originalRunTime != requestedRunTime) {
             rescheduleRecurringExpenses(requestedRunTime);
@@ -67,24 +103,28 @@ public with sharing class SpendlySettingsService {
     }
 
     public static void markRecurringRunQueued(Id jobId) {
-        updateRecurringRunStatus(
-            'Queued',
-            'Recurring expense generation is queued.'
-        );
+        updateRecurringRunStatus('Queued', 'Recurring expense generation is queued.');
     }
 
-    public static void markRecurringRunCompleted(Integer expensesCreated, Integer recurringExpensesProcessed) {
+    public static void markRecurringRunCompleted(
+        Integer expensesCreated,
+        Integer recurringExpensesProcessed
+    ) {
         Integer expenseCount = expensesCreated == null ? 0 : expensesCreated;
         Integer templateCount = recurringExpensesProcessed == null ? 0 : recurringExpensesProcessed;
         String message = expenseCount == 0
             ? 'No recurring expenses were due.'
-            : 'Created ' + String.valueOf(expenseCount) + ' ' + pluralize('expense', expenseCount) +
-                ' from ' + String.valueOf(templateCount) + ' recurring ' + pluralize('template', templateCount) + '.';
+            : 'Created ' +
+              String.valueOf(expenseCount) +
+              ' ' +
+              pluralize('expense', expenseCount) +
+              ' from ' +
+              String.valueOf(templateCount) +
+              ' recurring ' +
+              pluralize('template', templateCount) +
+              '.';
 
-        updateRecurringRunStatus(
-            'Completed',
-            message
-        );
+        updateRecurringRunStatus('Completed', message);
     }
 
     public static void markRecurringRunSkipped(String message) {
@@ -102,6 +142,7 @@ public with sharing class SpendlySettingsService {
                 Last_Recurring_Run_Status__c,
                 Last_Recurring_Run_Message__c
             FROM Spendly_Settings__c
+            WITH USER_MODE
             ORDER BY CreatedDate ASC
             LIMIT 1
         ];
@@ -115,8 +156,13 @@ public with sharing class SpendlySettingsService {
             Recurring_Expenses_Enabled__c = true,
             Global_Recurring_Run_Time__c = DEFAULT_RECURRING_RUN_TIME
         );
-        insert settings;
-        return settings;
+        List<Spendly_Settings__c> inserts = (List<Spendly_Settings__c>) Security.stripInaccessible(
+                AccessType.CREATABLE,
+                new List<Spendly_Settings__c>{ settings }
+            )
+            .getRecords();
+        Database.insert(inserts, AccessLevel.USER_MODE);
+        return inserts[0];
     }
 
     private static Time getEffectiveRunTime(Time runTime) {
@@ -146,14 +192,18 @@ public with sharing class SpendlySettingsService {
     }
 
     private static String formatRunTime(Time runTime) {
-        return String.valueOf(runTime.hour()).leftPad(2, '0') + ':' +
+        return String.valueOf(runTime.hour()).leftPad(2, '0') +
+            ':' +
             String.valueOf(runTime.minute()).leftPad(2, '0');
     }
 
     private static String buildDailyCron(Time runTime) {
         Time effectiveRunTime = getEffectiveRunTime(runTime);
-        return '0 ' + String.valueOf(effectiveRunTime.minute()) + ' ' +
-            String.valueOf(effectiveRunTime.hour()) + ' * * ?';
+        return '0 ' +
+            String.valueOf(effectiveRunTime.minute()) +
+            ' ' +
+            String.valueOf(effectiveRunTime.hour()) +
+            ' * * ?';
     }
 
     private static String pluralize(String singularValue, Integer count) {
@@ -164,8 +214,8 @@ public with sharing class SpendlySettingsService {
         List<CronTrigger> recurringSchedules = [
             SELECT CronExpression, NextFireTime, State, TimeZoneSidKey
             FROM CronTrigger
-            WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME
-            AND State != 'DELETED'
+            WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME AND State != 'DELETED'
+            WITH USER_MODE
             ORDER BY NextFireTime ASC
             LIMIT 1
         ];
@@ -178,6 +228,7 @@ public with sharing class SpendlySettingsService {
             SELECT Id
             FROM CronTrigger
             WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME
+            WITH USER_MODE
         ];
 
         for (CronTrigger existingJob : existingJobs) {
@@ -193,9 +244,17 @@ public with sharing class SpendlySettingsService {
 
     private static void updateRecurringRunStatus(String status, String message) {
         Spendly_Settings__c settings = getOrCreateSettings();
-        settings.Last_Recurring_Run_DateTime__c = System.now();
-        settings.Last_Recurring_Run_Status__c = status;
-        settings.Last_Recurring_Run_Message__c = message;
-        update settings;
+        Spendly_Settings__c settingsUpdate = new Spendly_Settings__c(
+            Id = settings.Id,
+            Last_Recurring_Run_DateTime__c = System.now(),
+            Last_Recurring_Run_Status__c = status,
+            Last_Recurring_Run_Message__c = message
+        );
+        List<Spendly_Settings__c> updates = (List<Spendly_Settings__c>) Security.stripInaccessible(
+                AccessType.UPDATABLE,
+                new List<Spendly_Settings__c>{ settingsUpdate }
+            )
+            .getRecords();
+        Database.update(updates, AccessLevel.USER_MODE);
     }
 }

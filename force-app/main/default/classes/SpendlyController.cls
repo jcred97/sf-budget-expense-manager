@@ -1,35 +1,57 @@
 public with sharing class SpendlyController {
-
     public class MonthlyTotal {
-        @AuraEnabled public String month;
-        @AuraEnabled public Integer year;
-        @AuraEnabled public Integer monthNum;
-        @AuraEnabled public Decimal total;
+        @AuraEnabled
+        public String month;
+        @AuraEnabled
+        public Integer year;
+        @AuraEnabled
+        public Integer monthNum;
+        @AuraEnabled
+        public Decimal total;
     }
 
     public class RecurringExpenseRow {
-        @AuraEnabled public Id id;
-        @AuraEnabled public String name;
-        @AuraEnabled public Id categoryId;
-        @AuraEnabled public String categoryName;
-        @AuraEnabled public String expenseGroupName;
-        @AuraEnabled public Decimal amount;
-        @AuraEnabled public Decimal monthlyAmount;
-        @AuraEnabled public String bank;
-        @AuraEnabled public String transactionType;
-        @AuraEnabled public String frequency;
-        @AuraEnabled public Date startDate;
-        @AuraEnabled public Date nextRunDate;
-        @AuraEnabled public Date endDate;
-        @AuraEnabled public Boolean active;
-        @AuraEnabled public Boolean dueToday;
+        @AuraEnabled
+        public Id id;
+        @AuraEnabled
+        public String name;
+        @AuraEnabled
+        public Id categoryId;
+        @AuraEnabled
+        public String categoryName;
+        @AuraEnabled
+        public String expenseGroupName;
+        @AuraEnabled
+        public Decimal amount;
+        @AuraEnabled
+        public Decimal monthlyAmount;
+        @AuraEnabled
+        public String bank;
+        @AuraEnabled
+        public String transactionType;
+        @AuraEnabled
+        public String frequency;
+        @AuraEnabled
+        public Date startDate;
+        @AuraEnabled
+        public Date nextRunDate;
+        @AuraEnabled
+        public Date endDate;
+        @AuraEnabled
+        public Boolean active;
+        @AuraEnabled
+        public Boolean dueToday;
     }
 
     public class RecurringExpenseOverview {
-        @AuraEnabled public List<RecurringExpenseRow> rows;
-        @AuraEnabled public Integer activeCount;
-        @AuraEnabled public Integer dueTodayCount;
-        @AuraEnabled public Decimal monthlyTotal;
+        @AuraEnabled
+        public List<RecurringExpenseRow> rows;
+        @AuraEnabled
+        public Integer activeCount;
+        @AuraEnabled
+        public Integer dueTodayCount;
+        @AuraEnabled
+        public Decimal monthlyTotal;
 
         public RecurringExpenseOverview() {
             this.rows = new List<RecurringExpenseRow>();
@@ -48,12 +70,16 @@ public with sharing class SpendlyController {
     ) {
         Date effectiveStartDate = startDate;
         Date effectiveEndDate = endDate;
+        Id expenseGroupRecordId = getFilterId(expenseGroupId);
+        Id categoryRecordId = getFilterId(categoryId);
+        Map<String, Object> bindValues = new Map<String, Object>();
 
         if (effectiveStartDate == null && effectiveEndDate == null) {
             effectiveStartDate = Date.today().addMonths(-5).toStartOfMonth();
         }
 
-        String query = 'SELECT CALENDAR_YEAR(Expense_Date__c) yr, ' +
+        String query =
+            'SELECT CALENDAR_YEAR(Expense_Date__c) yr, ' +
             'CALENDAR_MONTH(Expense_Date__c) mo, ' +
             'SUM(Amount__c) total ' +
             'FROM Expense__c ' +
@@ -61,46 +87,65 @@ public with sharing class SpendlyController {
 
         if (effectiveStartDate != null) {
             query += 'AND Expense_Date__c >= :effectiveStartDate ';
+            bindValues.put('effectiveStartDate', effectiveStartDate);
         }
         if (effectiveEndDate != null) {
             query += 'AND Expense_Date__c <= :effectiveEndDate ';
+            bindValues.put('effectiveEndDate', effectiveEndDate);
         }
 
-        if (String.isNotBlank(expenseGroupId) && expenseGroupId != 'All') {
-            query += 'AND Category__r.Expense_Group__c = :expenseGroupId ';
+        if (expenseGroupRecordId != null) {
+            query += 'AND Category__r.Expense_Group__c = :expenseGroupRecordId ';
+            bindValues.put('expenseGroupRecordId', expenseGroupRecordId);
         }
-        if (String.isNotBlank(categoryId) && categoryId != 'All') {
-            query += 'AND Category__c = :categoryId ';
+        if (categoryRecordId != null) {
+            query += 'AND Category__c = :categoryRecordId ';
+            bindValues.put('categoryRecordId', categoryRecordId);
         }
 
-        query += 'GROUP BY CALENDAR_YEAR(Expense_Date__c), CALENDAR_MONTH(Expense_Date__c) ' +
+        query +=
+            'GROUP BY CALENDAR_YEAR(Expense_Date__c), CALENDAR_MONTH(Expense_Date__c) ' +
             'ORDER BY CALENDAR_YEAR(Expense_Date__c) ASC, CALENDAR_MONTH(Expense_Date__c) ASC';
 
-        List<AggregateResult> results = Database.query(query);
+        List<AggregateResult> results = Database.queryWithBinds(
+            query,
+            bindValues,
+            AccessLevel.USER_MODE
+        );
 
-        String[] monthNames = new String[]{
-            'Jan','Feb','Mar','Apr','May','Jun',
-            'Jul','Aug','Sep','Oct','Nov','Dec'
+        String[] monthNames = new List<String>{
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec'
         };
 
         List<MonthlyTotal> trend = new List<MonthlyTotal>();
         for (AggregateResult ar : results) {
             MonthlyTotal mt = new MonthlyTotal();
-            mt.year     = (Integer)ar.get('yr');
-            mt.monthNum = (Integer)ar.get('mo');
-            mt.month    = monthNames[mt.monthNum - 1];
-            mt.total    = (Decimal)ar.get('total');
+            mt.year = (Integer) ar.get('yr');
+            mt.monthNum = (Integer) ar.get('mo');
+            mt.month = monthNames[mt.monthNum - 1];
+            mt.total = (Decimal) ar.get('total');
             trend.add(mt);
         }
         return trend;
     }
-
 
     @AuraEnabled(cacheable=true)
     public static List<Expense_Group__c> getAllExpenseGroups() {
         return [
             SELECT Id, Name
             FROM Expense_Group__c
+            WITH USER_MODE
             ORDER BY Name
         ];
     }
@@ -111,6 +156,7 @@ public with sharing class SpendlyController {
             return [
                 SELECT Id, Name, Expense_Group__c, Expense_Group__r.Name
                 FROM Category__c
+                WITH USER_MODE
                 ORDER BY Name
             ];
         }
@@ -119,6 +165,7 @@ public with sharing class SpendlyController {
             SELECT Id, Name, Expense_Group__c, Expense_Group__r.Name
             FROM Category__c
             WHERE Expense_Group__c = :expenseGroupId
+            WITH USER_MODE
             ORDER BY Name
         ];
     }
@@ -130,6 +177,9 @@ public with sharing class SpendlyController {
         Date startDate,
         Date endDate
     ) {
+        Id expenseGroupRecordId = getFilterId(expenseGroupId);
+        Id categoryRecordId = getFilterId(categoryId);
+        Map<String, Object> bindValues = new Map<String, Object>();
         String query =
             'SELECT Id, Name, Expense_Date__c, Transaction_Time__c, Description__c, ' +
             'Category__c, Category__r.Name, ' +
@@ -137,27 +187,33 @@ public with sharing class SpendlyController {
             'Bank__c, Transaction_Type__c, Amount__c ' +
             'FROM Expense__c WHERE Id != null ';
 
-        if (String.isNotBlank(expenseGroupId) && expenseGroupId != 'All') {
-            query += 'AND Category__r.Expense_Group__c = :expenseGroupId ';
+        if (expenseGroupRecordId != null) {
+            query += 'AND Category__r.Expense_Group__c = :expenseGroupRecordId ';
+            bindValues.put('expenseGroupRecordId', expenseGroupRecordId);
         }
-        if (String.isNotBlank(categoryId) && categoryId != 'All') {
-            query += 'AND Category__c = :categoryId ';
+        if (categoryRecordId != null) {
+            query += 'AND Category__c = :categoryRecordId ';
+            bindValues.put('categoryRecordId', categoryRecordId);
         }
         if (startDate != null) {
             query += 'AND Expense_Date__c >= :startDate ';
+            bindValues.put('startDate', startDate);
         }
         if (endDate != null) {
             query += 'AND Expense_Date__c <= :endDate ';
+            bindValues.put('endDate', endDate);
         }
 
         query += 'ORDER BY Expense_Date__c DESC, Transaction_Time__c DESC NULLS LAST, CreatedDate DESC';
-        return Database.query(query);
+        return Database.queryWithBinds(query, bindValues, AccessLevel.USER_MODE);
     }
 
     @AuraEnabled(cacheable=true)
     public static RecurringExpenseOverview getRecurringExpenseOverview(String expenseGroupId) {
         RecurringExpenseOverview overview = new RecurringExpenseOverview();
         Date today = Date.today();
+        Id expenseGroupRecordId = getFilterId(expenseGroupId);
+        Map<String, Object> bindValues = new Map<String, Object>();
 
         String query =
             'SELECT Id, Name, Active__c, Amount__c, Bank__c, Category__c, Category__r.Name, ' +
@@ -165,13 +221,20 @@ public with sharing class SpendlyController {
             'Start_Date__c, Transaction_Type__c ' +
             'FROM Recurring_Expense__c WHERE Id != null ';
 
-        if (String.isNotBlank(expenseGroupId) && expenseGroupId != 'All') {
-            query += 'AND Category__r.Expense_Group__c = :expenseGroupId ';
+        if (expenseGroupRecordId != null) {
+            query += 'AND Category__r.Expense_Group__c = :expenseGroupRecordId ';
+            bindValues.put('expenseGroupRecordId', expenseGroupRecordId);
         }
 
         query += 'ORDER BY Active__c DESC, Next_Run_Date__c ASC NULLS LAST, Name ASC LIMIT 500';
 
-        for (Recurring_Expense__c recurringExpense : Database.query(query)) {
+        List<Recurring_Expense__c> recurringExpenses = Database.queryWithBinds(
+            query,
+            bindValues,
+            AccessLevel.USER_MODE
+        );
+
+        for (Recurring_Expense__c recurringExpense : recurringExpenses) {
             RecurringExpenseRow row = new RecurringExpenseRow();
             row.id = recurringExpense.Id;
             row.name = recurringExpense.Name;
@@ -179,7 +242,10 @@ public with sharing class SpendlyController {
             row.categoryName = recurringExpense.Category__r?.Name;
             row.expenseGroupName = recurringExpense.Category__r?.Expense_Group__r?.Name;
             row.amount = recurringExpense.Amount__c;
-            row.monthlyAmount = getMonthlyRecurringAmount(recurringExpense.Amount__c, recurringExpense.Frequency__c);
+            row.monthlyAmount = getMonthlyRecurringAmount(
+                recurringExpense.Amount__c,
+                recurringExpense.Frequency__c
+            );
             row.bank = recurringExpense.Bank__c;
             row.transactionType = recurringExpense.Transaction_Type__c;
             row.frequency = recurringExpense.Frequency__c;
@@ -187,7 +253,8 @@ public with sharing class SpendlyController {
             row.nextRunDate = recurringExpense.Next_Run_Date__c;
             row.endDate = recurringExpense.End_Date__c;
             row.active = recurringExpense.Active__c;
-            row.dueToday = recurringExpense.Active__c == true &&
+            row.dueToday =
+                recurringExpense.Active__c == true &&
                 recurringExpense.Next_Run_Date__c != null &&
                 recurringExpense.Next_Run_Date__c <= today;
 
@@ -216,6 +283,7 @@ public with sharing class SpendlyController {
                 SELECT Id, Active__c
                 FROM Recurring_Expense__c
                 WHERE Id = :recurringExpenseId
+                WITH USER_MODE
                 LIMIT 1
             ];
 
@@ -223,8 +291,16 @@ public with sharing class SpendlyController {
                 throw handledException('Recurring Expense not found or already deleted.');
             }
 
-            recurringExpenses[0].Active__c = false;
-            update recurringExpenses[0];
+            Recurring_Expense__c recurringExpenseUpdate = new Recurring_Expense__c(
+                Id = recurringExpenses[0].Id,
+                Active__c = false
+            );
+            List<Recurring_Expense__c> updates = (List<Recurring_Expense__c>) Security.stripInaccessible(
+                    AccessType.UPDATABLE,
+                    new List<Recurring_Expense__c>{ recurringExpenseUpdate }
+                )
+                .getRecords();
+            Database.update(updates, AccessLevel.USER_MODE);
         } catch (DmlException e) {
             throw handledException('Failed to deactivate recurring expense: ' + e.getMessage());
         }
@@ -236,8 +312,14 @@ public with sharing class SpendlyController {
             throw handledException('No expense IDs provided.');
         }
         try {
-            List<Expense__c> expenses = [SELECT Id FROM Expense__c WHERE Id IN :expenseIds];
-            delete expenses;
+            List<Expense__c> expenses = [
+                SELECT Id
+                FROM Expense__c
+                WHERE Id IN :expenseIds
+                WITH USER_MODE
+            ];
+            ensureExpensesCanBeDeleted();
+            Database.delete(expenses, AccessLevel.USER_MODE);
         } catch (DmlException e) {
             throw handledException('Failed to delete expenses: ' + e.getMessage());
         }
@@ -254,14 +336,31 @@ public with sharing class SpendlyController {
                 throw new DmlException('Forced test exception');
             }
 
-            List<Expense__c> expenses = [SELECT Id FROM Expense__c WHERE Id = :expenseId LIMIT 1];
+            List<Expense__c> expenses = [
+                SELECT Id
+                FROM Expense__c
+                WHERE Id = :expenseId
+                WITH USER_MODE
+                LIMIT 1
+            ];
             if (expenses.isEmpty()) {
                 throw handledException('Expense not found or already deleted.');
             }
 
-            delete expenses[0];
+            ensureExpensesCanBeDeleted();
+            Database.delete(expenses[0], AccessLevel.USER_MODE);
         } catch (DmlException e) {
             throw handledException('Failed to delete expense: ' + e.getMessage());
+        }
+    }
+
+    private static Id getFilterId(String recordId) {
+        return String.isBlank(recordId) || recordId == 'All' ? null : Id.valueOf(recordId);
+    }
+
+    private static void ensureExpensesCanBeDeleted() {
+        if (!Schema.sObjectType.Expense__c.isDeletable()) {
+            throw handledException('You do not have permission to delete expenses.');
         }
     }
 

@@ -5,11 +5,16 @@ public with sharing class SpendlyRecurringExpenseService {
     private static final Integer MAX_EXPENSES_PER_TRANSACTION = 9000;
 
     public class GenerationResult {
-        @AuraEnabled public Date runDate;
-        @AuraEnabled public Integer recurringExpensesProcessed;
-        @AuraEnabled public Integer expensesCreated;
-        @AuraEnabled public Integer recurringExpensesUpdated;
-        @AuraEnabled public Boolean hitGenerationLimit;
+        @AuraEnabled
+        public Date runDate;
+        @AuraEnabled
+        public Integer recurringExpensesProcessed;
+        @AuraEnabled
+        public Integer expensesCreated;
+        @AuraEnabled
+        public Integer recurringExpensesUpdated;
+        @AuraEnabled
+        public Boolean hitGenerationLimit;
 
         public GenerationResult(Date runDate) {
             this.runDate = runDate;
@@ -60,9 +65,8 @@ public with sharing class SpendlyRecurringExpenseService {
                 Start_Date__c,
                 Transaction_Type__c
             FROM Recurring_Expense__c
-            WHERE Active__c = true
-                AND Next_Run_Date__c != null
-                AND Next_Run_Date__c <= :runDate
+            WHERE Active__c = TRUE AND Next_Run_Date__c != NULL AND Next_Run_Date__c <= :runDate
+            WITH USER_MODE
             ORDER BY Next_Run_Date__c ASC, CreatedDate ASC
             LIMIT :MAX_EXPENSES_PER_RUN
         ];
@@ -99,13 +103,21 @@ public with sharing class SpendlyRecurringExpenseService {
             Boolean generatedForTemplate = false;
             Date dueDate = recurringExpense.Next_Run_Date__c;
 
-            while (SpendlyRecurringExpenseCalculator.shouldGenerateForDate(recurringExpense, dueDate, runDate)) {
+            while (
+                SpendlyRecurringExpenseCalculator.shouldGenerateForDate(
+                    recurringExpense,
+                    dueDate,
+                    runDate
+                )
+            ) {
                 if (expensesToInsert.size() >= maxExpenses) {
                     result.hitGenerationLimit = true;
                     break;
                 }
 
-                expensesToInsert.add(buildExpense(recurringExpense, dueDate, generatedTransactionTime));
+                expensesToInsert.add(
+                    buildExpense(recurringExpense, dueDate, generatedTransactionTime)
+                );
                 dueDate = SpendlyRecurringExpenseCalculator.getNextRunDate(
                     dueDate,
                     recurringExpense.Frequency__c,
@@ -125,12 +137,12 @@ public with sharing class SpendlyRecurringExpenseService {
         }
 
         if (!expensesToInsert.isEmpty()) {
-            insert expensesToInsert;
+            Database.insert(expensesToInsert, AccessLevel.USER_MODE);
             result.expensesCreated = expensesToInsert.size();
         }
 
         if (!recurringExpensesToUpdate.isEmpty()) {
-            update recurringExpensesToUpdate;
+            Database.update(recurringExpensesToUpdate, AccessLevel.USER_MODE);
             result.recurringExpensesProcessed = recurringExpensesToUpdate.size();
             result.recurringExpensesUpdated = recurringExpensesToUpdate.size();
         }
