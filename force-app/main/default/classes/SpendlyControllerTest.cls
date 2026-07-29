@@ -1,29 +1,18 @@
 @IsTest
 private class SpendlyControllerTest {
-
     // ----------------------------
     // Test Data Factory
     // ----------------------------
     @testSetup
     static void setupData() {
-
         Expense_Group__c eg1 = new Expense_Group__c(Name = 'Food');
         Expense_Group__c eg2 = new Expense_Group__c(Name = 'Transport');
         insert new List<Expense_Group__c>{ eg1, eg2 };
 
         // Categories
-        Category__c c1 = new Category__c(
-            Name = 'Groceries',
-            Expense_Group__c = eg1.Id
-        );
-        Category__c c2 = new Category__c(
-            Name = 'Dining',
-            Expense_Group__c = eg1.Id
-        );
-        Category__c c3 = new Category__c(
-            Name = 'Taxi',
-            Expense_Group__c = eg2.Id
-        );
+        Category__c c1 = new Category__c(Name = 'Groceries', Expense_Group__c = eg1.Id);
+        Category__c c2 = new Category__c(Name = 'Dining', Expense_Group__c = eg1.Id);
+        Category__c c3 = new Category__c(Name = 'Taxi', Expense_Group__c = eg2.Id);
         insert new List<Category__c>{ c1, c2, c3 };
 
         insert new List<Recurring_Expense__c>{
@@ -90,7 +79,7 @@ private class SpendlyControllerTest {
     }
 
     @IsTest
-    static void testGetCategories_ByExpenseGroup() {
+    static void testGetCategoriesByExpenseGroup() {
         Expense_Group__c food = [SELECT Id FROM Expense_Group__c WHERE Name = 'Food' LIMIT 1];
 
         Test.startTest();
@@ -102,10 +91,13 @@ private class SpendlyControllerTest {
 
     // getExpensesByFilters() - No filters
     @IsTest
-    static void testGetExpenses_NoFilters() {
+    static void testGetExpensesNoFilters() {
+        SpendlyController.ExpenseFilterRequest filters = new SpendlyController.ExpenseFilterRequest();
+        filters.expenseGroupId = 'All';
+        filters.categoryId = 'All';
 
         Test.startTest();
-        List<Expense__c> result = SpendlyController.getExpensesByFilters('All', 'All', null, null);
+        List<Expense__c> result = SpendlyController.getExpensesByFilters(filters);
         Test.stopTest();
 
         System.assertEquals(3, result.size(), 'Should return all expenses');
@@ -113,12 +105,14 @@ private class SpendlyControllerTest {
 
     // getExpensesByFilters() - Expense Group Filter
     @IsTest
-    static void testGetExpenses_ByExpenseGroup() {
-
+    static void testGetExpensesByExpenseGroup() {
         Expense_Group__c food = [SELECT Id FROM Expense_Group__c WHERE Name = 'Food' LIMIT 1];
+        SpendlyController.ExpenseFilterRequest filters = new SpendlyController.ExpenseFilterRequest();
+        filters.expenseGroupId = food.Id;
+        filters.categoryId = 'All';
 
         Test.startTest();
-        List<Expense__c> result = SpendlyController.getExpensesByFilters(food.Id, 'All', null, null);
+        List<Expense__c> result = SpendlyController.getExpensesByFilters(filters);
         Test.stopTest();
 
         System.assertEquals(2, result.size(), 'Food expense group should return 2 expenses');
@@ -126,22 +120,26 @@ private class SpendlyControllerTest {
 
     // getExpensesByFilters() - Category + Date Filter
     @IsTest
-    static void testGetExpenses_ByCategoryAndDate() {
-
+    static void testGetExpensesByCategoryAndDate() {
         Category__c groceries = [SELECT Id FROM Category__c WHERE Name = 'Groceries' LIMIT 1];
 
         Date startDate = Date.today().addDays(-10);
-        Date endDate   = Date.today().addDays(-1);
+        Date endDate = Date.today().addDays(-1);
+        SpendlyController.ExpenseFilterRequest filters = new SpendlyController.ExpenseFilterRequest();
+        filters.expenseGroupId = 'All';
+        filters.categoryId = groceries.Id;
+        filters.startDate = startDate;
+        filters.endDate = endDate;
 
         Test.startTest();
-        List<Expense__c> result = SpendlyController.getExpensesByFilters('All', groceries.Id, startDate, endDate);
+        List<Expense__c> result = SpendlyController.getExpensesByFilters(filters);
         Test.stopTest();
 
         System.assertEquals(1, result.size(), 'Should return only Groceries expense');
     }
 
     @IsTest
-    static void testGetExpenses_OrdersSameDayByTime() {
+    static void testGetExpensesOrdersSameDayByTime() {
         Category__c groceries = [SELECT Id FROM Category__c WHERE Name = 'Groceries' LIMIT 1];
         Date expenseDate = Date.today().addDays(1);
 
@@ -161,19 +159,31 @@ private class SpendlyControllerTest {
                 Amount__c = 200
             )
         };
+        SpendlyController.ExpenseFilterRequest filters = new SpendlyController.ExpenseFilterRequest();
+        filters.expenseGroupId = 'All';
+        filters.categoryId = groceries.Id;
+        filters.startDate = expenseDate;
+        filters.endDate = expenseDate;
 
         Test.startTest();
-        List<Expense__c> result = SpendlyController.getExpensesByFilters('All', groceries.Id, expenseDate, expenseDate);
+        List<Expense__c> result = SpendlyController.getExpensesByFilters(filters);
         Test.stopTest();
 
-        System.assertEquals('Evening Expense', result[0].Name, 'Later same-day expense should sort first');
-        System.assertEquals(Time.newInstance(18, 30, 0, 0), result[0].Transaction_Time__c);
+        System.assertEquals(
+            'Evening Expense',
+            result[0].Name,
+            'Later same-day expense should sort first'
+        );
+        System.assertEquals(
+            Time.newInstance(18, 30, 0, 0),
+            result[0].Transaction_Time__c,
+            'The later same-day expense should retain its transaction time.'
+        );
     }
 
     // deleteExpense() - Success
     @IsTest
-    static void testDeleteExpense_Success() {
-
+    static void testDeleteExpenseSuccess() {
         Expense__c exp = [SELECT Id FROM Expense__c LIMIT 1];
 
         Test.startTest();
@@ -187,8 +197,7 @@ private class SpendlyControllerTest {
 
     // deleteExpense() - Null Id
     @IsTest
-    static void testDeleteExpense_NullId() {
-
+    static void testDeleteExpenseNullId() {
         Boolean exceptionThrown = false;
 
         try {
@@ -199,12 +208,12 @@ private class SpendlyControllerTest {
             exceptionThrown = true;
         }
 
-        System.assertEquals(true, exceptionThrown,'Exception should have been thrown for null Id');
+        System.assertEquals(true, exceptionThrown, 'Exception should have been thrown for null Id');
     }
 
     // deleteExpenses() - Success
     @IsTest
-    static void testDeleteExpenses_Success() {
+    static void testDeleteExpensesSuccess() {
         List<Expense__c> expenses = [SELECT Id FROM Expense__c LIMIT 2];
         List<Id> ids = new List<Id>{ expenses[0].Id, expenses[1].Id };
 
@@ -218,7 +227,7 @@ private class SpendlyControllerTest {
 
     // deleteExpenses() - Empty list
     @IsTest
-    static void testDeleteExpenses_EmptyList() {
+    static void testDeleteExpensesEmptyList() {
         Boolean exceptionThrown = false;
         try {
             Test.startTest();
@@ -232,9 +241,13 @@ private class SpendlyControllerTest {
 
     // getMonthlyTrend() - All expense groups
     @IsTest
-    static void testGetMonthlyTrend_All() {
+    static void testGetMonthlyTrendAll() {
+        SpendlyController.ExpenseFilterRequest filters = new SpendlyController.ExpenseFilterRequest();
+        filters.expenseGroupId = 'All';
+        filters.categoryId = 'All';
+
         Test.startTest();
-        List<SpendlyController.MonthlyTotal> result = SpendlyController.getMonthlyTrend('All', 'All', null, null);
+        List<SpendlyController.MonthlyTotal> result = SpendlyController.getMonthlyTrend(filters);
         Test.stopTest();
 
         System.assert(result.size() > 0, 'Should return monthly trend data');
@@ -242,55 +255,82 @@ private class SpendlyControllerTest {
 
     // getMonthlyTrend() - Specific expense group
     @IsTest
-    static void testGetMonthlyTrend_ByExpenseGroup() {
+    static void testGetMonthlyTrendByExpenseGroup() {
         Expense_Group__c food = [SELECT Id FROM Expense_Group__c WHERE Name = 'Food' LIMIT 1];
+        SpendlyController.ExpenseFilterRequest filters = new SpendlyController.ExpenseFilterRequest();
+        filters.expenseGroupId = food.Id;
+        filters.categoryId = 'All';
 
         Test.startTest();
-        List<SpendlyController.MonthlyTotal> result = SpendlyController.getMonthlyTrend(food.Id, 'All', null, null);
+        List<SpendlyController.MonthlyTotal> result = SpendlyController.getMonthlyTrend(filters);
         Test.stopTest();
 
         System.assert(result != null, 'Should return trend data for expense group');
     }
 
     @IsTest
-    static void testGetMonthlyTrend_ByCategoryAndDateRange() {
+    static void testGetMonthlyTrendByCategoryAndDateRange() {
         Category__c groceries = [SELECT Id FROM Category__c WHERE Name = 'Groceries' LIMIT 1];
+        SpendlyController.ExpenseFilterRequest filters = new SpendlyController.ExpenseFilterRequest();
+        filters.expenseGroupId = 'All';
+        filters.categoryId = groceries.Id;
+        filters.startDate = Date.today().addDays(-10);
+        filters.endDate = Date.today().addDays(-1);
 
         Test.startTest();
-        List<SpendlyController.MonthlyTotal> result = SpendlyController.getMonthlyTrend(
-            'All',
-            groceries.Id,
-            Date.today().addDays(-10),
-            Date.today().addDays(-1)
-        );
+        List<SpendlyController.MonthlyTotal> result = SpendlyController.getMonthlyTrend(filters);
         Test.stopTest();
 
-        System.assertEquals(1, result.size(), 'Should return one monthly bucket for the filtered category');
-        System.assertEquals(100, result[0].total, 'Trend total should match the filtered expense amount');
+        System.assertEquals(
+            1,
+            result.size(),
+            'Should return one monthly bucket for the filtered category'
+        );
+        System.assertEquals(
+            100,
+            result[0].total,
+            'Trend total should match the filtered expense amount'
+        );
     }
 
     @IsTest
-    static void testGetRecurringExpenseOverview_All() {
+    static void testGetRecurringExpenseOverviewAll() {
         Test.startTest();
-        SpendlyController.RecurringExpenseOverview result = SpendlyController.getRecurringExpenseOverview('All');
+        SpendlyController.RecurringExpenseOverview result = SpendlyController.getRecurringExpenseOverview(
+            'All'
+        );
         Test.stopTest();
 
         System.assertEquals(3, result.rows.size(), 'Should return all recurring expense templates');
         System.assertEquals(2, result.activeCount, 'Should count active templates only');
         System.assertEquals(1, result.dueTodayCount, 'Should count active templates due today');
-        System.assertEquals(200, result.monthlyTotal, 'Monthly estimate should normalize monthly and yearly templates');
+        System.assertEquals(
+            200,
+            result.monthlyTotal,
+            'Monthly estimate should normalize monthly and yearly templates'
+        );
     }
 
     @IsTest
-    static void testGetRecurringExpenseOverview_ByExpenseGroup() {
+    static void testGetRecurringExpenseOverviewByExpenseGroup() {
         Expense_Group__c food = [SELECT Id FROM Expense_Group__c WHERE Name = 'Food' LIMIT 1];
 
         Test.startTest();
-        SpendlyController.RecurringExpenseOverview result = SpendlyController.getRecurringExpenseOverview(food.Id);
+        SpendlyController.RecurringExpenseOverview result = SpendlyController.getRecurringExpenseOverview(
+            food.Id
+        );
         Test.stopTest();
 
-        System.assertEquals(2, result.rows.size(), 'Food group should return only related recurring templates');
-        System.assertEquals(2, result.activeCount, 'Food group active count should match related templates');
+        System.assertEquals(
+            2,
+            result.rows.size(),
+            'Food group should return only related recurring templates'
+        );
+        System.assertEquals(
+            2,
+            result.activeCount,
+            'Food group active count should match related templates'
+        );
     }
 
     @IsTest
@@ -306,12 +346,20 @@ private class SpendlyControllerTest {
         SpendlyController.deactivateRecurringExpense(recurringExpense.Id);
         Test.stopTest();
 
-        recurringExpense = [SELECT Active__c FROM Recurring_Expense__c WHERE Id = :recurringExpense.Id];
-        System.assertEquals(false, recurringExpense.Active__c, 'Recurring template should be inactive');
+        recurringExpense = [
+            SELECT Active__c
+            FROM Recurring_Expense__c
+            WHERE Id = :recurringExpense.Id
+        ];
+        System.assertEquals(
+            false,
+            recurringExpense.Active__c,
+            'Recurring template should be inactive'
+        );
     }
 
     @IsTest
-    static void testDeactivateRecurringExpense_NullId() {
+    static void testDeactivateRecurringExpenseNullId() {
         Boolean exceptionThrown = false;
 
         try {
@@ -322,12 +370,15 @@ private class SpendlyControllerTest {
             exceptionThrown = true;
         }
 
-        System.assertEquals(true, exceptionThrown, 'Null recurring expense Id should throw an exception');
+        System.assertEquals(
+            true,
+            exceptionThrown,
+            'Null recurring expense Id should throw an exception'
+        );
     }
 
     @IsTest
-    static void testDeleteExpense_ForcedDmlFailure() {
-
+    static void testDeleteExpenseForcedDmlFailure() {
         Boolean exceptionThrown = false;
 
         try {
@@ -343,7 +394,7 @@ private class SpendlyControllerTest {
     }
 
     @IsTest
-    static void testDeleteExpense_MissingRecord() {
+    static void testDeleteExpenseMissingRecord() {
         Expense__c exp = [SELECT Id FROM Expense__c LIMIT 1];
         delete exp;
 
@@ -354,10 +405,16 @@ private class SpendlyControllerTest {
             Test.stopTest();
         } catch (AuraHandledException e) {
             exceptionThrown = true;
-            System.assert(e.getMessage().contains('already deleted'), 'Should surface a friendly missing-record message');
+            System.assert(
+                e.getMessage().contains('already deleted'),
+                'Should surface a friendly missing-record message'
+            );
         }
 
-        System.assertEquals(true, exceptionThrown, 'Missing records should throw a handled exception');
+        System.assertEquals(
+            true,
+            exceptionThrown,
+            'Missing records should throw a handled exception'
+        );
     }
-
 }

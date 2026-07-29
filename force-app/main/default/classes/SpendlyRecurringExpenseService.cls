@@ -89,83 +89,11 @@ public with sharing class SpendlyRecurringExpenseService {
         if (runDate == null) {
             throw new AuraHandledException('Run date is required.');
         }
-
-        GenerationResult result = new GenerationResult(runDate);
-        if (dueRecurringExpenses == null || dueRecurringExpenses.isEmpty()) {
-            return result;
-        }
-
-        List<Expense__c> expensesToInsert = new List<Expense__c>();
-        List<Recurring_Expense__c> recurringExpensesToUpdate = new List<Recurring_Expense__c>();
-        Time generatedTransactionTime = getCurrentUserTime();
-
-        for (Recurring_Expense__c recurringExpense : dueRecurringExpenses) {
-            Boolean generatedForTemplate = false;
-            Date dueDate = recurringExpense.Next_Run_Date__c;
-
-            while (
-                SpendlyRecurringExpenseCalculator.shouldGenerateForDate(
-                    recurringExpense,
-                    dueDate,
-                    runDate
-                )
-            ) {
-                if (expensesToInsert.size() >= maxExpenses) {
-                    result.hitGenerationLimit = true;
-                    break;
-                }
-
-                expensesToInsert.add(
-                    buildExpense(recurringExpense, dueDate, generatedTransactionTime)
-                );
-                dueDate = SpendlyRecurringExpenseCalculator.getNextRunDate(
-                    dueDate,
-                    recurringExpense.Frequency__c,
-                    recurringExpense.Start_Date__c
-                );
-                recurringExpense.Next_Run_Date__c = dueDate;
-                generatedForTemplate = true;
-            }
-
-            if (generatedForTemplate) {
-                recurringExpensesToUpdate.add(recurringExpense);
-            }
-
-            if (result.hitGenerationLimit) {
-                break;
-            }
-        }
-
-        if (!expensesToInsert.isEmpty()) {
-            Database.insert(expensesToInsert, AccessLevel.USER_MODE);
-            result.expensesCreated = expensesToInsert.size();
-        }
-
-        if (!recurringExpensesToUpdate.isEmpty()) {
-            Database.update(recurringExpensesToUpdate, AccessLevel.USER_MODE);
-            result.recurringExpensesProcessed = recurringExpensesToUpdate.size();
-            result.recurringExpensesUpdated = recurringExpensesToUpdate.size();
-        }
-
-        return result;
-    }
-
-    private static Expense__c buildExpense(
-        Recurring_Expense__c recurringExpense,
-        Date dueDate,
-        Time generatedTransactionTime
-    ) {
-        return new Expense__c(
-            Name = recurringExpense.Name,
-            Amount__c = recurringExpense.Amount__c,
-            Bank__c = recurringExpense.Bank__c,
-            Category__c = recurringExpense.Category__c,
-            Description__c = recurringExpense.Description__c,
-            Expense_Date__c = dueDate,
-            Recurring_Expense__c = recurringExpense.Id,
-            Transaction_Time__c = generatedTransactionTime,
-            Transaction_Type__c = recurringExpense.Transaction_Type__c
-        );
+        SpendlyRecurringExpenseGenerator.GenerationOptions options = new SpendlyRecurringExpenseGenerator.GenerationOptions();
+        options.runDate = runDate;
+        options.maxExpenses = maxExpenses;
+        options.generatedTransactionTime = getCurrentUserTime();
+        return SpendlyRecurringExpenseGenerator.generate(dueRecurringExpenses, options);
     }
 
     private static Time getCurrentUserTime() {

@@ -1,49 +1,130 @@
 @IsTest
 private class SpendlySettingsServiceTest {
+    private static final String RECURRING_SCHEDULE_NAME = 'Spendly Recurring Expense Daily';
+
     @IsTest
     static void testGetSettingsCreatesDefaultRecord() {
+        CronTrigger expectedSchedule = getRecurringSchedule();
+
         Test.startTest();
         SpendlySettingsService.SettingsState settings = SpendlySettingsService.getSettings();
         Test.stopTest();
 
-        System.assertNotEquals(null, settings.settingsId);
-        System.assertEquals(true, settings.recurringExpensesEnabled);
-        System.assertEquals('08:00', settings.globalRecurringRunTime);
-        System.assertEquals(false, settings.recurringScheduleActive);
-        System.assertEquals('Not scheduled', settings.recurringScheduleState);
-        System.assertEquals(null, settings.recurringScheduleNextRunDateTime);
-        System.assertNotEquals(null, settings.recurringScheduleTimeZone);
-        System.assertEquals(1, [SELECT COUNT() FROM Spendly_Settings__c]);
+        System.assertNotEquals(
+            null,
+            settings.settingsId,
+            'Getting settings should create the default settings record.'
+        );
+        System.assertEquals(
+            true,
+            settings.recurringExpensesEnabled,
+            'Recurring expenses should be enabled by default.'
+        );
+        System.assertEquals(
+            '08:00',
+            settings.globalRecurringRunTime,
+            'The default recurring run time should be 08:00.'
+        );
+        System.assertEquals(
+            expectedSchedule != null && expectedSchedule.NextFireTime != null,
+            settings.recurringScheduleActive,
+            'Schedule activity should reflect the currently visible recurring job.'
+        );
+        System.assertEquals(
+            expectedSchedule == null ? 'Not scheduled' : expectedSchedule.State,
+            settings.recurringScheduleState,
+            'Schedule state should reflect the currently visible recurring job.'
+        );
+        System.assertEquals(
+            expectedSchedule?.NextFireTime,
+            settings.recurringScheduleNextRunDateTime,
+            'Next run time should reflect the currently visible recurring job.'
+        );
+        System.assertEquals(
+            expectedSchedule == null
+                ? UserInfo.getTimeZone().getID()
+                : expectedSchedule.TimeZoneSidKey,
+            settings.recurringScheduleTimeZone,
+            'Schedule timezone should reflect the job or current user timezone.'
+        );
+        System.assertEquals(
+            1,
+            [SELECT COUNT() FROM Spendly_Settings__c],
+            'Only the default settings record should exist.'
+        );
     }
 
     @IsTest
     static void testSaveSettingsUpdatesExistingRecord() {
         SpendlySettingsService.getSettings();
+        SpendlySettingsService.SettingsUpdateRequest request = new SpendlySettingsService.SettingsUpdateRequest();
+        request.recurringExpensesEnabled = 'false';
+        request.globalRecurringRunTime = '08:00';
 
         Test.startTest();
-        SpendlySettingsService.SettingsState settings = SpendlySettingsService.saveSettings(false);
+        SpendlySettingsService.SettingsState settings = SpendlySettingsService.saveSettings(
+            request
+        );
         Test.stopTest();
 
-        System.assertEquals(false, settings.recurringExpensesEnabled);
-        System.assertEquals(false, SpendlySettingsService.areRecurringExpensesEnabled());
-        System.assertEquals(1, [SELECT COUNT() FROM Spendly_Settings__c]);
+        System.assertEquals(
+            false,
+            settings.recurringExpensesEnabled,
+            'Saving disabled settings should return a disabled state.'
+        );
+        System.assertEquals(
+            false,
+            SpendlySettingsService.areRecurringExpensesEnabled(),
+            'The persisted setting should disable recurring expenses.'
+        );
+        System.assertEquals(
+            1,
+            [SELECT COUNT() FROM Spendly_Settings__c],
+            'Saving settings should update the singleton record.'
+        );
     }
 
     @IsTest
     static void testSaveSettingsUpdatesGlobalRunTimeAndSchedule() {
         SpendlySettingsService.getSettings();
+        SpendlySettingsService.SettingsUpdateRequest request = new SpendlySettingsService.SettingsUpdateRequest();
+        request.recurringExpensesEnabled = 'true';
+        request.globalRecurringRunTime = '10:30';
 
         SpendlySettingsService.SettingsState settings = SpendlySettingsService.saveSettings(
-            true,
-            '10:30'
+            request
         );
 
-        System.assertEquals('10:30', settings.globalRecurringRunTime);
-        System.assertEquals(true, settings.recurringScheduleActive);
-        System.assertEquals('WAITING', settings.recurringScheduleState);
-        System.assertNotEquals(null, settings.recurringScheduleNextRunDateTime);
-        System.assertNotEquals(null, settings.recurringScheduleTimeZone);
-        System.assertEquals('0 30 10 * * ?', settings.recurringScheduleCronExpression);
+        System.assertEquals(
+            '10:30',
+            settings.globalRecurringRunTime,
+            'Saving settings should return the requested run time.'
+        );
+        System.assertEquals(
+            true,
+            settings.recurringScheduleActive,
+            'Changing the run time should create an active schedule.'
+        );
+        System.assertEquals(
+            'WAITING',
+            settings.recurringScheduleState,
+            'The new recurring schedule should be waiting.'
+        );
+        System.assertNotEquals(
+            null,
+            settings.recurringScheduleNextRunDateTime,
+            'The new recurring schedule should have a next run time.'
+        );
+        System.assertNotEquals(
+            null,
+            settings.recurringScheduleTimeZone,
+            'The new recurring schedule should have a timezone.'
+        );
+        System.assertEquals(
+            '0 30 10 * * ?',
+            settings.recurringScheduleCronExpression,
+            'The returned cron expression should represent 10:30 daily.'
+        );
 
         Spendly_Settings__c settingsRecord = [
             SELECT Global_Recurring_Run_Time__c
@@ -52,7 +133,8 @@ private class SpendlySettingsServiceTest {
         ];
         System.assertEquals(
             Time.newInstance(10, 30, 0, 0),
-            settingsRecord.Global_Recurring_Run_Time__c
+            settingsRecord.Global_Recurring_Run_Time__c,
+            'The settings record should persist the requested run time.'
         );
 
         CronTrigger scheduledJob = [
@@ -61,7 +143,11 @@ private class SpendlySettingsServiceTest {
             WHERE CronJobDetail.Name = 'Spendly Recurring Expense Daily'
             LIMIT 1
         ];
-        System.assertEquals('0 30 10 * * ?', scheduledJob.CronExpression);
+        System.assertEquals(
+            '0 30 10 * * ?',
+            scheduledJob.CronExpression,
+            'The scheduled job should use the requested daily run time.'
+        );
     }
 
     @IsTest
@@ -122,12 +208,21 @@ private class SpendlySettingsServiceTest {
             LIMIT 1
         ];
 
-        System.assertNotEquals(null, settings.Last_Recurring_Run_DateTime__c);
-        System.assertEquals('Completed', settings.Last_Recurring_Run_Status__c);
+        System.assertNotEquals(
+            null,
+            settings.Last_Recurring_Run_DateTime__c,
+            'Completing a run should record its completion time.'
+        );
+        System.assertEquals(
+            'Completed',
+            settings.Last_Recurring_Run_Status__c,
+            'Completing a run should record a completed status.'
+        );
         System.assert(
             settings.Last_Recurring_Run_Message__c.contains(
                 'Created 3 expenses from 2 recurring templates.'
-            )
+            ),
+            'Completing a run should record the generated expense and template counts.'
         );
     }
 
@@ -145,7 +240,20 @@ private class SpendlySettingsServiceTest {
 
         System.assertEquals(
             'No recurring expenses were due.',
-            settings.Last_Recurring_Run_Message__c
+            settings.Last_Recurring_Run_Message__c,
+            'A run with no due templates should record an explanatory message.'
         );
+    }
+
+    private static CronTrigger getRecurringSchedule() {
+        List<CronTrigger> recurringSchedules = [
+            SELECT CronExpression, NextFireTime, State, TimeZoneSidKey
+            FROM CronTrigger
+            WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME AND State != 'DELETED'
+            ORDER BY NextFireTime ASC
+            LIMIT 1
+        ];
+
+        return recurringSchedules.isEmpty() ? null : recurringSchedules[0];
     }
 }

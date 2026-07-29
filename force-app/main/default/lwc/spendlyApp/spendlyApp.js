@@ -129,7 +129,9 @@ function getMonthBounds(date) {
 }
 
 function parseDateString(value) {
-    if (!value) return null;
+    if (!value) {
+        return null;
+    }
     const [year, month, day] = value.split('-').map(Number);
     return new Date(year, month - 1, day);
 }
@@ -349,10 +351,12 @@ export default class SpendlyApp extends LightningElement {
 
         try {
             const data = await getExpensesByFilters({
-                expenseGroupId: this.expenseGroupId,
-                categoryId: this.categoryId,
-                startDate: this.startDate,
-                endDate: this.endDate
+                filters: {
+                    expenseGroupId: this.expenseGroupId,
+                    categoryId: this.categoryId,
+                    startDate: this.startDate,
+                    endDate: this.endDate
+                }
             });
 
             if (requestId !== this._latestLoadRequestId) {
@@ -392,16 +396,20 @@ export default class SpendlyApp extends LightningElement {
 
             const [data, trendData] = await Promise.all([
                 getExpensesByFilters({
-                    expenseGroupId: this.expenseGroupId,
-                    categoryId: 'All',
-                    startDate: this.dashboardStartDate,
-                    endDate: this.dashboardEndDate
+                    filters: {
+                        expenseGroupId: this.expenseGroupId,
+                        categoryId: 'All',
+                        startDate: this.dashboardStartDate,
+                        endDate: this.dashboardEndDate
+                    }
                 }),
                 getMonthlyTrend({
-                    expenseGroupId: this.expenseGroupId,
-                    categoryId: 'All',
-                    startDate: formatDateISO(trendStartDate),
-                    endDate: this.dashboardEndDate
+                    filters: {
+                        expenseGroupId: this.expenseGroupId,
+                        categoryId: 'All',
+                        startDate: formatDateISO(trendStartDate),
+                        endDate: this.dashboardEndDate
+                    }
                 })
             ]);
 

@@ -13,7 +13,7 @@ private class SpendlyRecurringExpenseServiceTest {
     }
 
     @IsTest
-    static void testGenerateDueExpenses_CatchesUpMonthlyExpenses() {
+    static void testGenerateDueExpensesCatchesUpMonthlyExpenses() {
         Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
         Date firstDueDate = Date.newInstance(2026, 3, 1);
         Date runDate = Date.newInstance(2026, 5, 16);
@@ -33,13 +33,26 @@ private class SpendlyRecurringExpenseServiceTest {
         insert recurringExpense;
 
         Test.startTest();
-        SpendlyRecurringExpenseService.GenerationResult result =
-            SpendlyRecurringExpenseService.generateDueExpenses(runDate);
+        SpendlyRecurringExpenseService.GenerationResult result = SpendlyRecurringExpenseService.generateDueExpenses(
+            runDate
+        );
         Test.stopTest();
 
-        System.assertEquals(1, result.recurringExpensesProcessed, 'One recurring expense should be processed');
-        System.assertEquals(3, result.expensesCreated, 'March, April, and May expenses should be created');
-        System.assertEquals(false, result.hitGenerationLimit, 'The generation cap should not be hit');
+        System.assertEquals(
+            1,
+            result.recurringExpensesProcessed,
+            'One recurring expense should be processed'
+        );
+        System.assertEquals(
+            3,
+            result.expensesCreated,
+            'March, April, and May expenses should be created'
+        );
+        System.assertEquals(
+            false,
+            result.hitGenerationLimit,
+            'The generation cap should not be hit'
+        );
 
         List<Expense__c> generatedExpenses = [
             SELECT
@@ -57,26 +70,66 @@ private class SpendlyRecurringExpenseServiceTest {
             ORDER BY Expense_Date__c ASC
         ];
 
-        System.assertEquals(3, generatedExpenses.size(), 'Three generated expenses should be linked to the template');
-        System.assertEquals(Date.newInstance(2026, 3, 1), generatedExpenses[0].Expense_Date__c);
-        System.assertEquals(Date.newInstance(2026, 4, 1), generatedExpenses[1].Expense_Date__c);
-        System.assertEquals(Date.newInstance(2026, 5, 1), generatedExpenses[2].Expense_Date__c);
-        System.assertEquals('Gym', generatedExpenses[0].Name);
-        System.assertEquals(1500, generatedExpenses[0].Amount__c);
-        System.assertEquals('BPI', generatedExpenses[0].Bank__c);
-        System.assertNotEquals(null, generatedExpenses[0].Transaction_Time__c);
-        System.assertEquals('Debit Card', generatedExpenses[0].Transaction_Type__c);
+        System.assertEquals(
+            3,
+            generatedExpenses.size(),
+            'Three generated expenses should be linked to the template'
+        );
+        System.assertEquals(
+            Date.newInstance(2026, 3, 1),
+            generatedExpenses[0].Expense_Date__c,
+            'The first generated expense should use the March due date.'
+        );
+        System.assertEquals(
+            Date.newInstance(2026, 4, 1),
+            generatedExpenses[1].Expense_Date__c,
+            'The second generated expense should use the April due date.'
+        );
+        System.assertEquals(
+            Date.newInstance(2026, 5, 1),
+            generatedExpenses[2].Expense_Date__c,
+            'The third generated expense should use the May due date.'
+        );
+        System.assertEquals(
+            'Gym',
+            generatedExpenses[0].Name,
+            'Generated expenses should copy the recurring template name.'
+        );
+        System.assertEquals(
+            1500,
+            generatedExpenses[0].Amount__c,
+            'Generated expenses should copy the recurring amount.'
+        );
+        System.assertEquals(
+            'BPI',
+            generatedExpenses[0].Bank__c,
+            'Generated expenses should copy the recurring bank.'
+        );
+        System.assertNotEquals(
+            null,
+            generatedExpenses[0].Transaction_Time__c,
+            'Generated expenses should record the generation time.'
+        );
+        System.assertEquals(
+            'Debit Card',
+            generatedExpenses[0].Transaction_Type__c,
+            'Generated expenses should copy the transaction type.'
+        );
 
         Recurring_Expense__c updatedRecurringExpense = [
             SELECT Next_Run_Date__c
             FROM Recurring_Expense__c
             WHERE Id = :recurringExpense.Id
         ];
-        System.assertEquals(Date.newInstance(2026, 6, 1), updatedRecurringExpense.Next_Run_Date__c);
+        System.assertEquals(
+            Date.newInstance(2026, 6, 1),
+            updatedRecurringExpense.Next_Run_Date__c,
+            'Catch-up generation should advance the template to June.'
+        );
     }
 
     @IsTest
-    static void testGenerateDueExpenses_RespectsEndDate() {
+    static void testGenerateDueExpensesRespectsEndDate() {
         Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
         Date firstDueDate = Date.newInstance(2026, 1, 1);
 
@@ -93,22 +146,31 @@ private class SpendlyRecurringExpenseServiceTest {
         insert recurringExpense;
 
         Test.startTest();
-        SpendlyRecurringExpenseService.GenerationResult result =
-            SpendlyRecurringExpenseService.generateDueExpenses(Date.newInstance(2026, 3, 1));
+        SpendlyRecurringExpenseService.GenerationResult result = SpendlyRecurringExpenseService.generateDueExpenses(
+            Date.newInstance(2026, 3, 1)
+        );
         Test.stopTest();
 
-        System.assertEquals(1, result.expensesCreated, 'Only the January occurrence is within the end date');
+        System.assertEquals(
+            1,
+            result.expensesCreated,
+            'Only the January occurrence is within the end date'
+        );
 
         Recurring_Expense__c updatedRecurringExpense = [
             SELECT Next_Run_Date__c
             FROM Recurring_Expense__c
             WHERE Id = :recurringExpense.Id
         ];
-        System.assertEquals(Date.newInstance(2026, 2, 1), updatedRecurringExpense.Next_Run_Date__c);
+        System.assertEquals(
+            Date.newInstance(2026, 2, 1),
+            updatedRecurringExpense.Next_Run_Date__c,
+            'Generation should stop at the first occurrence after the end date.'
+        );
     }
 
     @IsTest
-    static void testGenerateDueExpenses_MonthlyUsesStartDateAnchorDay() {
+    static void testGenerateDueExpensesMonthlyUsesStartDateAnchorDay() {
         Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
         Date firstDueDate = Date.newInstance(2026, 1, 30);
 
@@ -124,11 +186,16 @@ private class SpendlyRecurringExpenseServiceTest {
         insert recurringExpense;
 
         Test.startTest();
-        SpendlyRecurringExpenseService.GenerationResult result =
-            SpendlyRecurringExpenseService.generateDueExpenses(Date.newInstance(2026, 3, 30));
+        SpendlyRecurringExpenseService.GenerationResult result = SpendlyRecurringExpenseService.generateDueExpenses(
+            Date.newInstance(2026, 3, 30)
+        );
         Test.stopTest();
 
-        System.assertEquals(3, result.expensesCreated, 'January, February, and March should be generated');
+        System.assertEquals(
+            3,
+            result.expensesCreated,
+            'January, February, and March should be generated'
+        );
 
         List<Expense__c> generatedExpenses = [
             SELECT Expense_Date__c
@@ -137,20 +204,36 @@ private class SpendlyRecurringExpenseServiceTest {
             ORDER BY Expense_Date__c ASC
         ];
 
-        System.assertEquals(Date.newInstance(2026, 1, 30), generatedExpenses[0].Expense_Date__c);
-        System.assertEquals(Date.newInstance(2026, 2, 28), generatedExpenses[1].Expense_Date__c);
-        System.assertEquals(Date.newInstance(2026, 3, 30), generatedExpenses[2].Expense_Date__c);
+        System.assertEquals(
+            Date.newInstance(2026, 1, 30),
+            generatedExpenses[0].Expense_Date__c,
+            'The first anchored occurrence should use January 30.'
+        );
+        System.assertEquals(
+            Date.newInstance(2026, 2, 28),
+            generatedExpenses[1].Expense_Date__c,
+            'February should use its final day when day 30 is unavailable.'
+        );
+        System.assertEquals(
+            Date.newInstance(2026, 3, 30),
+            generatedExpenses[2].Expense_Date__c,
+            'The monthly recurrence should return to day 30 in March.'
+        );
 
         Recurring_Expense__c updatedRecurringExpense = [
             SELECT Next_Run_Date__c
             FROM Recurring_Expense__c
             WHERE Id = :recurringExpense.Id
         ];
-        System.assertEquals(Date.newInstance(2026, 4, 30), updatedRecurringExpense.Next_Run_Date__c);
+        System.assertEquals(
+            Date.newInstance(2026, 4, 30),
+            updatedRecurringExpense.Next_Run_Date__c,
+            'The anchored template should advance to April 30.'
+        );
     }
 
     @IsTest
-    static void testGenerateDueExpenses_ContinuesFromNextRunDate() {
+    static void testGenerateDueExpensesContinuesFromNextRunDate() {
         Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
 
         Recurring_Expense__c recurringExpense = new Recurring_Expense__c(
@@ -165,11 +248,16 @@ private class SpendlyRecurringExpenseServiceTest {
         insert recurringExpense;
 
         Test.startTest();
-        SpendlyRecurringExpenseService.GenerationResult result =
-            SpendlyRecurringExpenseService.generateDueExpenses(Date.newInstance(2026, 7, 16));
+        SpendlyRecurringExpenseService.GenerationResult result = SpendlyRecurringExpenseService.generateDueExpenses(
+            Date.newInstance(2026, 7, 16)
+        );
         Test.stopTest();
 
-        System.assertEquals(2, result.expensesCreated, 'June and July should be generated after the last generated date');
+        System.assertEquals(
+            2,
+            result.expensesCreated,
+            'June and July should be generated after the last generated date'
+        );
 
         List<Expense__c> generatedExpenses = [
             SELECT Expense_Date__c
@@ -177,19 +265,31 @@ private class SpendlyRecurringExpenseServiceTest {
             WHERE Recurring_Expense__c = :recurringExpense.Id
             ORDER BY Expense_Date__c ASC
         ];
-        System.assertEquals(Date.newInstance(2026, 6, 1), generatedExpenses[0].Expense_Date__c);
-        System.assertEquals(Date.newInstance(2026, 7, 1), generatedExpenses[1].Expense_Date__c);
+        System.assertEquals(
+            Date.newInstance(2026, 6, 1),
+            generatedExpenses[0].Expense_Date__c,
+            'Generation should continue from the stored June pointer.'
+        );
+        System.assertEquals(
+            Date.newInstance(2026, 7, 1),
+            generatedExpenses[1].Expense_Date__c,
+            'Generation should include the next July occurrence.'
+        );
 
         Recurring_Expense__c updatedRecurringExpense = [
             SELECT Next_Run_Date__c
             FROM Recurring_Expense__c
             WHERE Id = :recurringExpense.Id
         ];
-        System.assertEquals(Date.newInstance(2026, 8, 1), updatedRecurringExpense.Next_Run_Date__c);
+        System.assertEquals(
+            Date.newInstance(2026, 8, 1),
+            updatedRecurringExpense.Next_Run_Date__c,
+            'Generation should advance the stored pointer to August.'
+        );
     }
 
     @IsTest
-    static void testGenerateDueExpenses_IgnoresInactiveAndFutureRecords() {
+    static void testGenerateDueExpensesIgnoresInactiveAndFutureRecords() {
         Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
         Date runDate = Date.newInstance(2026, 5, 16);
 
@@ -215,12 +315,17 @@ private class SpendlyRecurringExpenseServiceTest {
         };
 
         Test.startTest();
-        SpendlyRecurringExpenseService.GenerationResult result =
-            SpendlyRecurringExpenseService.generateDueExpenses(runDate);
+        SpendlyRecurringExpenseService.GenerationResult result = SpendlyRecurringExpenseService.generateDueExpenses(
+            runDate
+        );
         Test.stopTest();
 
         System.assertEquals(0, result.expensesCreated, 'No expenses should be generated');
-        System.assertEquals(0, [SELECT COUNT() FROM Expense__c], 'No expense records should be inserted');
+        System.assertEquals(
+            0,
+            [SELECT COUNT() FROM Expense__c],
+            'No expense records should be inserted'
+        );
     }
 
     @IsTest
@@ -258,7 +363,10 @@ private class SpendlyRecurringExpenseServiceTest {
 
     @IsTest
     static void testRunDueExpensesBatchRespectsDisabledSetting() {
-        SpendlySettingsService.saveSettings(false);
+        SpendlySettingsService.SettingsUpdateRequest settingsRequest = new SpendlySettingsService.SettingsUpdateRequest();
+        settingsRequest.recurringExpensesEnabled = 'false';
+        settingsRequest.globalRecurringRunTime = '08:00';
+        SpendlySettingsService.saveSettings(settingsRequest);
 
         Boolean exceptionThrown = false;
         try {
@@ -269,11 +377,15 @@ private class SpendlyRecurringExpenseServiceTest {
             exceptionThrown = true;
         }
 
-        System.assertEquals(true, exceptionThrown, 'Manual generation should be blocked when disabled');
+        System.assertEquals(
+            true,
+            exceptionThrown,
+            'Manual generation should be blocked when disabled'
+        );
     }
 
     @IsTest
-    static void testGenerateDueExpenses_RequiresRunDate() {
+    static void testGenerateDueExpensesRequiresRunDate() {
         Boolean exceptionThrown = false;
 
         try {
@@ -284,6 +396,10 @@ private class SpendlyRecurringExpenseServiceTest {
             exceptionThrown = true;
         }
 
-        System.assertEquals(true, exceptionThrown, 'A null run date should throw a handled exception');
+        System.assertEquals(
+            true,
+            exceptionThrown,
+            'A null run date should throw a handled exception'
+        );
     }
 }

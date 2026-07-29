@@ -6,11 +6,13 @@ private class SpendlyRecurringExpenseCalculatorTest {
 
         System.assertEquals(
             Date.newInstance(2026, 5, 18),
-            SpendlyRecurringExpenseCalculator.getNextRunDate(dueDate, 'Daily', dueDate)
+            SpendlyRecurringExpenseCalculator.getNextRunDate(dueDate, 'Daily', dueDate),
+            'Daily recurrence should advance by one day.'
         );
         System.assertEquals(
             Date.newInstance(2026, 5, 24),
-            SpendlyRecurringExpenseCalculator.getNextRunDate(dueDate, 'Weekly', dueDate)
+            SpendlyRecurringExpenseCalculator.getNextRunDate(dueDate, 'Weekly', dueDate),
+            'Weekly recurrence should advance by seven days.'
         );
     }
 
@@ -20,7 +22,8 @@ private class SpendlyRecurringExpenseCalculatorTest {
 
         System.assertEquals(
             Date.newInstance(2026, 2, 28),
-            SpendlyRecurringExpenseCalculator.getNextRunDate(anchorDate, 'Monthly', anchorDate)
+            SpendlyRecurringExpenseCalculator.getNextRunDate(anchorDate, 'Monthly', anchorDate),
+            'Monthly recurrence should use the final day when the anchor day is unavailable.'
         );
         System.assertEquals(
             Date.newInstance(2026, 3, 30),
@@ -28,7 +31,8 @@ private class SpendlyRecurringExpenseCalculatorTest {
                 Date.newInstance(2026, 2, 28),
                 'Monthly',
                 anchorDate
-            )
+            ),
+            'Monthly recurrence should return to the original anchor day when available.'
         );
     }
 
@@ -38,7 +42,8 @@ private class SpendlyRecurringExpenseCalculatorTest {
 
         System.assertEquals(
             Date.newInstance(2025, 2, 28),
-            SpendlyRecurringExpenseCalculator.getNextRunDate(anchorDate, 'Yearly', anchorDate)
+            SpendlyRecurringExpenseCalculator.getNextRunDate(anchorDate, 'Yearly', anchorDate),
+            'Yearly recurrence should use February 28 after a leap-day anchor.'
         );
         System.assertEquals(
             Date.newInstance(2028, 2, 29),
@@ -46,7 +51,8 @@ private class SpendlyRecurringExpenseCalculatorTest {
                 Date.newInstance(2027, 2, 28),
                 'Yearly',
                 anchorDate
-            )
+            ),
+            'Yearly recurrence should return to leap day when available.'
         );
     }
 
@@ -62,7 +68,8 @@ private class SpendlyRecurringExpenseCalculatorTest {
                 recurringExpense,
                 Date.newInstance(2026, 5, 17),
                 Date.newInstance(2026, 5, 17)
-            )
+            ),
+            'A recurrence due on the run date and before its end date should generate.'
         );
         System.assertEquals(
             false,
@@ -70,7 +77,8 @@ private class SpendlyRecurringExpenseCalculatorTest {
                 recurringExpense,
                 Date.newInstance(2026, 6, 1),
                 Date.newInstance(2026, 6, 1)
-            )
+            ),
+            'A recurrence after its end date should not generate.'
         );
         System.assertEquals(
             false,
@@ -78,7 +86,8 @@ private class SpendlyRecurringExpenseCalculatorTest {
                 recurringExpense,
                 Date.newInstance(2026, 5, 18),
                 Date.newInstance(2026, 5, 17)
-            )
+            ),
+            'A recurrence after the current run date should not generate.'
         );
     }
 
@@ -96,6 +105,10 @@ private class SpendlyRecurringExpenseCalculatorTest {
             exceptionThrown = true;
         }
 
-        System.assertEquals(true, exceptionThrown, 'Unsupported frequencies should throw a handled exception');
+        System.assertEquals(
+            true,
+            exceptionThrown,
+            'Unsupported frequencies should throw a handled exception'
+        );
     }
 }

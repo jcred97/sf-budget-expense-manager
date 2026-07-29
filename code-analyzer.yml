@@ -1,0 +1,4 @@
+engines:
+    eslint:
+        disable_javascript_base_config: true
+        eslint_config_file: eslint.config.js

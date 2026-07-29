@@ -93,7 +93,9 @@ export default class SpendlySettings extends LightningElement {
             return 'status-pill status-pill_neutral';
         }
 
-        return this.scheduleActive ? 'status-pill status-pill_success' : 'status-pill status-pill_warning';
+        return this.scheduleActive
+            ? 'status-pill status-pill_success'
+            : 'status-pill status-pill_warning';
     }
 
     get scheduleStateDisplay() {
@@ -130,7 +132,11 @@ export default class SpendlySettings extends LightningElement {
         try {
             this.applySettings(await getSettings());
         } catch (error) {
-            this.showToast('Error', this.getErrorMessage(error, 'Failed to load Spendly Settings.'), 'error');
+            this.showToast(
+                'Error',
+                this.getErrorMessage(error, 'Failed to load Spendly Settings.'),
+                'error'
+            );
         } finally {
             this.isLoading = false;
         }
@@ -152,13 +158,19 @@ export default class SpendlySettings extends LightningElement {
         this.isSaving = true;
         try {
             const settings = await saveSettings({
-                recurringExpensesEnabled: this.recurringExpensesEnabled,
-                globalRecurringRunTime: this.globalRecurringRunTime
+                request: {
+                    recurringExpensesEnabled: String(this.recurringExpensesEnabled),
+                    globalRecurringRunTime: this.globalRecurringRunTime
+                }
             });
             this.applySettings(settings);
             this.showToast('Saved', 'Spendly Settings saved.', 'success');
         } catch (error) {
-            this.showToast('Error', this.getErrorMessage(error, 'Failed to save Spendly Settings.'), 'error');
+            this.showToast(
+                'Error',
+                this.getErrorMessage(error, 'Failed to save Spendly Settings.'),
+                'error'
+            );
         } finally {
             this.isSaving = false;
         }
@@ -168,7 +180,11 @@ export default class SpendlySettings extends LightningElement {
         this.isRunning = true;
         try {
             await runDueExpensesBatch();
-            this.showToast('Recurring run started', 'Due recurring expenses are being generated.', 'success');
+            this.showToast(
+                'Recurring run started',
+                'Due recurring expenses are being generated.',
+                'success'
+            );
             await this.loadSettings();
         } catch (error) {
             this.showToast(

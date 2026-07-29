@@ -32,16 +32,32 @@ private class SpendlyRecurringExpenseSchedulerTest {
             FROM Expense__c
             WHERE Recurring_Expense__c = :recurringExpense.Id
         ];
-        System.assertEquals(1, generatedExpenses.size(), 'The scheduled batch should create one due expense');
-        System.assertEquals('Gym', generatedExpenses[0].Name);
-        System.assertEquals(dueDate, generatedExpenses[0].Expense_Date__c);
+        System.assertEquals(
+            1,
+            generatedExpenses.size(),
+            'The scheduled batch should create one due expense'
+        );
+        System.assertEquals(
+            'Gym',
+            generatedExpenses[0].Name,
+            'The scheduled batch should preserve the recurring expense name.'
+        );
+        System.assertEquals(
+            dueDate,
+            generatedExpenses[0].Expense_Date__c,
+            'The scheduled batch should generate the expense for its due date.'
+        );
 
         Recurring_Expense__c updatedRecurringExpense = [
             SELECT Next_Run_Date__c
             FROM Recurring_Expense__c
             WHERE Id = :recurringExpense.Id
         ];
-        System.assertEquals(dueDate.addMonths(1), updatedRecurringExpense.Next_Run_Date__c);
+        System.assertEquals(
+            dueDate.addMonths(1),
+            updatedRecurringExpense.Next_Run_Date__c,
+            'The scheduled batch should advance the recurring template.'
+        );
     }
 
     @IsTest
@@ -67,19 +83,30 @@ private class SpendlyRecurringExpenseSchedulerTest {
         );
         insert recurringExpense;
 
-        SpendlySettingsService.saveSettings(false);
+        SpendlySettingsService.SettingsUpdateRequest settingsRequest = new SpendlySettingsService.SettingsUpdateRequest();
+        settingsRequest.recurringExpensesEnabled = 'false';
+        settingsRequest.globalRecurringRunTime = '08:00';
+        SpendlySettingsService.saveSettings(settingsRequest);
 
         Test.startTest();
         new SpendlyRecurringExpenseScheduler().execute(null);
         Test.stopTest();
 
-        System.assertEquals(0, [SELECT COUNT() FROM Expense__c], 'No expenses should generate when disabled');
+        System.assertEquals(
+            0,
+            [SELECT COUNT() FROM Expense__c],
+            'No expenses should generate when disabled'
+        );
 
         Spendly_Settings__c settings = [
             SELECT Last_Recurring_Run_Status__c
             FROM Spendly_Settings__c
             LIMIT 1
         ];
-        System.assertEquals('Skipped', settings.Last_Recurring_Run_Status__c);
+        System.assertEquals(
+            'Skipped',
+            settings.Last_Recurring_Run_Status__c,
+            'A disabled scheduled run should record a skipped status.'
+        );
     }
 }

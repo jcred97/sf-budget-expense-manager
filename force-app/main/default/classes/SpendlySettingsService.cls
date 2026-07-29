@@ -2,6 +2,16 @@ public with sharing class SpendlySettingsService {
     private static final String DEFAULT_SETTINGS_NAME = 'Default';
     private static final String RECURRING_SCHEDULE_NAME = 'Spendly Recurring Expense Daily';
     private static final Time DEFAULT_RECURRING_RUN_TIME = Time.newInstance(8, 0, 0, 0);
+    private static final String RUN_TIME_PATTERN = '^(?:[01]\\d|2[0-3]):[0-5]\\d$';
+
+    public class SettingsUpdateRequest {
+        /** Whether recurring expense automation should be enabled. */
+        @AuraEnabled
+        public String recurringExpensesEnabled { get; set; }
+        /** Daily recurring expense run time in HH:mm format. */
+        @AuraEnabled
+        public String globalRecurringRunTime { get; set; }
+    }
 
     public class SettingsState {
         @AuraEnabled
@@ -57,25 +67,13 @@ public with sharing class SpendlySettingsService {
         return new SettingsState(getOrCreateSettings());
     }
 
-    public static SettingsState saveSettings(Boolean recurringExpensesEnabled) {
-        Spendly_Settings__c settings = getOrCreateSettings();
-        return saveSettings(
-            recurringExpensesEnabled,
-            formatRunTime(getEffectiveRunTime(settings.Global_Recurring_Run_Time__c))
-        );
-    }
-
     @AuraEnabled
-    public static SettingsState saveSettings(
-        Boolean recurringExpensesEnabled,
-        String globalRecurringRunTime
-    ) {
+    public static SettingsState saveSettings(SettingsUpdateRequest request) {
         Spendly_Settings__c settings = getOrCreateSettings();
+        SettingsUpdateRequest safeRequest = getSafeSettingsUpdate(request, settings);
         Time originalRunTime = getEffectiveRunTime(settings.Global_Recurring_Run_Time__c);
-        Time requestedRunTime = parseRunTime(globalRecurringRunTime);
-        Boolean requestedEnabled = recurringExpensesEnabled == null
-            ? false
-            : recurringExpensesEnabled;
+        Time requestedRunTime = parseRunTime(safeRequest.globalRecurringRunTime);
+        Boolean requestedEnabled = safeRequest.recurringExpensesEnabled == 'true';
         Spendly_Settings__c settingsUpdate = new Spendly_Settings__c(
             Id = settings.Id,
             Recurring_Expenses_Enabled__c = requestedEnabled,
@@ -169,26 +167,32 @@ public with sharing class SpendlySettingsService {
         return runTime == null ? DEFAULT_RECURRING_RUN_TIME : runTime;
     }
 
+    private static SettingsUpdateRequest getSafeSettingsUpdate(
+        SettingsUpdateRequest request,
+        Spendly_Settings__c settings
+    ) {
+        if (request != null) {
+            return request;
+        }
+        SettingsUpdateRequest defaultRequest = new SettingsUpdateRequest();
+        defaultRequest.recurringExpensesEnabled = String.valueOf(
+            settings.Recurring_Expenses_Enabled__c
+        );
+        defaultRequest.globalRecurringRunTime = formatRunTime(
+            getEffectiveRunTime(settings.Global_Recurring_Run_Time__c)
+        );
+        return defaultRequest;
+    }
+
     private static Time parseRunTime(String runTimeValue) {
         if (String.isBlank(runTimeValue)) {
             return DEFAULT_RECURRING_RUN_TIME;
         }
-
+        if (!Pattern.matches(RUN_TIME_PATTERN, runTimeValue)) {
+            throw new AuraHandledException('Enter a valid recurring run time.');
+        }
         List<String> parts = runTimeValue.split(':');
-        if (parts.size() < 2) {
-            throw new AuraHandledException('Enter a valid recurring run time.');
-        }
-
-        try {
-            Integer hour = Integer.valueOf(parts[0]);
-            Integer minute = Integer.valueOf(parts[1]);
-            if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-                throw new AuraHandledException('Enter a valid recurring run time.');
-            }
-            return Time.newInstance(hour, minute, 0, 0);
-        } catch (Exception e) {
-            throw new AuraHandledException('Enter a valid recurring run time.');
-        }
+        return Time.newInstance(Integer.valueOf(parts[0]), Integer.valueOf(parts[1]), 0, 0);
     }
 
     private static String formatRunTime(Time runTime) {

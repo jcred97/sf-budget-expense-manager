@@ -121,7 +121,9 @@ export default class SpendlyExpenseModal extends LightningElement {
         if (event.key === 'Tab') {
             const focusable = this.getFocusableElements();
 
-            if (focusable.length === 0) return;
+            if (focusable.length === 0) {
+                return;
+            }
 
             const first = focusable[0];
             const last = focusable[focusable.length - 1];

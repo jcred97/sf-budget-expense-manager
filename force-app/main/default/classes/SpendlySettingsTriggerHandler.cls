@@ -4,7 +4,7 @@ public inherited sharing class SpendlySettingsTriggerHandler {
     public static void beforeInsert(List<Spendly_Settings__c> settingsRecords) {
         Boolean singletonWouldBeViolated =
             settingsRecords.size() > 1 ||
-            [SELECT COUNT() FROM Spendly_Settings__c] > 0;
+            [SELECT COUNT() FROM Spendly_Settings__c WITH USER_MODE] > 0;
 
         if (!singletonWouldBeViolated) {
             return;
