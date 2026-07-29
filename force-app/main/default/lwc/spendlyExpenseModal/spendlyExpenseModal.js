@@ -2,7 +2,6 @@ import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 export default class SpendlyExpenseModal extends LightningElement {
-
     @api categoryOptions = [];
     @api selectedExpenseGroupName = '';
 
@@ -57,9 +56,7 @@ export default class SpendlyExpenseModal extends LightningElement {
         this._duplicateData = value;
         if (!this._recordId) {
             this.categoryValue = value?.Category__c || '';
-            this.transactionTimeValue = this.normalizeTimeForInput(
-                value?.Transaction_Time__c
-            );
+            this.transactionTimeValue = this.normalizeTimeForInput(value?.Transaction_Time__c);
         }
     }
 
@@ -77,13 +74,11 @@ export default class SpendlyExpenseModal extends LightningElement {
             this._handleKeyDown = this.handleKeyDown.bind(this);
             document.addEventListener('keydown', this._handleKeyDown);
 
-            setTimeout(() => {
-                // 🎯 Focus first focusable element
-                const focusable = this.getFocusableElements();
-                if (focusable.length > 0) {
-                    focusable[0].focus();
-                }
-            });
+            // 🎯 Focus first focusable element
+            const focusable = this.getFocusableElements();
+            if (focusable.length > 0) {
+                focusable[0].focus();
+            }
         }
     }
 
@@ -92,29 +87,30 @@ export default class SpendlyExpenseModal extends LightningElement {
 
         const modal = this.template.querySelector('.slds-modal');
 
-        modal.addEventListener('animationend', () => {
+        modal.addEventListener(
+            'animationend',
+            () => {
+                this.isClosing = false;
+                this.isRendered = false;
 
-            this.isClosing = false;
-            this.isRendered = false;
+                // 🔒 Restore scroll
+                document.body.style.overflow = '';
 
-            // 🔒 Restore scroll
-            document.body.style.overflow = '';
+                // Remove keyboard listener
+                document.removeEventListener('keydown', this._handleKeyDown);
 
-            // Remove keyboard listener
-            document.removeEventListener('keydown', this._handleKeyDown);
+                // 🎯 Restore focus to opener
+                if (this._previouslyFocusedElement) {
+                    this._previouslyFocusedElement.focus();
+                }
 
-            // 🎯 Restore focus to opener
-            if (this._previouslyFocusedElement) {
-                this._previouslyFocusedElement.focus();
-            }
-
-            this.dispatchEvent(new CustomEvent('close'));
-
-        }, { once: true });
+                this.dispatchEvent(new CustomEvent('close'));
+            },
+            { once: true }
+        );
     }
 
     handleKeyDown(event) {
-
         // ⌨ ESC Close
         if (event.key === 'Escape') {
             this.handleClose();
@@ -123,7 +119,6 @@ export default class SpendlyExpenseModal extends LightningElement {
 
         // 🎯 Focus trap
         if (event.key === 'Tab') {
-
             const focusable = this.getFocusableElements();
 
             if (focusable.length === 0) return;
@@ -134,8 +129,7 @@ export default class SpendlyExpenseModal extends LightningElement {
             if (event.shiftKey && document.activeElement === first) {
                 event.preventDefault();
                 last.focus();
-            }
-            else if (!event.shiftKey && document.activeElement === last) {
+            } else if (!event.shiftKey && document.activeElement === last) {
                 event.preventDefault();
                 first.focus();
             }
