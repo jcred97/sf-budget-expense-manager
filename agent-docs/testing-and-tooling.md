@@ -2,7 +2,7 @@
 
 ## Apex Tests
 
-Apex tests live in `SpendlyControllerTest.cls`, `RecurringExpenseTriggerTest.cls`, `SpendlyRecurringExpenseBatchTest.cls`, `SpendlyRecurringExpenseCalculatorTest.cls`, `SpendlyRecurringExpenseServiceTest.cls`, `SpendlyRecurringExpenseSchedulerTest.cls`, and `SpendlySettingsServiceTest.cls`.
+Apex tests live in `SpendlyControllerTest.cls`, `RecurringExpenseTriggerHandlerTest.cls`, `SpendlySettingsTriggerHandlerTest.cls`, `SpendlyRecurringExpenseBatchTest.cls`, `SpendlyRecurringExpenseCalculatorTest.cls`, `SpendlyRecurringExpenseServiceTest.cls`, `SpendlyRecurringExpenseSchedulerTest.cls`, and `SpendlySettingsServiceTest.cls`.
 
 The test setup creates:
 

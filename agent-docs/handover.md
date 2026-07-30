@@ -2,18 +2,27 @@
 
 ## Current State
 
-- Main branch is pushed through `9cce821 fix: clear Spendly analyzer violations`.
-- The working tree currently has an uncommitted `spendlyExpenseModal` analyzer cleanup that was deployed to `mainDevOrg`.
+- Main branch is pushed through `13e8c7c refactor: eliminate analyzer violations and preserve LWC filters`.
+- The working tree currently has an uncommitted Apex source reorganization and trigger-handler test refactor deployed to `mainDevOrg`.
 - Spendly is centered around a custom LWC workspace in `force-app/main/default/lwc/spendlyApp`.
 - The app currently uses `Expense_Group__c`, `Category__c`, `Expense__c`, recurring expense automation, and Spendly Settings.
 - Recent UI direction: keep the custom workspace, but make it feel closer to Salesforce Lightning/SLDS and avoid heavy custom styling unless needed.
 
 ## Recent Work
 
+- Organized the 18 Apex classes and paired metadata into `classes/controller`, `classes/handler`, `classes/service`, and `classes/test` without changing their source contents.
+- Added dedicated `RecurringExpenseTriggerHandlerTest` and `SpendlySettingsTriggerHandlerTest` coverage with direct handler invocation plus trigger wiring.
+- Code Analyzer now reports 593 Low findings with 0 High and 0 Moderate findings; the handler-test refactor fixed eight Low findings.
+- Validated the reorganized classes with dry-run deployment `0AfgK00000P676sSAB`; all 18 components and 47 Apex tests passed.
+- Deployed the reorganized classes with deployment `0AfgK00000P5YVjSAN`; all 18 components and 47 Apex tests passed.
+- Validated the handler-test refactor with dry-run deployment `0AfgK00000P5sixSAB`; all 20 component actions and 48 Apex tests passed.
+- Deployed the handler-test refactor with deployment `0AfgK00000P6GbZSAV`; both dedicated handler tests were created and the obsolete trigger test was deleted.
+- Restored `Spendly Recurring Expense Daily` as job `08egK00000a48s2QAA`, `WAITING`, with cron `0 0 8 * * ?`, timezone `Asia/Manila`, and next fire `2026-07-31T00:00:00.000+0000`.
+- Created inactive manual-test templates under `Screenshot Test Expense Group` in category `Trigger Handler Tests` (`a00gK00001AHntZQAT`): default-next-date `a0EgK000009BdaLUAS`, realign-start-date `a0EgK000009BdbxUAC`, and preserve-advanced-date `a0EgK000009BddZUAS`.
+- Ran all eight Apex test classes independently with coverage; every run passed, with isolated per-run coverage ranging from 60% to 100%. The 60% batch-test aggregate includes partially exercised dependencies; the batch class itself is 87.5% in that isolated run and 95.8% in the complete suite.
 - Cleared the initial Spendly Code Analyzer High findings in `SpendlyController.cls`, `SpendlyRecurringExpenseService.cls`, `SpendlySettingsService.cls`, and `spendlyApp.js`.
 - Deployed that analyzer cleanup to `mainDevOrg` with deploy ID `0AfgK00000OkVkYSAV`; relevant Apex tests passed `33/33`.
 - During Apex deploys, the `Spendly Recurring Expense Daily` scheduled job must be temporarily aborted because Salesforce blocks Apex deploys while the job is pending. Restore it immediately after deploy with cron `0 0 8 * * ?`.
-- The restored recurring job after the latest Apex deploy was `08egK00000ZlfWcQAJ`, `WAITING`, next fire `2026-07-28T00:00:00.000+0000`, timezone `Asia/Manila`.
 - Updated `.prettierrc` in the committed analyzer cleanup to reduce noisy JS formatting churn by pinning `singleQuote`, `tabWidth`, `printWidth`, and `arrowParens`.
 - Cleared `spendlyExpenseModal` Recommended analyzer findings:
     - Removed `slds-button_icon-inverse` from the SLDS modal close button.
@@ -31,8 +40,7 @@
 
 ## Watch Points
 
-- The current uncommitted modal cleanup should be manually smoke-tested before commit: open Add/Edit/Duplicate Expense, verify focus lands in the modal, close via `X`, `Esc`, and Cancel, and confirm save / Save & New still work.
-- After removing modal CSS, verify the transaction time field alignment and date helper text in the org.
+- Git reports the path-only class reorganization as deleted root files and untracked categorized folders until the changes are staged; rename detection should resolve the moves when committed.
 - If committing LWC changes, watch the pre-commit hook. Prettier may still adjust old hand-wrapped lines, but the config now avoids the prior whole-file quote/indent churn.
 - Verify the app in the org after deploys because Salesforce shell height and page scroll behavior can differ from local expectations.
 - Keep dashboard and expenses views in sync after create, edit, duplicate, delete, and bulk delete actions.
@@ -42,9 +50,7 @@
 
 ## Next Likely Work
 
-- Commit the deployed `spendlyExpenseModal` cleanup after manual smoke testing. Suggested message: `fix: clear Spendly expense modal analyzer findings`.
-- Continue the Moderate analyzer pass. The next useful slice is trigger cleanup:
-    - `RecurringExpenseTrigger.trigger` - `pmd:AvoidLogicInTrigger`
-    - `SpendlySettingsTrigger.trigger` - `pmd:AvoidLogicInTrigger`
-- After trigger cleanup, consider the low-risk but noisy test method renames for `pmd:MethodNamingConventions`.
+- Commit the deployed Apex source reorganization. Suggested message: `chore: organize Apex classes by responsibility`.
+- Continue the Low analyzer pass, prioritizing the three `AvoidNonRestrictiveQueries` findings before documentation-only and SLDS findings.
+- Consider the test `runAs` and ApexDoc findings as separate, reviewable changes.
 - Save broad CSS Low cleanup for a separate pass because `spendlyApp.css` has many SLDS hardcoded-value findings and can create large diffs.

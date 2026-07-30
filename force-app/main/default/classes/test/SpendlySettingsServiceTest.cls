@@ -151,48 +151,6 @@ private class SpendlySettingsServiceTest {
     }
 
     @IsTest
-    static void testSingletonTriggerPreventsSecondRecord() {
-        SpendlySettingsService.getSettings();
-
-        Boolean exceptionThrown = false;
-        try {
-            insert new Spendly_Settings__c(Name = 'Second', Recurring_Expenses_Enabled__c = true);
-        } catch (DmlException e) {
-            exceptionThrown = true;
-        }
-
-        System.assertEquals(true, exceptionThrown, 'A second settings record should be blocked');
-    }
-
-    @IsTest
-    static void testSingletonTriggerRejectsBulkInsertWhenNoSettingsExist() {
-        List<Spendly_Settings__c> settingsRecords = new List<Spendly_Settings__c>{
-            new Spendly_Settings__c(Name = 'First', Recurring_Expenses_Enabled__c = true),
-            new Spendly_Settings__c(Name = 'Second', Recurring_Expenses_Enabled__c = false)
-        };
-
-        Test.startTest();
-        Database.SaveResult[] results = Database.insert(settingsRecords, false);
-        Test.stopTest();
-
-        System.assertEquals(2, results.size(), 'Both attempted records should return a result.');
-        for (Database.SaveResult result : results) {
-            System.assertEquals(false, result.isSuccess(), 'Every record should be rejected.');
-            System.assert(
-                result.getErrors()[0]
-                    .getMessage()
-                    .contains('Only one Spendly Settings record can exist.'),
-                'The singleton validation message should explain the rejection.'
-            );
-        }
-        System.assertEquals(
-            0,
-            [SELECT COUNT() FROM Spendly_Settings__c],
-            'A rejected bulk insert should not create a settings record.'
-        );
-    }
-
-    @IsTest
     static void testRunStatusUpdates() {
         Test.startTest();
         SpendlySettingsService.markRecurringRunQueued(UserInfo.getUserId());

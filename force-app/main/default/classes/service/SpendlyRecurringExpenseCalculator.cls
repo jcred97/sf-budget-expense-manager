@@ -4,9 +4,10 @@ public with sharing class SpendlyRecurringExpenseCalculator {
         Date dueDate,
         Date runDate
     ) {
-        return dueDate != null
-            && dueDate <= runDate
-            && (recurringExpense.End_Date__c == null || dueDate <= recurringExpense.End_Date__c);
+        return dueDate != null &&
+            dueDate <= runDate &&
+            (recurringExpense.End_Date__c == null ||
+            dueDate <= recurringExpense.End_Date__c);
     }
 
     public static Date getNextRunDate(Date dueDate, String frequency, Date anchorDate) {
@@ -28,7 +29,9 @@ public with sharing class SpendlyRecurringExpenseCalculator {
                 return getAnchoredDate(dueDate.year() + 1, anchorMonth, anchorDay);
             }
             when else {
-                throw new AuraHandledException('Unsupported recurring expense frequency: ' + frequency);
+                throw new AuraHandledException(
+                    'Unsupported recurring expense frequency: ' + frequency
+                );
             }
         }
     }

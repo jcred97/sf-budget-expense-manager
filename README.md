@@ -26,21 +26,24 @@ The app combines a dashboard-style UI with filters, summary cards, charts, a dat
 ## Data Model
 
 ### Expense_Group__c
+
 - Top-level expense bucket
 
 ### Category__c
+
 - Master-detail to `Expense_Group__c`
 - Groups related expenses under an expense group
 
 ### Expense__c
+
 - Lookup to `Category__c`
 - Main transaction record
 - Important fields include:
-  - `Amount__c`
-  - `Expense_Date__c`
-  - `Bank__c`
-  - `Transaction_Type__c`
-  - `Description__c`
+    - `Amount__c`
+    - `Expense_Date__c`
+    - `Bank__c`
+    - `Transaction_Type__c`
+    - `Description__c`
 
 All amounts are formatted as PHP / Philippine Peso in the UI.
 
@@ -61,7 +64,7 @@ Users can narrow the dataset with filters, review high-level metrics, and then a
 
 ### Apex
 
-`force-app/main/default/classes/SpendlyController.cls`
+`force-app/main/default/classes/controller/SpendlyController.cls`
 
 The controller is responsible for:
 
@@ -81,18 +84,23 @@ Notable backend behavior:
 ### LWC Components
 
 `force-app/main/default/lwc/spendlyApp`
+
 - Main shell for filters, charts, table, export, print, and row actions
 
 `force-app/main/default/lwc/spendlyExpenseModal`
+
 - Modal form for add, edit, and duplicate flows
 
 `force-app/main/default/lwc/spendlySummaryCards`
+
 - Displays top-level metrics
 
 `force-app/main/default/lwc/spendlyBarChart`
+
 - Reusable simple bar chart for grouped totals
 
 `force-app/main/default/lwc/spendlyTrendChart`
+
 - Monthly trend chart
 
 ## Current UI Behavior
@@ -121,6 +129,10 @@ sf-spendly/
 `- force-app/main/default/
    |- applications/
    |- classes/
+   |  |- controller/
+   |  |- handler/
+   |  |- service/
+   |  `- test/
    |- flexipages/
    |- globalValueSets/
    |- layouts/
@@ -172,7 +184,7 @@ sf project deploy start --manifest destructive/package.xml --post-destructive-ch
 
 ### Apex Tests
 
-`force-app/main/default/classes/SpendlyControllerTest.cls`
+`force-app/main/default/classes/test/SpendlyControllerTest.cls`
 
 The Apex tests cover:
 

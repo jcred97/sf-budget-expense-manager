@@ -19,19 +19,29 @@ sf-spendly/
     applications/
       Spendly.app-meta.xml
     classes/
-      RecurringExpenseTriggerTest.cls
-      SpendlyController.cls
-      SpendlyControllerTest.cls
-      SpendlyRecurringExpenseBatch.cls
-      SpendlyRecurringExpenseBatchTest.cls
-      SpendlyRecurringExpenseCalculator.cls
-      SpendlyRecurringExpenseCalculatorTest.cls
-      SpendlyRecurringExpenseScheduler.cls
-      SpendlyRecurringExpenseSchedulerTest.cls
-      SpendlyRecurringExpenseService.cls
-      SpendlyRecurringExpenseServiceTest.cls
-      SpendlySettingsService.cls
-      SpendlySettingsServiceTest.cls
+      controller/
+        SpendlyController.cls
+      handler/
+        RecurringExpenseTriggerHandler.cls
+        SpendlySettingsTriggerHandler.cls
+      service/
+        SpendlyExpenseCommandService.cls
+        SpendlyExpenseQueryService.cls
+        SpendlyRecurringExpenseBatch.cls
+        SpendlyRecurringExpenseCalculator.cls
+        SpendlyRecurringExpenseGenerator.cls
+        SpendlyRecurringExpenseScheduler.cls
+        SpendlyRecurringExpenseService.cls
+        SpendlySettingsService.cls
+      test/
+        RecurringExpenseTriggerHandlerTest.cls
+        SpendlyControllerTest.cls
+        SpendlyRecurringExpenseBatchTest.cls
+        SpendlyRecurringExpenseCalculatorTest.cls
+        SpendlyRecurringExpenseSchedulerTest.cls
+        SpendlyRecurringExpenseServiceTest.cls
+        SpendlySettingsServiceTest.cls
+        SpendlySettingsTriggerHandlerTest.cls
     contentassets/
       spendly1.asset
     flexipages/
