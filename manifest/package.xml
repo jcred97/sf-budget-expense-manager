@@ -50,8 +50,6 @@
     </types>
     <types>
         <members>Expense_Record_Page</members>
-        <members>Spendly</members>
-        <members>Spendly_Settings</members>
         <members>Spendly_UtilityBar</members>
         <name>FlexiPage</name>
     </types>
