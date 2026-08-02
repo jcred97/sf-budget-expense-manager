@@ -1,4 +1,6 @@
 public with sharing class SpendlyController {
+    private static final Integer MAX_SELECTOR_RESULTS = 2000;
+
     public class ExpenseFilterRequest {
         /** Selected expense group record ID. */
         @AuraEnabled
@@ -88,6 +90,7 @@ public with sharing class SpendlyController {
             FROM Expense_Group__c
             WITH USER_MODE
             ORDER BY Name
+            LIMIT :MAX_SELECTOR_RESULTS
         ];
     }
 
@@ -99,6 +102,7 @@ public with sharing class SpendlyController {
                 FROM Category__c
                 WITH USER_MODE
                 ORDER BY Name
+                LIMIT :MAX_SELECTOR_RESULTS
             ];
         }
 

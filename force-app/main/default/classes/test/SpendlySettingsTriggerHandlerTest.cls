@@ -3,6 +3,28 @@ private class SpendlySettingsTriggerHandlerTest {
     private static final String SINGLETON_ERROR_MESSAGE = 'Only one Spendly Settings record can exist.';
 
     @IsTest
+    static void testBeforeInsertAllowsFirstSettingsRecord() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Spendly_Settings__c firstSettings = new Spendly_Settings__c(
+                Name = 'First',
+                Recurring_Expenses_Enabled__c = true
+            );
+
+            Test.startTest();
+            SpendlySettingsTriggerHandler.beforeInsert(
+                new List<Spendly_Settings__c>{ firstSettings }
+            );
+            Test.stopTest();
+
+            System.assertEquals(
+                false,
+                firstSettings.hasErrors(),
+                'The handler should allow the first settings record.'
+            );
+        }
+    }
+
+    @IsTest
     static void testBeforeInsertRejectsRecordWhenSettingsAlreadyExist() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             SpendlySettingsService.getSettings();

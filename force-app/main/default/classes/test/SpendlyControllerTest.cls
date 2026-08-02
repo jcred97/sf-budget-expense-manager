@@ -76,6 +76,7 @@ private class SpendlyControllerTest {
         Test.stopTest();
 
         System.assertEquals(2, result.size(), 'Should return all expense groups');
+        System.assertEquals('Food', result[0].Name, 'Expense groups should be ordered by name');
     }
 
     @IsTest
@@ -87,6 +88,28 @@ private class SpendlyControllerTest {
         Test.stopTest();
 
         System.assertEquals(2, result.size(), 'Food should have 2 categories');
+    }
+
+    @IsTest
+    static void testGetCategoriesWithoutExpenseGroup() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Test.startTest();
+            List<Category__c> result = SpendlyController.getCategoriesByExpenseGroup(null);
+            Test.stopTest();
+
+            System.assertEquals(
+                3,
+                result.size(),
+                'The compatibility path should return all categories'
+            );
+            System.assertEquals('Dining', result[0].Name, 'Categories should be ordered by name');
+            System.assertEquals(
+                'Groceries',
+                result[1].Name,
+                'Categories should be ordered by name'
+            );
+            System.assertEquals('Taxi', result[2].Name, 'Categories should be ordered by name');
+        }
     }
 
     // getExpensesByFilters() - No filters
