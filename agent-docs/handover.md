@@ -2,8 +2,8 @@
 
 ## Current State
 
-- Main branch is pushed through `13e8c7c refactor: eliminate analyzer violations and preserve LWC filters`.
-- The working tree currently has an uncommitted Apex source reorganization and trigger-handler test refactor deployed to `mainDevOrg`.
+- Main branch is pushed through `6945acf refactor: organize Apex classes and align handler tests`.
+- The working tree currently has an uncommitted focused batch-test coverage improvement deployed to `mainDevOrg`.
 - Spendly is centered around a custom LWC workspace in `force-app/main/default/lwc/spendlyApp`.
 - The app currently uses `Expense_Group__c`, `Category__c`, `Expense__c`, recurring expense automation, and Spendly Settings.
 - Recent UI direction: keep the custom workspace, but make it feel closer to Salesforce Lightning/SLDS and avoid heavy custom styling unless needed.
@@ -12,14 +12,16 @@
 
 - Organized the 18 Apex classes and paired metadata into `classes/controller`, `classes/handler`, `classes/service`, and `classes/test` without changing their source contents.
 - Added dedicated `RecurringExpenseTriggerHandlerTest` and `SpendlySettingsTriggerHandlerTest` coverage with direct handler invocation plus trigger wiring.
-- Code Analyzer now reports 593 Low findings with 0 High and 0 Moderate findings; the handler-test refactor fixed eight Low findings.
+- Code Analyzer now reports 592 Low findings with 0 High and 0 Moderate findings; the handler and batch test improvements fixed nine Low findings from the prior 601 baseline.
 - Validated the reorganized classes with dry-run deployment `0AfgK00000P676sSAB`; all 18 components and 47 Apex tests passed.
 - Deployed the reorganized classes with deployment `0AfgK00000P5YVjSAN`; all 18 components and 47 Apex tests passed.
 - Validated the handler-test refactor with dry-run deployment `0AfgK00000P5sixSAB`; all 20 component actions and 48 Apex tests passed.
 - Deployed the handler-test refactor with deployment `0AfgK00000P6GbZSAV`; both dedicated handler tests were created and the obsolete trigger test was deleted.
-- Restored `Spendly Recurring Expense Daily` as job `08egK00000a48s2QAA`, `WAITING`, with cron `0 0 8 * * ?`, timezone `Asia/Manila`, and next fire `2026-07-31T00:00:00.000+0000`.
+- Restored `Spendly Recurring Expense Daily` as job `08egK00000a4qoBQAQ`, `WAITING`, with cron `0 0 8 * * ?`, timezone `Asia/Manila`, and next fire `2026-07-31T00:00:00.000+0000`.
 - Created inactive manual-test templates under `Screenshot Test Expense Group` in category `Trigger Handler Tests` (`a00gK00001AHntZQAT`): default-next-date `a0EgK000009BdaLUAS`, realign-start-date `a0EgK000009BdbxUAC`, and preserve-advanced-date `a0EgK000009BddZUAS`.
-- Ran all eight Apex test classes independently with coverage; every run passed, with isolated per-run coverage ranging from 60% to 100%. The 60% batch-test aggregate includes partially exercised dependencies; the batch class itself is 87.5% in that isolated run and 95.8% in the complete suite.
+- Added focused batch tests for the default constructor and null run-date validation, and added `System.runAs` coverage to all batch test methods. The modified test file has 0 Recommended analyzer findings.
+- Validated the expanded batch test with dry-run `0AfgK00000P6RwnSAF` and deployed it with `0AfgK00000P6S3FSAV`; all three test methods passed in both runs.
+- Ran all eight Apex test classes independently after deployment; every run passed. Isolated aggregate coverage / intended production-class coverage: recurring handler 100% / 100%, controller 95.5% / 96.6%, batch 60.4% / 100%, calculator 100% / 100%, scheduler 78.8% / 100%, recurring service 84.4% / 93.6%, settings service 81.8% / 91.2%, and settings handler 36.6% / 100%. Aggregate percentages include every dependency touched by a test, so the intended production-class figure is the relevant focused-test measure.
 - Cleared the initial Spendly Code Analyzer High findings in `SpendlyController.cls`, `SpendlyRecurringExpenseService.cls`, `SpendlySettingsService.cls`, and `spendlyApp.js`.
 - Deployed that analyzer cleanup to `mainDevOrg` with deploy ID `0AfgK00000OkVkYSAV`; relevant Apex tests passed `33/33`.
 - During Apex deploys, the `Spendly Recurring Expense Daily` scheduled job must be temporarily aborted because Salesforce blocks Apex deploys while the job is pending. Restore it immediately after deploy with cron `0 0 8 * * ?`.

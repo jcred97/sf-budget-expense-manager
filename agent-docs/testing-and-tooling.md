@@ -20,7 +20,7 @@ Covered behavior includes:
 - monthly trend data
 - handled delete failures
 - recurring expense trigger defaults for `Next_Run_Date__c`
-- recurring expense batch generation for more than the manual run cap
+- recurring expense batch generation for more than the manual run cap, default construction, and null run-date validation
 - recurring expense next-run-date calculation for daily, weekly, monthly, and yearly frequencies
 - recurring expense generation, catch-up behavior, end dates, inactive records, future records, manual batch start, and null run-date validation
 - scheduled recurring expense generation
