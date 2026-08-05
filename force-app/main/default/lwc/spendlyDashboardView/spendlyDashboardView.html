@@ -1,0 +1,148 @@
+<template>
+    <section
+        class="dashboard-hero slds-box slds-theme_default"
+        aria-label="Monthly spending summary"
+    >
+        <div>
+            <p class="slds-text-title slds-m-around_none">Current view</p>
+            <h3>{viewModel.title}</h3>
+            <p>{viewModel.subtitle}</p>
+        </div>
+        <div class="dashboard-hero-actions">
+            <div class="dashboard-hero-total">
+                <span>Total spent</span>
+                <strong>{viewModel.formattedTotal}</strong>
+                <small>{viewModel.transactionCountLabel}</small>
+            </div>
+        </div>
+    </section>
+
+    <template lwc:if={viewModel.isLoading}>
+        <section class="dashboard-loading slds-box slds-theme_default" aria-busy="true">
+            <lightning-spinner
+                alternative-text="Loading dashboard"
+                size="small"
+            ></lightning-spinner>
+        </section>
+    </template>
+    <template lwc:else>
+        <template lwc:if={viewModel.showEmptyState}>
+            <section class="dashboard-empty-callout slds-box slds-theme_default">
+                <div class="slds-media">
+                    <div class="slds-media__figure">
+                        <lightning-icon icon-name="utility:info" size="small"></lightning-icon>
+                    </div>
+                    <div class="slds-media__body">
+                        <h3>No expenses in this period</h3>
+                        <p>Add an expense or move to another month to see dashboard activity.</p>
+                    </div>
+                </div>
+            </section>
+        </template>
+
+        <c-spendly-summary-cards cards={viewModel.summaryCards}></c-spendly-summary-cards>
+
+        <div class="charts-row">
+            <c-spendly-bar-chart
+                title="By Category"
+                chart-data={viewModel.categoryChartData}
+                empty-message="No category spending in this period"
+            >
+            </c-spendly-bar-chart>
+
+            <c-spendly-trend-chart
+                title="Monthly Trend"
+                trend-data={viewModel.monthlyTrendData}
+                empty-message="No trend data for the selected months"
+            >
+            </c-spendly-trend-chart>
+
+            <c-spendly-bar-chart
+                title="By Bank"
+                chart-data={viewModel.bankChartData}
+                empty-message="No bank spending in this period"
+            >
+            </c-spendly-bar-chart>
+        </div>
+
+        <div class="dashboard-detail-grid">
+            <section class="dashboard-panel slds-box slds-theme_default slds-p-around_none">
+                <div class="dashboard-panel-header">
+                    <div>
+                        <p class="slds-text-title slds-m-around_none">Recent activity</p>
+                        <h3>Latest expenses</h3>
+                    </div>
+                    <button
+                        class="slds-button slds-button_reset slds-text-link"
+                        type="button"
+                        onclick={handleViewTransactions}
+                    >
+                        View all
+                    </button>
+                </div>
+
+                <template lwc:if={hasRecentRows}>
+                    <div class="dashboard-transaction-list">
+                        <template for:each={viewModel.recentRows} for:item="row">
+                            <article key={row.id} class="dashboard-transaction-row">
+                                <div>
+                                    <a
+                                        href={row.recordLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        >{row.name}</a
+                                    >
+                                    <p>{row.metaLine}</p>
+                                </div>
+                                <div>
+                                    <strong>{row.amountFormatted}</strong>
+                                    <span
+                                        >{row.transactionTimeDisplay} /
+                                        {row.expenseDateFormatted}</span
+                                    >
+                                </div>
+                            </article>
+                        </template>
+                    </div>
+                </template>
+                <template lwc:else>
+                    <div class="dashboard-panel-empty">
+                        <lightning-icon icon-name="utility:table" size="small"></lightning-icon>
+                        <span>No latest expenses to show.</span>
+                    </div>
+                </template>
+            </section>
+
+            <section class="dashboard-panel slds-box slds-theme_default slds-p-around_none">
+                <div class="dashboard-panel-header">
+                    <div>
+                        <p class="slds-text-title slds-m-around_none">Patterns</p>
+                        <h3>Spending insights</h3>
+                    </div>
+                </div>
+
+                <template lwc:if={viewModel.showEmptyState}>
+                    <div class="dashboard-panel-empty">
+                        <lightning-icon icon-name="utility:metrics" size="small"></lightning-icon>
+                        <span>Insights appear after expenses are added.</span>
+                    </div>
+                </template>
+                <template lwc:else>
+                    <div class="insight-grid">
+                        <template for:each={viewModel.insights} for:item="insight">
+                            <div key={insight.key} class="insight-card">
+                                <lightning-icon
+                                    icon-name={insight.iconName}
+                                    size="x-small"
+                                ></lightning-icon>
+                                <span>{insight.label}</span>
+                                <strong>{insight.value}</strong>
+                                <small>{insight.detail}</small>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </section>
+        </div>
+    </template>
+</template>

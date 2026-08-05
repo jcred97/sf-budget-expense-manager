@@ -545,6 +545,23 @@ export default class SpendlyApp extends LightningElement {
         ];
     }
 
+    get dashboardViewModel() {
+        return {
+            title: this.dashboardTitle,
+            subtitle: this.dashboardSubtitle,
+            formattedTotal: this.formattedTotal,
+            transactionCountLabel: this.transactionCountLabel,
+            isLoading: this.isDashboardLoading,
+            showEmptyState: this.showDashboardEmptyState,
+            summaryCards: this.summaryCards,
+            categoryChartData: this.categoryChartData,
+            monthlyTrendData: this.monthlyTrendData,
+            bankChartData: this.bankChartData,
+            recentRows: this.recentDashboardRows,
+            insights: this.dashboardInsights
+        };
+    }
+
     get topCategory() {
         if (this.summaryRows.length === 0) {
             return { name: '-', amount: 'PHP 0.00' };
@@ -672,10 +689,6 @@ export default class SpendlyApp extends LightningElement {
             ...row,
             metaLine: `${row.categoryDisplay} / ${row.bankDisplay}`
         }));
-    }
-
-    get hasRecentDashboardRows() {
-        return this.recentDashboardRows.length > 0;
     }
 
     get hasRecurringRows() {
@@ -892,6 +905,10 @@ export default class SpendlyApp extends LightningElement {
         if (this.isRecurringView) {
             this.loadRecurringExpenses();
         }
+    }
+
+    handleViewTransactions() {
+        this.activeView = 'transactions';
     }
 
     handleWorkspaceGroupChange(event) {
