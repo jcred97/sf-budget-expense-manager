@@ -3,7 +3,7 @@ private class SpendlyControllerTest {
     // ----------------------------
     // Test Data Factory
     // ----------------------------
-    @testSetup
+    @TestSetup
     static void setupData() {
         Expense_Group__c eg1 = new Expense_Group__c(Name = 'Food');
         Expense_Group__c eg2 = new Expense_Group__c(Name = 'Transport');

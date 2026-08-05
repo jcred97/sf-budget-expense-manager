@@ -1,6 +1,6 @@
 @IsTest
 private class SpendlyRecurringExpenseServiceTest {
-    @testSetup
+    @TestSetup
     static void setupData() {
         Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Health');
         insert expenseGroup;
