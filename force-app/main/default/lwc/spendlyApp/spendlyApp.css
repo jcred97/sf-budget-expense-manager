@@ -870,7 +870,7 @@
 
 .recurring-meta span:not(:last-child)::after {
     color: #c9c9c9;
-    content: "/";
+    content: '/';
     margin-left: 0.35rem;
 }
 
@@ -1033,7 +1033,7 @@
 
 .transaction-meta span:not(:last-child)::after {
     color: #c9c9c9;
-    content: "/";
+    content: '/';
     margin-left: 0.35rem;
 }
 
@@ -1074,9 +1074,11 @@
 }
 
 /* Date format helper hide */
+/* eslint-disable @salesforce-ux/slds/no-slds-class-overrides -- lightning-input exposes no supported API to hide its automatic date-format hint. */
 .date-format-hide .slds-form-element__help {
     display: none;
 }
+/* eslint-enable @salesforce-ux/slds/no-slds-class-overrides */
 
 @media (max-width: 900px) {
     .workspace-shell,
@@ -1247,8 +1249,8 @@
         gap: 0.625rem;
         grid-template-columns: 1.25rem minmax(0, 1fr) auto;
         grid-template-areas:
-            "select main amount"
-            "select when actions";
+            'select main amount'
+            'select when actions';
     }
 
     .transaction-select {
