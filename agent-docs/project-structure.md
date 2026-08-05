@@ -60,7 +60,10 @@ sf-spendly/
     lwc/
       spendlyApp/
       spendlyBarChart/
+      spendlyDashboardView/
+      spendlyDataTransforms/
       spendlyExpenseModal/
+      spendlyFormatters/
       spendlySummaryCards/
       spendlySettings/
       spendlyTrendChart/
