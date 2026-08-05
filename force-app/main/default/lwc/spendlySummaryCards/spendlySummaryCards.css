@@ -4,49 +4,50 @@
 
 .summary-row {
     display: grid;
-    gap: 1rem;
+    gap: var(--slds-g-spacing-4, 1rem);
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    padding: 1rem 0;
+    padding: var(--slds-g-spacing-4, 1rem) 0;
 }
 
 .stat-card {
-    border-radius: 0.25rem;
+    border-radius: var(--slds-g-radius-border-1, 0.25rem);
     min-width: 0;
     overflow: hidden;
-    padding: 1rem 1.25rem;
+    padding: var(--slds-g-spacing-4, 1rem)
+        calc(var(--slds-g-spacing-4, 1rem) + var(--slds-g-spacing-1, 0.25rem));
 }
 
 .stat-label {
-    font-size: 0.6875rem;
-    font-weight: 400;
-    color: #706e6b;
+    font-size: var(--slds-g-font-scale-neg-2, 0.6875rem);
+    font-weight: var(--slds-g-font-weight-4, 400);
+    color: var(--slds-g-color-on-surface-1, #706e6b);
     letter-spacing: 0;
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--slds-g-spacing-1, 0.25rem);
 }
 
 .stat-value {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #181818;
-    line-height: 1.2;
-    margin-bottom: 0.25rem;
+    font-size: var(--slds-g-font-scale-3, 1.25rem);
+    font-weight: var(--slds-g-font-weight-6, 600);
+    color: var(--slds-g-color-on-surface-2, #181818);
+    line-height: normal;
+    margin-bottom: var(--slds-g-spacing-1, 0.25rem);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .stat-value_amount {
-    color: #2e844a;
+    color: var(--slds-g-color-palette-green-50, #2e844a);
 }
 
 .stat-value_name {
-    font-size: 1rem;
-    max-width: 100%;
+    font-size: var(--slds-g-font-scale-2, 1rem);
+    max-inline-size: 100%;
 }
 
 .stat-sub {
-    font-size: 0.75rem;
-    color: #706e6b;
+    font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+    color: var(--slds-g-color-on-surface-1, #706e6b);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
