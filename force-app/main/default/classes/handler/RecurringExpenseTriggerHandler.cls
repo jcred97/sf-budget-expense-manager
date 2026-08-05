@@ -1,4 +1,14 @@
+/**
+ * Applies recurring-template defaults and keeps an unadvanced next-run pointer aligned with its start date.
+ */
 public inherited sharing class RecurringExpenseTriggerHandler {
+    /**
+     * Routes supported recurring-expense trigger operations to their handlers.
+     *
+     * @param operation Current trigger operation.
+     * @param recurringExpenses New recurring-expense record values.
+     * @param oldRecurringExpenses Prior values keyed by record ID for update operations.
+     */
     public static void run(
         System.TriggerOperation operation,
         List<Recurring_Expense__c> recurringExpenses,

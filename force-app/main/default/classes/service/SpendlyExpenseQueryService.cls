@@ -1,3 +1,4 @@
+/** Builds and executes user-mode Spendly expense and recurring-template queries. */
 public with sharing class SpendlyExpenseQueryService {
     private static final List<String> MONTH_NAMES = new List<String>{
         'Jan',
@@ -14,6 +15,12 @@ public with sharing class SpendlyExpenseQueryService {
         'Dec'
     };
 
+    /**
+     * Aggregates expenses into chronological monthly totals.
+     *
+     * @param filters Expense-group, category, and date filters; null uses default filters.
+     * @return Monthly totals matching the supplied filters.
+     */
     public static List<SpendlyController.MonthlyTotal> getMonthlyTrend(
         SpendlyController.ExpenseFilterRequest filters
     ) {
@@ -43,6 +50,12 @@ public with sharing class SpendlyExpenseQueryService {
         return buildMonthlyTrend(Database.queryWithBinds(query, bindValues, AccessLevel.USER_MODE));
     }
 
+    /**
+     * Queries expense rows for the selected group, category, and date range.
+     *
+     * @param filters Expense-group, category, and date filters; null uses default filters.
+     * @return Matching expenses ordered from newest to oldest.
+     */
     public static List<Expense__c> getExpensesByFilters(
         SpendlyController.ExpenseFilterRequest filters
     ) {
@@ -63,6 +76,12 @@ public with sharing class SpendlyExpenseQueryService {
         return Database.queryWithBinds(query, bindValues, AccessLevel.USER_MODE);
     }
 
+    /**
+     * Builds recurring-template rows and summary totals for a workspace context.
+     *
+     * @param expenseGroupId Expense-group record ID or the All sentinel.
+     * @return Recurring-template overview for the requested context.
+     */
     public static SpendlyController.RecurringExpenseOverview getRecurringExpenseOverview(
         String expenseGroupId
     ) {

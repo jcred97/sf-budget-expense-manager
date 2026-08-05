@@ -1,6 +1,10 @@
+/**
+ * Lightning-facing controller for Spendly expense, recurring-template, and selector operations.
+ */
 public with sharing class SpendlyController {
     private static final Integer MAX_SELECTOR_RESULTS = 2000;
 
+    /** Filter values accepted by expense and monthly-trend queries. */
     public class ExpenseFilterRequest {
         /** Selected expense group record ID. */
         @AuraEnabled
@@ -16,6 +20,7 @@ public with sharing class SpendlyController {
         public Date endDate { get; set; }
     }
 
+    /** Monthly expense aggregate returned to dashboard charts. */
     public class MonthlyTotal {
         @AuraEnabled
         public String month;
@@ -27,6 +32,7 @@ public with sharing class SpendlyController {
         public Decimal total;
     }
 
+    /** Recurring-template row formatted for the Spendly recurring workspace. */
     public class RecurringExpenseRow {
         @AuraEnabled
         public Id id;
@@ -60,6 +66,7 @@ public with sharing class SpendlyController {
         public Boolean dueToday;
     }
 
+    /** Recurring-template rows and summary totals for an expense-group context. */
     public class RecurringExpenseOverview {
         @AuraEnabled
         public List<RecurringExpenseRow> rows;
@@ -70,6 +77,7 @@ public with sharing class SpendlyController {
         @AuraEnabled
         public Decimal monthlyTotal;
 
+        /** Creates an empty recurring-expense overview. */
         public RecurringExpenseOverview() {
             this.rows = new List<RecurringExpenseRow>();
             this.activeCount = 0;
@@ -78,11 +86,22 @@ public with sharing class SpendlyController {
         }
     }
 
+    /**
+     * Returns monthly expense totals matching the supplied filters.
+     *
+     * @param filters Expense-group, category, and date filters; null uses default filters.
+     * @return Monthly totals ordered chronologically.
+     */
     @AuraEnabled
     public static List<MonthlyTotal> getMonthlyTrend(ExpenseFilterRequest filters) {
         return SpendlyExpenseQueryService.getMonthlyTrend(filters);
     }
 
+    /**
+     * Returns expense groups available to the current user for workspace selection.
+     *
+     * @return Expense groups ordered by name, subject to the selector result cap.
+     */
     @AuraEnabled(cacheable=true)
     public static List<Expense_Group__c> getAllExpenseGroups() {
         return [
@@ -94,6 +113,12 @@ public with sharing class SpendlyController {
         ];
     }
 
+    /**
+     * Returns categories for an expense group or the bounded compatibility list for an all-groups request.
+     *
+     * @param expenseGroupId Expense-group record ID, blank value, or the All sentinel.
+     * @return Categories ordered by name.
+     */
     @AuraEnabled(cacheable=true)
     public static List<Category__c> getCategoriesByExpenseGroup(String expenseGroupId) {
         if (String.isBlank(expenseGroupId) || expenseGroupId == 'All') {
@@ -116,26 +141,53 @@ public with sharing class SpendlyController {
         ];
     }
 
+    /**
+     * Returns expenses matching the supplied workspace filters.
+     *
+     * @param filters Expense-group, category, and date filters; null uses default filters.
+     * @return Matching expenses ordered from newest to oldest.
+     */
     @AuraEnabled
     public static List<Expense__c> getExpensesByFilters(ExpenseFilterRequest filters) {
         return SpendlyExpenseQueryService.getExpensesByFilters(filters);
     }
 
+    /**
+     * Builds recurring-template rows and summary totals for an expense group.
+     *
+     * @param expenseGroupId Expense-group record ID or the All sentinel.
+     * @return Recurring-template overview for the requested context.
+     */
     @AuraEnabled(cacheable=true)
     public static RecurringExpenseOverview getRecurringExpenseOverview(String expenseGroupId) {
         return SpendlyExpenseQueryService.getRecurringExpenseOverview(expenseGroupId);
     }
 
+    /**
+     * Deactivates a recurring-expense template.
+     *
+     * @param recurringExpenseId Recurring template to deactivate.
+     */
     @AuraEnabled
     public static void deactivateRecurringExpense(Id recurringExpenseId) {
         SpendlyExpenseCommandService.deactivateRecurringExpense(recurringExpenseId);
     }
 
+    /**
+     * Deletes multiple expenses in one bulk operation.
+     *
+     * @param expenseIds Expense records to delete.
+     */
     @AuraEnabled
     public static void deleteExpenses(List<Id> expenseIds) {
         SpendlyExpenseCommandService.deleteExpenses(expenseIds);
     }
 
+    /**
+     * Deletes one expense.
+     *
+     * @param expenseId Expense record to delete.
+     */
     @AuraEnabled
     public static void deleteExpense(Id expenseId) {
         SpendlyExpenseCommandService.deleteExpense(expenseId);

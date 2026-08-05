@@ -1,9 +1,11 @@
+/** Manages the singleton Spendly settings record, scheduler configuration, and recurring-run status. */
 public with sharing class SpendlySettingsService {
     private static final String DEFAULT_SETTINGS_NAME = 'Default';
     private static final String RECURRING_SCHEDULE_NAME = 'Spendly Recurring Expense Daily';
     private static final Time DEFAULT_RECURRING_RUN_TIME = Time.newInstance(8, 0, 0, 0);
     private static final String RUN_TIME_PATTERN = '^(?:[01]\\d|2[0-3]):[0-5]\\d$';
 
+    /** User-editable settings values accepted from the Spendly Settings LWC. */
     public class SettingsUpdateRequest {
         /** Whether recurring expense automation should be enabled. */
         @AuraEnabled
@@ -13,6 +15,7 @@ public with sharing class SpendlySettingsService {
         public String globalRecurringRunTime { get; set; }
     }
 
+    /** Settings and scheduler state returned to the Spendly Settings LWC. */
     public class SettingsState {
         @AuraEnabled
         public Id settingsId;
@@ -37,6 +40,11 @@ public with sharing class SpendlySettingsService {
         @AuraEnabled
         public String recurringScheduleCronExpression;
 
+        /**
+         * Builds UI state from the settings record and current recurring schedule.
+         *
+         * @param settings Singleton Spendly settings record.
+         */
         public SettingsState(Spendly_Settings__c settings) {
             this.settingsId = settings.Id;
             this.recurringExpensesEnabled = settings.Recurring_Expenses_Enabled__c;
@@ -62,11 +70,22 @@ public with sharing class SpendlySettingsService {
         }
     }
 
+    /**
+     * Returns the current settings and scheduler state, creating default settings when absent.
+     *
+     * @return Settings state for the current user.
+     */
     @AuraEnabled
     public static SettingsState getSettings() {
         return new SettingsState(getOrCreateSettings());
     }
 
+    /**
+     * Saves global recurring settings and reschedules the daily job when its run time changes.
+     *
+     * @param request Updated enablement and daily run-time values.
+     * @return Persisted settings and current scheduler state.
+     */
     @AuraEnabled
     public static SettingsState saveSettings(SettingsUpdateRequest request) {
         Spendly_Settings__c settings = getOrCreateSettings();
@@ -96,14 +115,30 @@ public with sharing class SpendlySettingsService {
         return new SettingsState(settings);
     }
 
+    /**
+     * Returns whether global recurring-expense automation is enabled.
+     *
+     * @return True when recurring generation is enabled.
+     */
     public static Boolean areRecurringExpensesEnabled() {
         return getOrCreateSettings().Recurring_Expenses_Enabled__c;
     }
 
+    /**
+     * Records that a manual recurring-expense batch was queued.
+     *
+     * @param jobId Queued Salesforce batch job ID.
+     */
     public static void markRecurringRunQueued(Id jobId) {
         updateRecurringRunStatus('Queued', 'Recurring expense generation is queued.');
     }
 
+    /**
+     * Records aggregate counts and a user-facing message for a completed recurring run.
+     *
+     * @param expensesCreated Number of expenses created.
+     * @param recurringExpensesProcessed Number of recurring templates processed.
+     */
     public static void markRecurringRunCompleted(
         Integer expensesCreated,
         Integer recurringExpensesProcessed
@@ -125,6 +160,11 @@ public with sharing class SpendlySettingsService {
         updateRecurringRunStatus('Completed', message);
     }
 
+    /**
+     * Records that recurring generation was skipped.
+     *
+     * @param message User-facing reason the run was skipped.
+     */
     public static void markRecurringRunSkipped(String message) {
         updateRecurringRunStatus('Skipped', message);
     }

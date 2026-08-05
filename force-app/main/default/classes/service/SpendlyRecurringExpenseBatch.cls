@@ -1,3 +1,4 @@
+/** Processes due recurring templates in bulk and records aggregate run results. */
 public with sharing class SpendlyRecurringExpenseBatch implements Database.Batchable<SObject>, Database.Stateful {
     public static final Integer DEFAULT_BATCH_SIZE = 50;
 
@@ -5,6 +6,7 @@ public with sharing class SpendlyRecurringExpenseBatch implements Database.Batch
     private Integer totalExpensesCreated = 0;
     private Integer totalRecurringExpensesProcessed = 0;
 
+    /** Creates a recurring-expense batch for the current date. */
     public SpendlyRecurringExpenseBatch() {
         this(Date.today());
     }
@@ -17,6 +19,12 @@ public with sharing class SpendlyRecurringExpenseBatch implements Database.Batch
         this.runDate = runDate;
     }
 
+    /**
+     * Selects active recurring templates due on or before the batch run date.
+     *
+     * @param context Platform batch context.
+     * @return Query locator for due recurring templates.
+     */
     public Database.QueryLocator start(Database.BatchableContext context) {
         return Database.getQueryLocator(
             [
@@ -40,6 +48,12 @@ public with sharing class SpendlyRecurringExpenseBatch implements Database.Batch
         );
     }
 
+    /**
+     * Generates expenses for one batch scope and accumulates run totals.
+     *
+     * @param context Platform batch context.
+     * @param scope Due recurring templates in the current scope.
+     */
     public void execute(Database.BatchableContext context, List<SObject> scope) {
         List<Recurring_Expense__c> recurringExpenses = new List<Recurring_Expense__c>();
         for (SObject item : scope) {
@@ -54,6 +68,11 @@ public with sharing class SpendlyRecurringExpenseBatch implements Database.Batch
         totalRecurringExpensesProcessed += result.recurringExpensesProcessed;
     }
 
+    /**
+     * Persists the completed recurring-run summary to Spendly settings.
+     *
+     * @param context Platform batch context.
+     */
     public void finish(Database.BatchableContext context) {
         SpendlySettingsService.markRecurringRunCompleted(
             totalExpensesCreated,

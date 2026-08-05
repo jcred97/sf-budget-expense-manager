@@ -1,9 +1,11 @@
+/** Coordinates manual, synchronous, and batch recurring-expense generation. */
 public with sharing class SpendlyRecurringExpenseService {
     @TestVisible
     private static final Integer MAX_EXPENSES_PER_RUN = 200;
     @TestVisible
     private static final Integer MAX_EXPENSES_PER_TRANSACTION = 9000;
 
+    /** Counts and limit status produced by a recurring-expense generation run. */
     public class GenerationResult {
         @AuraEnabled
         public Date runDate;
@@ -16,6 +18,11 @@ public with sharing class SpendlyRecurringExpenseService {
         @AuraEnabled
         public Boolean hitGenerationLimit;
 
+        /**
+         * Creates an empty result for a generation date.
+         *
+         * @param runDate Inclusive generation cutoff represented by this result.
+         */
         public GenerationResult(Date runDate) {
             this.runDate = runDate;
             this.recurringExpensesProcessed = 0;
@@ -25,11 +32,21 @@ public with sharing class SpendlyRecurringExpenseService {
         }
     }
 
+    /**
+     * Generates due recurring expenses for today using the synchronous run cap.
+     *
+     * @return Generation counts and limit status.
+     */
     @AuraEnabled
     public static GenerationResult generateDueExpenses() {
         return generateDueExpenses(Date.today());
     }
 
+    /**
+     * Queues the recurring-expense batch and records its queued status.
+     *
+     * @return Salesforce batch job ID.
+     */
     @AuraEnabled
     public static Id runDueExpensesBatch() {
         if (!SpendlySettingsService.areRecurringExpensesEnabled()) {
@@ -74,6 +91,13 @@ public with sharing class SpendlyRecurringExpenseService {
         return generateDueExpenses(dueRecurringExpenses, runDate);
     }
 
+    /**
+     * Generates expenses for the supplied recurring templates through the transaction-safe cap.
+     *
+     * @param dueRecurringExpenses Recurring templates eligible for processing.
+     * @param runDate Inclusive generation cutoff.
+     * @return Generation counts and limit status.
+     */
     public static GenerationResult generateDueExpenses(
         List<Recurring_Expense__c> dueRecurringExpenses,
         Date runDate

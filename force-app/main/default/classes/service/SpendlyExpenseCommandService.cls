@@ -1,4 +1,10 @@
+/** Performs user-mode mutations for expenses and recurring templates. */
 public with sharing class SpendlyExpenseCommandService {
+    /**
+     * Marks a recurring-expense template inactive after validating access and existence.
+     *
+     * @param recurringExpenseId Recurring template to deactivate.
+     */
     public static void deactivateRecurringExpense(Id recurringExpenseId) {
         if (recurringExpenseId == null) {
             throw handledException('Recurring Expense Id is required.');
@@ -31,6 +37,11 @@ public with sharing class SpendlyExpenseCommandService {
         }
     }
 
+    /**
+     * Deletes the accessible expenses matching the supplied IDs in one DML operation.
+     *
+     * @param expenseIds Expense records to delete.
+     */
     public static void deleteExpenses(List<Id> expenseIds) {
         Set<Id> requestedExpenseIds = requireExpenseIds(expenseIds);
         try {
@@ -47,6 +58,11 @@ public with sharing class SpendlyExpenseCommandService {
         }
     }
 
+    /**
+     * Deletes one accessible expense and reports missing records with a handled error.
+     *
+     * @param expenseId Expense record to delete.
+     */
     public static void deleteExpense(Id expenseId) {
         requireExpenseId(expenseId);
 

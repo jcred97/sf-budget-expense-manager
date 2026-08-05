@@ -1,4 +1,13 @@
+/** Calculates recurring-template eligibility and anchored next-run dates. */
 public with sharing class SpendlyRecurringExpenseCalculator {
+    /**
+     * Determines whether a template should generate an expense for a due date.
+     *
+     * @param recurringExpense Template whose end date constrains generation.
+     * @param dueDate Candidate due date.
+     * @param runDate Inclusive generation cutoff.
+     * @return True when the candidate date is due and within the template end date.
+     */
     public static Boolean shouldGenerateForDate(
         Recurring_Expense__c recurringExpense,
         Date dueDate,
@@ -10,6 +19,14 @@ public with sharing class SpendlyRecurringExpenseCalculator {
             dueDate <= recurringExpense.End_Date__c);
     }
 
+    /**
+     * Calculates the next daily, weekly, monthly, or yearly run date while preserving its anchor.
+     *
+     * @param dueDate Current due date.
+     * @param frequency Recurrence frequency.
+     * @param anchorDate Original template start date used for monthly and yearly alignment.
+     * @return Next run date for the recurrence.
+     */
     public static Date getNextRunDate(Date dueDate, String frequency, Date anchorDate) {
         switch on frequency {
             when 'Daily' {

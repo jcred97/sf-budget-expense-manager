@@ -1,4 +1,6 @@
+/** Generates and persists expenses from due recurring templates. */
 public with sharing class SpendlyRecurringExpenseGenerator {
+    /** Options controlling the generation cutoff, cap, and transaction time. */
     public class GenerationOptions {
         public Date runDate;
         public Integer maxExpenses;
@@ -13,6 +15,13 @@ public with sharing class SpendlyRecurringExpenseGenerator {
         public Integer maxExpenses;
         public Time generatedTransactionTime;
 
+        /**
+         * Creates mutable state for one generation transaction.
+         *
+         * @param runDate Inclusive generation cutoff.
+         * @param maxExpenses Maximum expenses allowed in the transaction.
+         * @param generatedTransactionTime Transaction time assigned to generated expenses.
+         */
         public GenerationContext(Date runDate, Integer maxExpenses, Time generatedTransactionTime) {
             this.result = new SpendlyRecurringExpenseService.GenerationResult(runDate);
             this.expensesToInsert = new List<Expense__c>();
@@ -23,6 +32,13 @@ public with sharing class SpendlyRecurringExpenseGenerator {
         }
     }
 
+    /**
+     * Generates due expenses, advances template pointers, and persists both record collections.
+     *
+     * @param dueRecurringExpenses Recurring templates eligible for processing.
+     * @param options Generation cutoff, cap, and transaction time.
+     * @return Counts and limit status for the generation transaction.
+     */
     public static SpendlyRecurringExpenseService.GenerationResult generate(
         List<Recurring_Expense__c> dueRecurringExpenses,
         GenerationOptions options
