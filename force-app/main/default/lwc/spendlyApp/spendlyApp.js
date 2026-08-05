@@ -13,8 +13,23 @@ import getMonthlyTrend from '@salesforce/apex/SpendlyController.getMonthlyTrend'
 import getRecurringExpenseOverview from '@salesforce/apex/SpendlyController.getRecurringExpenseOverview';
 import deactivateRecurringExpense from '@salesforce/apex/SpendlyController.deactivateRecurringExpense';
 import runDueExpensesBatch from '@salesforce/apex/SpendlyRecurringExpenseService.runDueExpensesBatch';
+import {
+    formatCompactPHP,
+    formatDate,
+    formatDateISO,
+    formatMonthLabel,
+    formatPHP,
+    getMonthBounds,
+    parseDateString
+} from 'c/spendlyFormatters';
+import {
+    CHART_COLORS,
+    buildBarChartData,
+    groupByAmount,
+    groupByCount,
+    mapExpenseRow
+} from 'c/spendlyDataTransforms';
 
-const CHART_COLORS = ['#0070D2', '#04844B', '#FFB75D', '#E4A201', '#9E5BB5', '#E16032'];
 const MONTH_NAMES = [
     'Jan',
     'Feb',
@@ -54,137 +69,6 @@ const VIEW_CONFIG = [
         iconName: 'utility:sync'
     }
 ];
-
-const PHP_CURRENCY = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
-const PHP_COMPACT_CURRENCY = new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
-    notation: 'compact',
-    maximumFractionDigits: 1
-});
-const DATE_FORMAT = new Intl.DateTimeFormat('en-PH', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    timeZone: 'UTC'
-});
-const MONTH_LABEL_FORMAT = new Intl.DateTimeFormat('en-PH', {
-    year: 'numeric',
-    month: 'long'
-});
-
-function formatPHP(value) {
-    return PHP_CURRENCY.format(value);
-}
-
-function formatCompactPHP(value) {
-    const amount = value || 0;
-    return Math.abs(amount) < 1000 ? formatPHP(amount) : PHP_COMPACT_CURRENCY.format(amount);
-}
-
-function formatDate(isoDate) {
-    return isoDate ? DATE_FORMAT.format(new Date(isoDate)) : '-';
-}
-
-function formatTime(value) {
-    if (!value) {
-        return '-';
-    }
-
-    const timeValue = typeof value === 'number' ? millisecondsToTime(value) : value;
-    const [hourText, minuteText] = String(timeValue).split(':');
-    const hour = Number(hourText);
-    const minute = Number(minuteText);
-
-    if (Number.isNaN(hour) || Number.isNaN(minute)) {
-        return '-';
-    }
-
-    const period = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${String(minute).padStart(2, '0')} ${period}`;
-}
-
-function millisecondsToTime(value) {
-    const totalMinutes = Math.floor(value / 60000);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00.000`;
-}
-
-function formatDateISO(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-}
-
-function getMonthBounds(date) {
-    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    return {
-        startDate: formatDateISO(firstDay),
-        endDate: formatDateISO(lastDay)
-    };
-}
-
-function parseDateString(value) {
-    if (!value) {
-        return null;
-    }
-    const [year, month, day] = value.split('-').map(Number);
-    return new Date(year, month - 1, day);
-}
-
-function groupByAmount(rows, field, fallbackLabel = 'Unknown') {
-    const map = {};
-    rows.forEach(row => {
-        const key = row[field] || fallbackLabel;
-        map[key] = (map[key] || 0) + (row.amount || 0);
-    });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]);
-}
-
-function groupByCount(rows, field, fallbackLabel = 'Unknown') {
-    const map = {};
-    rows.forEach(row => {
-        const key = row[field] || fallbackLabel;
-        map[key] = (map[key] || 0) + 1;
-    });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]);
-}
-
-function buildBarChartData(entries, prefix) {
-    const max = entries[0]?.[1] || 1;
-    return entries.map(([name, total], index) => ({
-        key: `${prefix}-${name}-${index}`,
-        name,
-        formattedTotal: formatPHP(total),
-        barStyle: `--bar-color:${CHART_COLORS[index % CHART_COLORS.length]};--bar-width:${Math.round((total / max) * 100)}%`
-    }));
-}
-
-function mapExpenseRow(row) {
-    return {
-        id: row.Id,
-        expenseDate: row.Expense_Date__c,
-        expenseDateFormatted: formatDate(row.Expense_Date__c),
-        transactionTime: row.Transaction_Time__c,
-        transactionTimeDisplay: formatTime(row.Transaction_Time__c),
-        name: row.Name,
-        recordLink: `/${row.Id}`,
-        category: row.Category__r?.Name,
-        categoryId: row.Category__c,
-        categoryDisplay: row.Category__r?.Name || 'Uncategorized',
-        expenseGroup: row.Category__r?.Expense_Group__r?.Name,
-        bank: row.Bank__c,
-        bankDisplay: row.Bank__c || 'No bank',
-        transactionType: row.Transaction_Type__c,
-        transactionTypeDisplay: row.Transaction_Type__c || 'No type',
-        amount: row.Amount__c,
-        amountFormatted: formatPHP(row.Amount__c || 0)
-    };
-}
 
 export default class SpendlyApp extends LightningElement {
     _latestLoadRequestId = 0;
@@ -876,7 +760,7 @@ export default class SpendlyApp extends LightningElement {
         const selectedDate =
             parseDateString(this.isDashboardView ? this.dashboardStartDate : this.startDate) ||
             new Date();
-        return MONTH_LABEL_FORMAT.format(selectedDate);
+        return formatMonthLabel(selectedDate);
     }
 
     get printRows() {
