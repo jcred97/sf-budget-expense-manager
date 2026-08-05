@@ -512,6 +512,39 @@ export default class SpendlyApp extends LightningElement {
         return formatPHP(this.totalAmount / this.summaryRows.length);
     }
 
+    get summaryCards() {
+        return [
+            {
+                key: 'total-spent',
+                label: 'Total Spent',
+                value: this.formattedTotal,
+                detail: `${this.expenseCount} expenses`,
+                variant: 'amount'
+            },
+            {
+                key: 'average-expense',
+                label: 'Average',
+                value: this.averageExpense,
+                detail: 'per expense',
+                variant: 'amount'
+            },
+            {
+                key: 'top-category',
+                label: 'Top Category',
+                value: this.topCategory.name,
+                detail: this.topCategory.amount,
+                variant: 'name'
+            },
+            {
+                key: 'top-bank',
+                label: 'Top Bank',
+                value: this.topBank.name,
+                detail: `${this.topBank.count} expenses`,
+                variant: 'name'
+            }
+        ];
+    }
+
     get topCategory() {
         if (this.summaryRows.length === 0) {
             return { name: '-', amount: 'PHP 0.00' };

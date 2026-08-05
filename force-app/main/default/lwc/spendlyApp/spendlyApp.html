@@ -16,8 +16,12 @@
                         title={sidebarToggleTitle}
                         aria-label={sidebarToggleTitle}
                         aria-expanded={sidebarAriaExpanded}
-                        onclick={handleSidebarToggle}>
-                        <lightning-icon icon-name={sidebarToggleIcon} size="xx-small"></lightning-icon>
+                        onclick={handleSidebarToggle}
+                    >
+                        <lightning-icon
+                            icon-name={sidebarToggleIcon}
+                            size="xx-small"
+                        ></lightning-icon>
                     </button>
                 </div>
 
@@ -27,7 +31,8 @@
                         value={expenseGroupId}
                         options={expenseGroupOptions}
                         variant="label-hidden"
-                        onchange={handleWorkspaceGroupChange}>
+                        onchange={handleWorkspaceGroupChange}
+                    >
                     </lightning-combobox>
                     <span class="context-caption">Current group</span>
                 </div>
@@ -40,8 +45,12 @@
                             data-view={item.key}
                             aria-current={item.ariaCurrent}
                             title={item.label}
-                            onclick={handleViewChange}>
-                            <lightning-icon icon-name={item.iconName} size="x-small"></lightning-icon>
+                            onclick={handleViewChange}
+                        >
+                            <lightning-icon
+                                icon-name={item.iconName}
+                                size="x-small"
+                            ></lightning-icon>
                             <span>{item.label}</span>
                         </button>
                     </template>
@@ -63,7 +72,8 @@
                                         alternative-text="Previous month"
                                         title="Previous month"
                                         variant="border-filled"
-                                        onclick={handlePreviousMonth}>
+                                        onclick={handlePreviousMonth}
+                                    >
                                     </lightning-button-icon>
                                     <span>{selectedMonthLabel}</span>
                                     <lightning-button-icon
@@ -71,19 +81,24 @@
                                         alternative-text="Next month"
                                         title="Next month"
                                         variant="border-filled"
-                                        onclick={handleNextMonth}>
+                                        onclick={handleNextMonth}
+                                    >
                                     </lightning-button-icon>
                                 </div>
                                 <lightning-button
                                     variant="brand"
                                     label="Add Expense"
                                     icon-name="utility:add"
-                                    onclick={openModal}>
+                                    onclick={openModal}
+                                >
                                 </lightning-button>
                             </div>
                         </div>
 
-                        <section class="dashboard-hero slds-box slds-theme_default" aria-label="Monthly spending summary">
+                        <section
+                            class="dashboard-hero slds-box slds-theme_default"
+                            aria-label="Monthly spending summary"
+                        >
                             <div>
                                 <p class="eyebrow">Current view</p>
                                 <h3>{dashboardTitle}</h3>
@@ -99,57 +114,68 @@
                         </section>
 
                         <template lwc:if={isDashboardLoading}>
-                            <section class="dashboard-loading slds-box slds-theme_default" aria-busy="true">
-                                <lightning-spinner alternative-text="Loading dashboard" size="small"></lightning-spinner>
+                            <section
+                                class="dashboard-loading slds-box slds-theme_default"
+                                aria-busy="true"
+                            >
+                                <lightning-spinner
+                                    alternative-text="Loading dashboard"
+                                    size="small"
+                                ></lightning-spinner>
                             </section>
                         </template>
                         <template lwc:else>
                             <template lwc:if={showDashboardEmptyState}>
-                                <section class="dashboard-empty-callout slds-box slds-theme_default">
+                                <section
+                                    class="dashboard-empty-callout slds-box slds-theme_default"
+                                >
                                     <div class="slds-media">
                                         <div class="slds-media__figure">
-                                            <lightning-icon icon-name="utility:info" size="small"></lightning-icon>
+                                            <lightning-icon
+                                                icon-name="utility:info"
+                                                size="small"
+                                            ></lightning-icon>
                                         </div>
                                         <div class="slds-media__body">
                                             <h3>No expenses in this period</h3>
-                                            <p>Add an expense or move to another month to see dashboard activity.</p>
+                                            <p>
+                                                Add an expense or move to another month to see
+                                                dashboard activity.
+                                            </p>
                                         </div>
                                     </div>
                                 </section>
                             </template>
 
-                            <c-spendly-summary-cards
-                                formatted-total={formattedTotal}
-                                expense-count={expenseCount}
-                                average-expense={averageExpense}
-                                top-category-name={topCategory.name}
-                                top-category-amount={topCategory.amount}
-                                top-bank-name={topBank.name}
-                                top-bank-count={topBank.count}>
-                            </c-spendly-summary-cards>
+                            <c-spendly-summary-cards cards={summaryCards}></c-spendly-summary-cards>
 
                             <div class="charts-row">
                                 <c-spendly-bar-chart
                                     title="By Category"
                                     chart-data={categoryChartData}
-                                    empty-message="No category spending in this period">
+                                    empty-message="No category spending in this period"
+                                >
                                 </c-spendly-bar-chart>
 
                                 <c-spendly-trend-chart
                                     title="Monthly Trend"
                                     trend-data={monthlyTrendData}
-                                    empty-message="No trend data for the selected months">
+                                    empty-message="No trend data for the selected months"
+                                >
                                 </c-spendly-trend-chart>
 
                                 <c-spendly-bar-chart
                                     title="By Bank"
                                     chart-data={bankChartData}
-                                    empty-message="No bank spending in this period">
+                                    empty-message="No bank spending in this period"
+                                >
                                 </c-spendly-bar-chart>
                             </div>
 
                             <div class="dashboard-detail-grid">
-                                <section class="dashboard-panel slds-box slds-theme_default slds-p-around_none">
+                                <section
+                                    class="dashboard-panel slds-box slds-theme_default slds-p-around_none"
+                                >
                                     <div class="dashboard-panel-header">
                                         <div>
                                             <p class="eyebrow">Recent activity</p>
@@ -159,7 +185,8 @@
                                             class="slds-button slds-button_reset slds-text-link"
                                             type="button"
                                             data-view="transactions"
-                                            onclick={handleViewChange}>
+                                            onclick={handleViewChange}
+                                        >
                                             View all
                                         </button>
                                     </div>
@@ -167,14 +194,25 @@
                                     <template lwc:if={hasRecentDashboardRows}>
                                         <div class="dashboard-transaction-list">
                                             <template for:each={recentDashboardRows} for:item="row">
-                                                <article key={row.id} class="dashboard-transaction-row">
+                                                <article
+                                                    key={row.id}
+                                                    class="dashboard-transaction-row"
+                                                >
                                                     <div>
-                                                        <a href={row.recordLink} target="_blank" rel="noopener noreferrer">{row.name}</a>
+                                                        <a
+                                                            href={row.recordLink}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            >{row.name}</a
+                                                        >
                                                         <p>{row.metaLine}</p>
                                                     </div>
                                                     <div>
                                                         <strong>{row.amountFormatted}</strong>
-                                                        <span>{row.transactionTimeDisplay} / {row.expenseDateFormatted}</span>
+                                                        <span
+                                                            >{row.transactionTimeDisplay} /
+                                                            {row.expenseDateFormatted}</span
+                                                        >
                                                     </div>
                                                 </article>
                                             </template>
@@ -182,13 +220,18 @@
                                     </template>
                                     <template lwc:else>
                                         <div class="dashboard-panel-empty">
-                                            <lightning-icon icon-name="utility:table" size="small"></lightning-icon>
+                                            <lightning-icon
+                                                icon-name="utility:table"
+                                                size="small"
+                                            ></lightning-icon>
                                             <span>No latest expenses to show.</span>
                                         </div>
                                     </template>
                                 </section>
 
-                                <section class="dashboard-panel slds-box slds-theme_default slds-p-around_none">
+                                <section
+                                    class="dashboard-panel slds-box slds-theme_default slds-p-around_none"
+                                >
                                     <div class="dashboard-panel-header">
                                         <div>
                                             <p class="eyebrow">Patterns</p>
@@ -198,15 +241,24 @@
 
                                     <template lwc:if={showDashboardEmptyState}>
                                         <div class="dashboard-panel-empty">
-                                            <lightning-icon icon-name="utility:metrics" size="small"></lightning-icon>
+                                            <lightning-icon
+                                                icon-name="utility:metrics"
+                                                size="small"
+                                            ></lightning-icon>
                                             <span>Insights appear after expenses are added.</span>
                                         </div>
                                     </template>
                                     <template lwc:else>
                                         <div class="insight-grid">
-                                            <template for:each={dashboardInsights} for:item="insight">
+                                            <template
+                                                for:each={dashboardInsights}
+                                                for:item="insight"
+                                            >
                                                 <div key={insight.key} class="insight-card">
-                                                    <lightning-icon icon-name={insight.iconName} size="x-small"></lightning-icon>
+                                                    <lightning-icon
+                                                        icon-name={insight.iconName}
+                                                        size="x-small"
+                                                    ></lightning-icon>
                                                     <span>{insight.label}</span>
                                                     <strong>{insight.value}</strong>
                                                     <small>{insight.detail}</small>
@@ -228,13 +280,17 @@
                                 <p>{viewSubtitle}</p>
                             </div>
                             <div class="view-header-actions">
-                                <div class="dashboard-month-controls" aria-label="Transaction month">
+                                <div
+                                    class="dashboard-month-controls"
+                                    aria-label="Transaction month"
+                                >
                                     <lightning-button-icon
                                         icon-name="utility:chevronleft"
                                         alternative-text="Previous month"
                                         title="Previous month"
                                         variant="border-filled"
-                                        onclick={handlePreviousMonth}>
+                                        onclick={handlePreviousMonth}
+                                    >
                                     </lightning-button-icon>
                                     <span>{selectedMonthLabel}</span>
                                     <lightning-button-icon
@@ -242,7 +298,8 @@
                                         alternative-text="Next month"
                                         title="Next month"
                                         variant="border-filled"
-                                        onclick={handleNextMonth}>
+                                        onclick={handleNextMonth}
+                                    >
                                     </lightning-button-icon>
                                 </div>
                                 <lightning-button
@@ -250,20 +307,23 @@
                                     label="Export CSV"
                                     icon-name="utility:download"
                                     onclick={handleExportCsv}
-                                    disabled={hasNoRows}>
+                                    disabled={hasNoRows}
+                                >
                                 </lightning-button>
                                 <lightning-button
                                     variant="neutral"
                                     label="Print / PDF"
                                     icon-name="utility:print"
                                     onclick={handlePrint}
-                                    disabled={hasNoRows}>
+                                    disabled={hasNoRows}
+                                >
                                 </lightning-button>
                                 <lightning-button
                                     variant="brand"
                                     label="Add Expense"
                                     icon-name="utility:add"
-                                    onclick={openModal}>
+                                    onclick={openModal}
+                                >
                                 </lightning-button>
                             </div>
                         </div>
@@ -271,7 +331,10 @@
                         <div class="transactions-layout">
                             <aside class="transaction-filters" aria-label="Expense filters">
                                 <div class="panel-title-row">
-                                    <lightning-icon icon-name="utility:filterList" size="x-small"></lightning-icon>
+                                    <lightning-icon
+                                        icon-name="utility:filterList"
+                                        size="x-small"
+                                    ></lightning-icon>
                                     <h3>Filter</h3>
                                 </div>
 
@@ -280,7 +343,8 @@
                                     label="Search"
                                     placeholder="Name, category, group, bank..."
                                     value={searchTerm}
-                                    onchange={handleSearch}>
+                                    onchange={handleSearch}
+                                >
                                 </lightning-input>
 
                                 <div class="filter-stack">
@@ -290,7 +354,8 @@
                                         label="Start Date"
                                         value={startDate}
                                         onchange={handleChange}
-                                        data-field="startDate">
+                                        data-field="startDate"
+                                    >
                                     </lightning-input>
                                     <lightning-input
                                         class="date-format-hide"
@@ -298,19 +363,23 @@
                                         label="End Date"
                                         value={endDate}
                                         onchange={handleChange}
-                                        data-field="endDate">
+                                        data-field="endDate"
+                                    >
                                     </lightning-input>
                                     <lightning-combobox
                                         label="Category"
                                         value={categoryId}
                                         options={categoryOptions}
                                         onchange={handleChange}
-                                        data-field="categoryId">
+                                        data-field="categoryId"
+                                    >
                                     </lightning-combobox>
                                 </div>
 
                                 <template lwc:if={dateError}>
-                                    <div class="slds-text-color_error slds-m-top_x-small">{dateError}</div>
+                                    <div class="slds-text-color_error slds-m-top_x-small">
+                                        {dateError}
+                                    </div>
                                 </template>
 
                                 <lightning-button
@@ -318,7 +387,8 @@
                                     variant="neutral"
                                     label="Reset Filters"
                                     icon-name="utility:refresh"
-                                    onclick={handleReset}>
+                                    onclick={handleReset}
+                                >
                                 </lightning-button>
                             </aside>
 
@@ -336,14 +406,23 @@
 
                                 <div class="transaction-body">
                                     <template lwc:if={isExpensesLoading}>
-                                        <section class="transactions-loading slds-box slds-theme_default" aria-busy="true">
-                                            <lightning-spinner alternative-text="Loading expenses" size="small"></lightning-spinner>
+                                        <section
+                                            class="transactions-loading slds-box slds-theme_default"
+                                            aria-busy="true"
+                                        >
+                                            <lightning-spinner
+                                                alternative-text="Loading expenses"
+                                                size="small"
+                                            ></lightning-spinner>
                                         </section>
                                     </template>
                                     <template lwc:else>
                                         <template lwc:if={hasNoRows}>
                                             <div class="empty-state">
-                                                <lightning-icon icon-name={expenseEmptyIcon} size="medium"></lightning-icon>
+                                                <lightning-icon
+                                                    icon-name={expenseEmptyIcon}
+                                                    size="medium"
+                                                ></lightning-icon>
                                                 <h3>{expenseEmptyTitle}</h3>
                                                 <p>{expenseEmptyMessage}</p>
                                                 <div class="empty-state-actions">
@@ -352,7 +431,8 @@
                                                             variant="neutral"
                                                             label="Reset Filters"
                                                             icon-name="utility:refresh"
-                                                            onclick={handleReset}>
+                                                            onclick={handleReset}
+                                                        >
                                                         </lightning-button>
                                                     </template>
                                                     <template lwc:else>
@@ -360,7 +440,8 @@
                                                             variant="brand"
                                                             label="Add Expense"
                                                             icon-name="utility:add"
-                                                            onclick={openModal}>
+                                                            onclick={openModal}
+                                                        >
                                                         </lightning-button>
                                                     </template>
                                                 </div>
@@ -369,80 +450,139 @@
                                         <template lwc:else>
                                             <template lwc:if={hasSelectedRows}>
                                                 <div class="selection-bar">
-                                                    <span class="selection-count">{selectedCount} row(s) selected</span>
+                                                    <span class="selection-count"
+                                                        >{selectedCount} row(s) selected</span
+                                                    >
                                                     <lightning-button
                                                         variant="destructive-text"
                                                         label="Delete Selected"
                                                         icon-name="utility:delete"
-                                                        onclick={handleBulkDelete}>
+                                                        onclick={handleBulkDelete}
+                                                    >
                                                     </lightning-button>
                                                 </div>
                                             </template>
                                             <div class="transaction-scroll">
                                                 <div class="transaction-list" aria-label="Expenses">
-                                                    <template for:each={transactionGroups} for:item="group">
-                                                        <section key={group.key} class="transaction-day">
+                                                    <template
+                                                        for:each={transactionGroups}
+                                                        for:item="group"
+                                                    >
+                                                        <section
+                                                            key={group.key}
+                                                            class="transaction-day"
+                                                        >
                                                             <div class="transaction-day-header">
                                                                 <div>
-                                                                    <p class="transaction-day-label">{group.label}</p>
-                                                                    <p class="transaction-day-count">{group.countLabel}</p>
+                                                                    <p
+                                                                        class="transaction-day-label"
+                                                                    >
+                                                                        {group.label}
+                                                                    </p>
+                                                                    <p
+                                                                        class="transaction-day-count"
+                                                                    >
+                                                                        {group.countLabel}
+                                                                    </p>
                                                                 </div>
-                                                                <strong>{group.totalFormatted}</strong>
+                                                                <strong
+                                                                    >{group.totalFormatted}</strong
+                                                                >
                                                             </div>
 
                                                             <div class="transaction-day-rows">
-                                                                <template for:each={group.rows} for:item="row">
-                                                                    <article key={row.id} class="transaction-row">
-                                                                        <label class="transaction-select" title="Select expense">
+                                                                <template
+                                                                    for:each={group.rows}
+                                                                    for:item="row"
+                                                                >
+                                                                    <article
+                                                                        key={row.id}
+                                                                        class="transaction-row"
+                                                                    >
+                                                                        <label
+                                                                            class="transaction-select"
+                                                                            title="Select expense"
+                                                                        >
                                                                             <input
                                                                                 type="checkbox"
                                                                                 data-id={row.id}
                                                                                 checked={row.isSelected}
-                                                                                onchange={handleTransactionSelect} />
+                                                                                onchange={handleTransactionSelect}
+                                                                            />
                                                                         </label>
 
-                                                                        <div class="transaction-main">
-                                                                            <a class="transaction-name" href={row.recordLink} target="_blank" rel="noopener noreferrer">
+                                                                        <div
+                                                                            class="transaction-main"
+                                                                        >
+                                                                            <a
+                                                                                class="transaction-name"
+                                                                                href={row.recordLink}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                            >
                                                                                 {row.name}
                                                                             </a>
-                                                                            <div class="transaction-meta">
-                                                                                <span>{row.categoryDisplay}</span>
-                                                                                <span>{row.bankDisplay}</span>
-                                                                                <span>{row.transactionTypeDisplay}</span>
+                                                                            <div
+                                                                                class="transaction-meta"
+                                                                            >
+                                                                                <span
+                                                                                    >{row.categoryDisplay}</span
+                                                                                >
+                                                                                <span
+                                                                                    >{row.bankDisplay}</span
+                                                                                >
+                                                                                <span
+                                                                                    >{row.transactionTypeDisplay}</span
+                                                                                >
                                                                             </div>
                                                                         </div>
 
-                                                                        <div class="transaction-when">
-                                                                            <span>{row.transactionTimeDisplay}</span>
-                                                                            <span>{row.expenseDateFormatted}</span>
+                                                                        <div
+                                                                            class="transaction-when"
+                                                                        >
+                                                                            <span
+                                                                                >{row.transactionTimeDisplay}</span
+                                                                            >
+                                                                            <span
+                                                                                >{row.expenseDateFormatted}</span
+                                                                            >
                                                                         </div>
 
-                                                                        <div class="transaction-amount">
+                                                                        <div
+                                                                            class="transaction-amount"
+                                                                        >
                                                                             {row.amountFormatted}
                                                                         </div>
 
-                                                                        <div class="transaction-actions" aria-label="Expense actions">
+                                                                        <div
+                                                                            class="transaction-actions"
+                                                                            aria-label="Expense actions"
+                                                                        >
                                                                             <lightning-button-menu
                                                                                 alternative-text="Expense actions"
                                                                                 icon-size="x-small"
                                                                                 menu-alignment="right"
                                                                                 variant="border-filled"
                                                                                 data-id={row.id}
-                                                                                onselect={handleTransactionAction}>
+                                                                                onselect={handleTransactionAction}
+                                                                            >
                                                                                 <lightning-menu-item
                                                                                     value="edit"
                                                                                     label="Edit"
-                                                                                    icon-name="utility:edit">
+                                                                                    icon-name="utility:edit"
+                                                                                >
                                                                                 </lightning-menu-item>
                                                                                 <lightning-menu-item
                                                                                     value="duplicate"
                                                                                     label="Duplicate"
-                                                                                    icon-name="utility:copy_to_clipboard">
+                                                                                    icon-name="utility:copy_to_clipboard"
+                                                                                >
                                                                                 </lightning-menu-item>
                                                                                 <lightning-menu-item
                                                                                     value="delete"
                                                                                     label="Delete"
-                                                                                    icon-name="utility:delete">
+                                                                                    icon-name="utility:delete"
+                                                                                >
                                                                                 </lightning-menu-item>
                                                                             </lightning-button-menu>
                                                                         </div>
@@ -455,14 +595,17 @@
                                             </div>
 
                                             <div class="transaction-table-footer">
-                                                <span class="table-status">{visibleRowsSummary}</span>
+                                                <span class="table-status"
+                                                    >{visibleRowsSummary}</span
+                                                >
                                                 <template lwc:if={hasMoreRows}>
                                                     <lightning-button
                                                         variant="neutral"
                                                         label={loadMoreLabel}
                                                         icon-name="utility:chevrondown"
                                                         onclick={handleLoadMore}
-                                                        disabled={isLoadingMore}>
+                                                        disabled={isLoadingMore}
+                                                    >
                                                     </lightning-button>
                                                 </template>
                                             </div>
@@ -487,16 +630,23 @@
                                     label={runRecurringLabel}
                                     icon-name="utility:play"
                                     onclick={handleRunRecurringExpenses}
-                                    disabled={isRunRecurringDisabled}>
+                                    disabled={isRunRecurringDisabled}
+                                >
                                 </lightning-button>
                             </div>
                         </div>
 
                         <div class="recurring-summary-grid">
                             <template for:each={recurringSummaryCards} for:item="card">
-                                <section key={card.key} class="recurring-summary-card slds-box slds-theme_default">
+                                <section
+                                    key={card.key}
+                                    class="recurring-summary-card slds-box slds-theme_default"
+                                >
                                     <div class="recurring-summary-icon">
-                                        <lightning-icon icon-name={card.iconName} size="x-small"></lightning-icon>
+                                        <lightning-icon
+                                            icon-name={card.iconName}
+                                            size="x-small"
+                                        ></lightning-icon>
                                     </div>
                                     <div class="recurring-summary-copy">
                                         <span>{card.label}</span>
@@ -507,7 +657,9 @@
                             </template>
                         </div>
 
-                        <section class="recurring-panel slds-box slds-theme_default slds-p-around_none">
+                        <section
+                            class="recurring-panel slds-box slds-theme_default slds-p-around_none"
+                        >
                             <div class="recurring-panel-header">
                                 <div>
                                     <p class="eyebrow">Templates</p>
@@ -518,7 +670,10 @@
 
                             <template lwc:if={isRecurringLoading}>
                                 <div class="recurring-loading">
-                                    <lightning-spinner alternative-text="Loading recurring expenses" size="small"></lightning-spinner>
+                                    <lightning-spinner
+                                        alternative-text="Loading recurring expenses"
+                                        size="small"
+                                    ></lightning-spinner>
                                 </div>
                             </template>
 
@@ -528,8 +683,15 @@
                                         <article key={row.id} class={row.rowClass}>
                                             <div class="recurring-main">
                                                 <div class="recurring-title-row">
-                                                    <a href={row.recordLink} target="_blank" rel="noopener noreferrer">{row.name}</a>
-                                                    <span class={row.statusClass}>{row.statusLabel}</span>
+                                                    <a
+                                                        href={row.recordLink}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        >{row.name}</a
+                                                    >
+                                                    <span class={row.statusClass}
+                                                        >{row.statusLabel}</span
+                                                    >
                                                     <template lwc:if={row.dueToday}>
                                                         <span class="recurring-due">Due</span>
                                                     </template>
@@ -562,8 +724,13 @@
                                             </div>
 
                                             <div class="recurring-dates">
-                                                <span class="recurring-date-label">Active window</span>
-                                                <span>{row.startDateFormatted} - {row.endDateFormatted}</span>
+                                                <span class="recurring-date-label"
+                                                    >Active window</span
+                                                >
+                                                <span
+                                                    >{row.startDateFormatted} -
+                                                    {row.endDateFormatted}</span
+                                                >
                                             </div>
 
                                             <div class="recurring-actions">
@@ -573,17 +740,20 @@
                                                     menu-alignment="right"
                                                     variant="border-filled"
                                                     data-id={row.id}
-                                                    onselect={handleRecurringAction}>
+                                                    onselect={handleRecurringAction}
+                                                >
                                                     <lightning-menu-item
                                                         value="edit"
                                                         label="Edit"
-                                                        icon-name="utility:edit">
+                                                        icon-name="utility:edit"
+                                                    >
                                                     </lightning-menu-item>
                                                     <lightning-menu-item
                                                         value="deactivate"
                                                         label="Deactivate"
                                                         icon-name="utility:block_visitor"
-                                                        disabled={row.deactivateDisabled}>
+                                                        disabled={row.deactivateDisabled}
+                                                    >
                                                     </lightning-menu-item>
                                                 </lightning-button-menu>
                                             </div>
@@ -594,14 +764,16 @@
 
                             <template lwc:else>
                                 <div class="recurring-empty">
-                                    <lightning-icon icon-name="utility:sync" size="small"></lightning-icon>
+                                    <lightning-icon
+                                        icon-name="utility:sync"
+                                        size="small"
+                                    ></lightning-icon>
                                     <span>No recurring expenses for this group</span>
                                 </div>
                             </template>
                         </section>
                     </section>
                 </template>
-
             </main>
         </div>
     </div>
@@ -662,6 +834,7 @@
         category-options={modalCategoryOptions}
         selected-expense-group-name={selectedExpenseGroupName}
         onsuccess={handleSuccess}
-        onclose={handleModalClose}>
+        onclose={handleModalClose}
+    >
     </c-spendly-expense-modal>
 </template>

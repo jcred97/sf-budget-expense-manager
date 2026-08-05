@@ -1,11 +1,12 @@
 import { LightningElement, api } from 'lwc';
 
 export default class SpendlySummaryCards extends LightningElement {
-    @api formattedTotal = 'PHP 0.00';
-    @api expenseCount = 0;
-    @api averageExpense = 'PHP 0.00';
-    @api topCategoryName = '-';
-    @api topCategoryAmount = 'PHP 0.00';
-    @api topBankName = '-';
-    @api topBankCount = 0;
+    @api cards = [];
+
+    get cardItems() {
+        return this.cards.map(card => ({
+            ...card,
+            valueClass: `stat-value stat-value_${card.variant || 'name'}`
+        }));
+    }
 }

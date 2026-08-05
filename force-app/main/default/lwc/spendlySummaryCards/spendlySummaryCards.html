@@ -1,24 +1,11 @@
 <template>
     <div class="summary-row">
-        <div class="stat-card slds-box slds-theme_default">
-            <div class="stat-label">Total Spent</div>
-            <div class="stat-value stat-value_amount" title={formattedTotal}>{formattedTotal}</div>
-            <div class="stat-sub">{expenseCount} expenses</div>
-        </div>
-        <div class="stat-card slds-box slds-theme_default">
-            <div class="stat-label">Average</div>
-            <div class="stat-value stat-value_amount" title={averageExpense}>{averageExpense}</div>
-            <div class="stat-sub">per expense</div>
-        </div>
-        <div class="stat-card slds-box slds-theme_default">
-            <div class="stat-label">Top Category</div>
-            <div class="stat-value stat-value_name" title={topCategoryName}>{topCategoryName}</div>
-            <div class="stat-sub">{topCategoryAmount}</div>
-        </div>
-        <div class="stat-card slds-box slds-theme_default">
-            <div class="stat-label">Top Bank</div>
-            <div class="stat-value stat-value_name" title={topBankName}>{topBankName}</div>
-            <div class="stat-sub">{topBankCount} expenses</div>
-        </div>
+        <template for:each={cardItems} for:item="card">
+            <div key={card.key} class="stat-card slds-box slds-theme_default">
+                <div class="stat-label">{card.label}</div>
+                <div class={card.valueClass} title={card.value}>{card.value}</div>
+                <div class="stat-sub">{card.detail}</div>
+            </div>
+        </template>
     </div>
 </template>
