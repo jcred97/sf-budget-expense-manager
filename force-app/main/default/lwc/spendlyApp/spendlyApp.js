@@ -691,10 +691,6 @@ export default class SpendlyApp extends LightningElement {
         }));
     }
 
-    get hasRecurringRows() {
-        return this.recurringRows.length > 0;
-    }
-
     get recurringCountLabel() {
         const count = this.recurringRows.length;
         return `${count} recurring expense${count === 1 ? '' : 's'}`;
@@ -740,6 +736,16 @@ export default class SpendlyApp extends LightningElement {
             valueTitle: String(card.value),
             detailTitle: String(card.detail)
         }));
+    }
+
+    get recurringExpensesViewModel() {
+        return {
+            summaryCards: this.recurringSummaryCards,
+            expenseGroupName: this.selectedExpenseGroupName,
+            countLabel: this.recurringCountLabel,
+            isLoading: this.isRecurringLoading,
+            rows: this.recurringRows
+        };
     }
 
     get runRecurringLabel() {
@@ -1003,8 +1009,7 @@ export default class SpendlyApp extends LightningElement {
     }
 
     async handleRecurringAction(event) {
-        const action = event.detail?.value || event.currentTarget.dataset.action;
-        const { id } = event.currentTarget.dataset;
+        const { action, id } = event.detail;
 
         if (action === 'edit') {
             window.open(`/${id}`, '_blank', 'noopener');
