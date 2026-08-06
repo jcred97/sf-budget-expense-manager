@@ -545,6 +545,33 @@ export default class SpendlyApp extends LightningElement {
         ];
     }
 
+    get expensesViewModel() {
+        return {
+            searchTerm: this.searchTerm,
+            startDate: this.startDate,
+            endDate: this.endDate,
+            categoryId: this.categoryId,
+            categoryOptions: this.categoryOptions,
+            dateError: this.dateError,
+            periodLabel: this.transactionPeriodLabel,
+            countLabel: this.transactionCountLabel,
+            formattedTotal: this.formattedTotal,
+            isLoading: this.isExpensesLoading,
+            hasNoRows: this.hasNoRows,
+            emptyIcon: this.expenseEmptyIcon,
+            emptyTitle: this.expenseEmptyTitle,
+            emptyMessage: this.expenseEmptyMessage,
+            hasActiveFilters: this.hasActiveExpenseFilters,
+            hasSelectedRows: this.hasSelectedRows,
+            selectedCount: this.selectedCount,
+            transactionGroups: this.transactionGroups,
+            visibleRowsSummary: this.visibleRowsSummary,
+            hasMoreRows: this.hasMoreRows,
+            loadMoreLabel: this.loadMoreLabel,
+            isLoadingMore: this.isLoadingMore
+        };
+    }
+
     get dashboardViewModel() {
         return {
             title: this.dashboardTitle,
@@ -824,12 +851,13 @@ export default class SpendlyApp extends LightningElement {
         }));
     }
 
-    handleChange(event) {
-        const field = event.target.dataset.field;
-        this[field] = event.detail.value;
+    handleExpenseFilterChange(event) {
+        const { field, value } = event.detail;
+        this[field] = value;
+        this.visibleCount = PAGE_SIZE;
 
-        if (field === 'expenseGroupId') {
-            this.categoryId = 'All';
+        if (field === 'searchTerm') {
+            return;
         }
 
         if (field === 'startDate' || field === 'endDate') {
@@ -840,11 +868,6 @@ export default class SpendlyApp extends LightningElement {
         }
 
         this.loadExpenses();
-    }
-
-    handleSearch(event) {
-        this.searchTerm = event.detail.value;
-        this.visibleCount = PAGE_SIZE;
     }
 
     handleReset() {
@@ -989,10 +1012,10 @@ export default class SpendlyApp extends LightningElement {
     }
 
     handleTransactionSelect(event) {
-        const { id } = event.target.dataset;
+        const { id, selected } = event.detail;
         const selectedRows = new Set(this.selectedRows);
 
-        if (event.target.checked) {
+        if (selected) {
             selectedRows.add(id);
         } else {
             selectedRows.delete(id);
@@ -1002,8 +1025,7 @@ export default class SpendlyApp extends LightningElement {
     }
 
     async handleTransactionAction(event) {
-        const action = event.detail.value;
-        const { id } = event.currentTarget.dataset;
+        const { action, id } = event.detail;
         const row = this.allRows.find(item => item.id === id);
         await this.performRowAction(action, row);
     }
