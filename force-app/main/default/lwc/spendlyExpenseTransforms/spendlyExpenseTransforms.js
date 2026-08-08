@@ -20,6 +20,30 @@ export function groupByCount(rows, field, fallbackLabel = 'Unknown') {
     return Object.entries(groupedCounts).sort((a, b) => b[1] - a[1]);
 }
 
+export function getTopAmountSummary(rows, field, fallbackLabel) {
+    if (!rows.length) {
+        return { name: '-', amount: 'PHP 0.00' };
+    }
+    const [name, total] = groupByAmount(rows, field, fallbackLabel)[0];
+    return { name, amount: formatPHP(total) };
+}
+
+export function getTopCountSummary(rows, field, fallbackLabel) {
+    if (!rows.length) {
+        return { name: '-', count: 0 };
+    }
+    const [name, count] = groupByCount(rows, field, fallbackLabel)[0];
+    return { name, count };
+}
+
+export function sumExpenseAmounts(rows) {
+    return rows.reduce((sum, row) => sum + (row.amount || 0), 0);
+}
+
+export function formatExpenseCount(count) {
+    return `${count} expense${count === 1 ? '' : 's'}`;
+}
+
 export function buildBarChartData(entries, prefix) {
     const max = entries[0]?.[1] || 1;
     return entries.map(([name, total], index) => ({

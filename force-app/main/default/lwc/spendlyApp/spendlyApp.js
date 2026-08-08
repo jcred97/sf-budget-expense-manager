@@ -14,7 +14,6 @@ import getRecurringExpenseOverview from '@salesforce/apex/SpendlyController.getR
 import deactivateRecurringExpense from '@salesforce/apex/SpendlyController.deactivateRecurringExpense';
 import runDueExpensesBatch from '@salesforce/apex/SpendlyRecurringExpenseService.runDueExpensesBatch';
 import {
-    formatCompactPHP,
     formatDate,
     formatDateISO,
     formatMonthLabel,
@@ -22,28 +21,11 @@ import {
     getMonthBounds,
     parseDateString
 } from 'c/spendlyFormatters';
-import {
-    CHART_COLORS,
-    buildBarChartData,
-    groupByAmount,
-    groupByCount,
-    mapExpenseRow
-} from 'c/spendlyDataTransforms';
+import { mapExpenseRow } from 'c/spendlyExpenseTransforms';
+import { buildDashboardViewModel } from 'c/spendlyDashboardViewModel';
+import { buildExpensesViewModel } from 'c/spendlyExpensesViewModel';
+import { buildRecurringViewModel } from 'c/spendlyRecurringViewModel';
 
-const MONTH_NAMES = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec'
-];
 const PAGE_SIZE = 20;
 const LOAD_MORE_SIZE = 10;
 const VIEW_CONFIG = [
@@ -366,413 +348,87 @@ export default class SpendlyApp extends LightningElement {
         }
     }
 
-    get filteredRows() {
-        if (!this.searchTerm) {
-            return this.allRows;
-        }
-
-        const term = this.searchTerm.toLowerCase();
-        return this.allRows.filter(
-            row =>
-                (row.name || '').toLowerCase().includes(term) ||
-                (row.category || '').toLowerCase().includes(term) ||
-                (row.expenseGroup || '').toLowerCase().includes(term) ||
-                (row.bank || '').toLowerCase().includes(term) ||
-                (row.transactionType || '').toLowerCase().includes(term)
-        );
-    }
-
-    get rowsToDisplay() {
-        return this.filteredRows.slice(0, this.visibleCount);
-    }
-
     get modalCategoryOptions() {
         return this.categoryOptions.filter(option => option.value !== 'All');
     }
 
-    get transactionGroups() {
-        const groups = [];
-        const groupMap = new Map();
-        const selectedIds = new Set(this.selectedRows);
-
-        this.rowsToDisplay.forEach(row => {
-            const key = row.expenseDate || 'no-date';
-            if (!groupMap.has(key)) {
-                const group = {
-                    key,
-                    label: row.expenseDateFormatted,
-                    rows: [],
-                    total: 0
-                };
-                groupMap.set(key, group);
-                groups.push(group);
-            }
-
-            const group = groupMap.get(key);
-            group.rows.push({
-                ...row,
-                isSelected: selectedIds.has(row.id)
-            });
-            group.total += row.amount || 0;
-        });
-
-        return groups.map(group => ({
-            ...group,
-            countLabel: `${group.rows.length} expense${group.rows.length === 1 ? '' : 's'}`,
-            totalFormatted: formatPHP(group.total)
-        }));
-    }
-
-    get hasNoRows() {
-        return this.filteredRows.length === 0 && !this.isLoading;
-    }
-
-    get summaryRows() {
-        return this.isDashboardView ? this.dashboardRows : this.filteredRows;
-    }
-
-    get hasActiveExpenseFilters() {
-        return Boolean(this.searchTerm) || this.categoryId !== 'All';
-    }
-
-    get expenseEmptyIcon() {
-        return this.hasActiveExpenseFilters ? 'utility:filterList' : 'utility:table';
-    }
-
-    get expenseEmptyTitle() {
-        return this.hasActiveExpenseFilters
-            ? 'No expenses match your filters'
-            : 'No expenses in this period';
-    }
-
-    get expenseEmptyMessage() {
-        if (this.hasActiveExpenseFilters) {
-            return 'Adjust or reset the filters to widen your expense results.';
-        }
-
-        return 'Add an expense for this group and month to start tracking spending.';
-    }
-
-    get isDashboardLoading() {
-        return this.isDashboardView && this.isDashboardLoadingState;
-    }
-
-    get isExpensesLoading() {
-        return this.isTransactionsView && this.isLoading;
-    }
-
-    get showDashboardEmptyState() {
-        return (
-            this.isDashboardView && this.dashboardRows.length === 0 && !this.isDashboardLoadingState
-        );
-    }
-
-    get hasMoreRows() {
-        return this.visibleCount < this.filteredRows.length;
-    }
-
-    get loadMoreLabel() {
-        return this.isLoadingMore ? 'Loading...' : 'Load More';
-    }
-
-    get hasSelectedRows() {
-        return this.selectedRows.length > 0;
-    }
-
-    get selectedCount() {
-        return this.selectedRows.length;
-    }
-
-    get totalAmount() {
-        return this.summaryRows.reduce((sum, row) => sum + (row.amount || 0), 0);
-    }
-
-    get formattedTotal() {
-        return formatPHP(this.totalAmount);
-    }
-
-    get expenseCount() {
-        return this.summaryRows.length;
-    }
-
-    get transactionCountLabel() {
-        const count = this.expenseCount;
-        return `${count} expense${count === 1 ? '' : 's'}`;
-    }
-
-    get visibleRowsSummary() {
-        const visibleCount = Math.min(this.visibleCount, this.filteredRows.length);
-        return `Showing ${visibleCount} of ${this.filteredRows.length}`;
-    }
-
-    get averageExpense() {
-        if (this.summaryRows.length === 0) {
-            return 'PHP 0.00';
-        }
-        return formatPHP(this.totalAmount / this.summaryRows.length);
-    }
-
-    get summaryCards() {
-        return [
-            {
-                key: 'total-spent',
-                label: 'Total Spent',
-                value: this.formattedTotal,
-                detail: `${this.expenseCount} expenses`,
-                variant: 'amount'
-            },
-            {
-                key: 'average-expense',
-                label: 'Average',
-                value: this.averageExpense,
-                detail: 'per expense',
-                variant: 'amount'
-            },
-            {
-                key: 'top-category',
-                label: 'Top Category',
-                value: this.topCategory.name,
-                detail: this.topCategory.amount,
-                variant: 'name'
-            },
-            {
-                key: 'top-bank',
-                label: 'Top Bank',
-                value: this.topBank.name,
-                detail: `${this.topBank.count} expenses`,
-                variant: 'name'
-            }
-        ];
-    }
-
     get expensesViewModel() {
-        return {
+        return buildExpensesViewModel({
+            rows: this.allRows,
             searchTerm: this.searchTerm,
+            visibleCount: this.visibleCount,
+            selectedRows: this.selectedRows,
+            categoryId: this.categoryId,
             startDate: this.startDate,
             endDate: this.endDate,
-            categoryId: this.categoryId,
             categoryOptions: this.categoryOptions,
             dateError: this.dateError,
-            periodLabel: this.transactionPeriodLabel,
-            countLabel: this.transactionCountLabel,
-            formattedTotal: this.formattedTotal,
-            isLoading: this.isExpensesLoading,
-            hasNoRows: this.hasNoRows,
-            emptyIcon: this.expenseEmptyIcon,
-            emptyTitle: this.expenseEmptyTitle,
-            emptyMessage: this.expenseEmptyMessage,
-            hasActiveFilters: this.hasActiveExpenseFilters,
-            hasSelectedRows: this.hasSelectedRows,
-            selectedCount: this.selectedCount,
-            transactionGroups: this.transactionGroups,
-            visibleRowsSummary: this.visibleRowsSummary,
-            hasMoreRows: this.hasMoreRows,
-            loadMoreLabel: this.loadMoreLabel,
+            isLoading: this.isTransactionsView && this.isLoading,
             isLoadingMore: this.isLoadingMore
-        };
+        });
     }
 
     get dashboardViewModel() {
-        return {
-            title: this.dashboardTitle,
-            subtitle: this.dashboardSubtitle,
-            formattedTotal: this.formattedTotal,
-            transactionCountLabel: this.transactionCountLabel,
-            isLoading: this.isDashboardLoading,
-            showEmptyState: this.showDashboardEmptyState,
-            summaryCards: this.summaryCards,
-            categoryChartData: this.categoryChartData,
-            monthlyTrendData: this.monthlyTrendData,
-            bankChartData: this.bankChartData,
-            recentRows: this.recentDashboardRows,
-            insights: this.dashboardInsights
-        };
-    }
-
-    get topCategory() {
-        if (this.summaryRows.length === 0) {
-            return { name: '-', amount: 'PHP 0.00' };
-        }
-        const [name, total] = groupByAmount(this.summaryRows, 'category', 'Uncategorized')[0];
-        return { name, amount: formatPHP(total) };
-    }
-
-    get topBank() {
-        if (this.summaryRows.length === 0) {
-            return { name: '-', count: 0 };
-        }
-        const [name, count] = groupByCount(this.summaryRows, 'bank', 'No bank')[0];
-        return { name, count };
-    }
-
-    get categoryChartData() {
-        if (this.summaryRows.length === 0) {
-            return [];
-        }
-        const entries = groupByAmount(this.summaryRows, 'category', 'Uncategorized').slice(0, 6);
-        return buildBarChartData(entries, 'cat');
-    }
-
-    get bankChartData() {
-        if (this.summaryRows.length === 0) {
-            return [];
-        }
-        const entries = groupByAmount(this.summaryRows, 'bank', 'No bank');
-        return buildBarChartData(entries, 'bank');
-    }
-
-    get dashboardTitle() {
-        return `${this.selectedMonthLabel} spending`;
-    }
-
-    get dashboardSubtitle() {
-        return `${this.selectedExpenseGroupName || 'No group selected'} / ${this.dashboardPeriodLabel}`;
-    }
-
-    get largestExpense() {
-        if (this.dashboardRows.length === 0) {
-            return { name: '-', amount: 'PHP 0.00', meta: 'No expenses yet' };
-        }
-
-        const row = [...this.dashboardRows].sort((a, b) => (b.amount || 0) - (a.amount || 0))[0];
-        return {
-            name: row.name || 'Untitled expense',
-            amount: formatPHP(row.amount || 0),
-            meta: `${row.categoryDisplay} / ${row.expenseDateFormatted}`
-        };
-    }
-
-    get topDay() {
-        if (this.dashboardRows.length === 0) {
-            return { label: '-', amount: 'PHP 0.00', countLabel: 'No activity' };
-        }
-
-        const dayMap = new Map();
-        this.dashboardRows.forEach(row => {
-            const key = row.expenseDate || 'no-date';
-            const item = dayMap.get(key) || {
-                label: row.expenseDateFormatted,
-                total: 0,
-                count: 0
-            };
-            item.total += row.amount || 0;
-            item.count += 1;
-            dayMap.set(key, item);
+        const isLoading = this.isDashboardView && this.isDashboardLoadingState;
+        return buildDashboardViewModel({
+            rows: this.dashboardRows,
+            trend: this.dashboardTrendRaw,
+            endDate: this.dashboardEndDate,
+            selectedMonthLabel: this.selectedMonthLabel,
+            expenseGroupName: this.selectedExpenseGroupName,
+            periodLabel: this.dashboardPeriodLabel,
+            isLoading,
+            showEmptyState: this.isDashboardView && this.dashboardRows.length === 0 && !isLoading
         });
-
-        const top = [...dayMap.values()].sort((a, b) => b.total - a.total)[0];
-        return {
-            label: top.label,
-            amount: formatPHP(top.total),
-            countLabel: `${top.count} expense${top.count === 1 ? '' : 's'}`
-        };
-    }
-
-    get dailyAverage() {
-        if (this.dashboardRows.length === 0) {
-            return 'PHP 0.00';
-        }
-
-        const activeDays =
-            new Set(this.dashboardRows.map(row => row.expenseDate || 'no-date')).size || 1;
-        return formatPHP(this.totalAmount / activeDays);
-    }
-
-    get dashboardInsights() {
-        return [
-            {
-                key: 'largest',
-                iconName: 'utility:arrowup',
-                label: 'Largest expense',
-                value: this.largestExpense.amount,
-                detail: this.largestExpense.name
-            },
-            {
-                key: 'top-day',
-                iconName: 'utility:event',
-                label: 'Highest day',
-                value: this.topDay.amount,
-                detail: `${this.topDay.label} / ${this.topDay.countLabel}`
-            },
-            {
-                key: 'daily-average',
-                iconName: 'utility:metrics',
-                label: 'Active-day average',
-                value: this.dailyAverage,
-                detail: 'Based on days with expenses'
-            },
-            {
-                key: 'top-category',
-                iconName: 'utility:topic',
-                label: 'Top category',
-                value: this.topCategory.name,
-                detail: this.topCategory.amount
-            }
-        ];
-    }
-
-    get recentDashboardRows() {
-        return this.dashboardRows.slice(0, 5).map(row => ({
-            ...row,
-            metaLine: `${row.categoryDisplay} / ${row.bankDisplay}`
-        }));
-    }
-
-    get recurringCountLabel() {
-        const count = this.recurringRows.length;
-        return `${count} recurring expense${count === 1 ? '' : 's'}`;
-    }
-
-    get activeRecurringCount() {
-        return this.recurringOverview.activeCount || 0;
-    }
-
-    get dueRecurringCount() {
-        return this.recurringOverview.dueTodayCount || 0;
-    }
-
-    get recurringMonthlyTotal() {
-        return formatPHP(this.recurringOverview.monthlyTotal || 0);
-    }
-
-    get recurringSummaryCards() {
-        return [
-            {
-                key: 'active',
-                iconName: 'utility:check',
-                label: 'Active templates',
-                value: this.activeRecurringCount,
-                detail: `${this.recurringRows.length} total templates`
-            },
-            {
-                key: 'due',
-                iconName: 'utility:event',
-                label: 'Due today',
-                value: this.dueRecurringCount,
-                detail: 'Ready for the next batch run'
-            },
-            {
-                key: 'monthly',
-                iconName: 'utility:money',
-                label: 'Monthly estimate',
-                value: this.recurringMonthlyTotal,
-                detail: 'Normalized active recurring total'
-            }
-        ].map(card => ({
-            ...card,
-            valueTitle: String(card.value),
-            detailTitle: String(card.detail)
-        }));
     }
 
     get recurringExpensesViewModel() {
-        return {
-            summaryCards: this.recurringSummaryCards,
+        return buildRecurringViewModel({
+            rows: this.recurringRows,
+            overview: this.recurringOverview,
             expenseGroupName: this.selectedExpenseGroupName,
-            countLabel: this.recurringCountLabel,
-            isLoading: this.isRecurringLoading,
-            rows: this.recurringRows
-        };
+            isLoading: this.isRecurringLoading
+        });
+    }
+
+    get activeSummary() {
+        return this.isDashboardView ? this.dashboardViewModel : this.expensesViewModel;
+    }
+
+    get filteredRows() {
+        return this.expensesViewModel.filteredRows;
+    }
+
+    get hasNoRows() {
+        return this.expensesViewModel.hasNoRows;
+    }
+
+    get formattedTotal() {
+        return this.activeSummary.formattedTotal;
+    }
+
+    get expenseCount() {
+        return this.activeSummary.expenseCount;
+    }
+
+    get averageExpense() {
+        return this.activeSummary.averageExpense;
+    }
+
+    get topCategory() {
+        return this.activeSummary.topCategory;
+    }
+
+    get topBank() {
+        return this.activeSummary.topBank;
+    }
+
+    get printDateRange() {
+        return this.expensesViewModel.printDateRange;
+    }
+
+    get printRows() {
+        return this.expensesViewModel.printRows;
     }
 
     get runRecurringLabel() {
@@ -783,56 +439,10 @@ export default class SpendlyApp extends LightningElement {
         return this.isRunningRecurring || this.isRecurringLoading;
     }
 
-    get monthlyTrendData() {
-        const end = parseDateString(this.dashboardEndDate) || new Date();
-        const last6Months = Array.from({ length: 6 }, (_, index) => {
-            const date = new Date(end.getFullYear(), end.getMonth() - (5 - index), 1);
-            return { year: date.getFullYear(), monthNum: date.getMonth() + 1 };
-        });
-
-        const rawMap = {};
-        this.dashboardTrendRaw.forEach(month => {
-            rawMap[`${month.year}-${month.monthNum}`] = month.total || 0;
-        });
-
-        const totals = last6Months.map(month => rawMap[`${month.year}-${month.monthNum}`] || 0);
-        const max = Math.max(...totals, 1);
-
-        return last6Months.map((month, index) => ({
-            key: `trend-${month.year}-${month.monthNum}`,
-            label: MONTH_NAMES[month.monthNum - 1],
-            formattedTotal: formatPHP(totals[index]),
-            compactTotal: formatCompactPHP(totals[index]),
-            barClass: `vbar-item ${month.year === end.getFullYear() && month.monthNum === end.getMonth() + 1 ? 'is-selected' : ''}`,
-            barStyle: `--vbar-color:${CHART_COLORS[0]};--vbar-height:${totals[index] > 0 ? Math.max(10, Math.round((totals[index] / max) * 110)) : 2}px`,
-            hasValue: totals[index] > 0
-        }));
-    }
-
-    get printDateRange() {
-        return `${this.startDate || ''} - ${this.endDate || ''}`;
-    }
-
-    get transactionPeriodLabel() {
-        const start = formatDate(this.startDate);
-        const end = formatDate(this.endDate);
-
-        if (start === '-' && end === '-') {
-            return 'All dates';
-        }
-
-        return `${start} - ${end}`;
-    }
-
     get dashboardPeriodLabel() {
         const start = formatDate(this.dashboardStartDate);
         const end = formatDate(this.dashboardEndDate);
-
-        if (start === '-' && end === '-') {
-            return 'All dates';
-        }
-
-        return `${start} - ${end}`;
+        return start === '-' && end === '-' ? 'All dates' : `${start} - ${end}`;
     }
 
     get selectedMonthLabel() {
@@ -840,15 +450,6 @@ export default class SpendlyApp extends LightningElement {
             parseDateString(this.isDashboardView ? this.dashboardStartDate : this.startDate) ||
             new Date();
         return formatMonthLabel(selectedDate);
-    }
-
-    get printRows() {
-        return this.filteredRows.map(row => ({
-            ...row,
-            expenseDateFormatted: formatDate(row.expenseDate),
-            transactionTimeFormatted: row.transactionTimeDisplay,
-            amountFormatted: row.amount != null ? formatPHP(row.amount) : '-'
-        }));
     }
 
     handleExpenseFilterChange(event) {
