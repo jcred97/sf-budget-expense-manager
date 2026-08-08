@@ -44,17 +44,16 @@ Current known test location:
 
 ## Destructive Deploy
 
-`destructive/destructiveChanges.xml` removes old `TrackSpend`-named components.
-Run it before deploying renamed `Spendly` components when cleaning an org:
+The Git-ignored `destructive/` directory is used for task-specific destructive manifests. Verify every member against local references and the target org before running it:
 
 ```bash
-sf project deploy start --manifest destructive/package.xml --post-destructive-changes destructive/destructiveChanges.xml --target-org your-org-alias
+sf project deploy start --dry-run --manifest destructive/package.xml --post-destructive-changes destructive/destructiveChanges.xml --target-org your-org-alias
 ```
+
+Run the same command without `--dry-run` only after the validation succeeds. The latest destructive deployment removed the obsolete `spendlyDataTransforms` bundle after its replacement, `spendlyExpenseTransforms`, was deployed.
 
 The recurring expense generator uses `Next_Run_Date__c` as its continuation pointer.
 
 ## Currency
 
-All amounts are in PHP (Philippine Peso). Currency formatting is hardcoded in
-the datatable column `typeAttributes` and in `formattedTotal` via
-`Intl.NumberFormat`.
+All amounts are in PHP (Philippine Peso). Shared display formatting is centralized in `spendlyFormatters` with `Intl.NumberFormat`; view models and expense transforms provide formatted values to presentation components.

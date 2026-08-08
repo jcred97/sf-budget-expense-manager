@@ -45,8 +45,6 @@ sf-spendly/
     contentassets/
       spendly1.asset
     flexipages/
-      Spendly.flexipage-meta.xml
-      Spendly_Settings.flexipage-meta.xml
       Spendly_UtilityBar.flexipage-meta.xml
       Expense_Record_Page.flexipage-meta.xml
     globalValueSets/
@@ -61,9 +59,14 @@ sf-spendly/
       spendlyApp/
       spendlyBarChart/
       spendlyDashboardView/
-      spendlyDataTransforms/
+      spendlyDashboardViewModel/
       spendlyExpenseModal/
+      spendlyExpenses/
+      spendlyExpensesViewModel/
+      spendlyExpenseTransforms/
       spendlyFormatters/
+      spendlyRecurringExpenses/
+      spendlyRecurringViewModel/
       spendlySummaryCards/
       spendlySettings/
       spendlyTrendChart/
