@@ -4,7 +4,7 @@ Last updated: 2026-06-21 Manila time
 
 ## Purpose
 
-Recreate the AMAHC Power Dialer pattern in Spendly without real customer data or AMAHC-specific integrations.
+Recreate the AMAHC Power Dialer pattern in Budget & Expense Manager without real customer data or AMAHC-specific integrations.
 
 ## Implemented Scope
 

@@ -1,0 +1,115 @@
+<template>
+    <div class="settings-page">
+        <div class="settings-header">
+            <div>
+                <h1 class="settings-title">Settings</h1>
+                <p class="settings-subtitle">Automation and app controls</p>
+            </div>
+            <div class="header-actions">
+                <lightning-button
+                    variant="neutral"
+                    label={refreshButtonLabel}
+                    icon-name="utility:refresh"
+                    onclick={handleRefresh}
+                    disabled={isRefreshDisabled}
+                >
+                </lightning-button>
+                <lightning-button
+                    variant="brand"
+                    label="Save"
+                    icon-name="utility:save"
+                    onclick={handleSave}
+                    disabled={isSaving}
+                >
+                </lightning-button>
+            </div>
+        </div>
+
+        <div class="settings-grid">
+            <section class="settings-panel">
+                <div class="panel-header">
+                    <lightning-icon icon-name="utility:sync" size="small"></lightning-icon>
+                    <h2>Recurring Expenses</h2>
+                </div>
+
+                <lightning-input
+                    type="toggle"
+                    label="Recurring Expenses"
+                    checked={recurringExpensesEnabled}
+                    message-toggle-active="Enabled"
+                    message-toggle-inactive="Disabled"
+                    onchange={handleRecurringToggle}
+                >
+                </lightning-input>
+
+                <lightning-input
+                    class="run-time-input"
+                    type="time"
+                    label="Global Run Time"
+                    value={globalRecurringRunTime}
+                    onchange={handleGlobalRunTimeChange}
+                >
+                </lightning-input>
+
+                <div class="run-actions">
+                    <lightning-button
+                        variant="neutral"
+                        label={runButtonLabel}
+                        icon-name="utility:play"
+                        onclick={handleRunRecurringExpenses}
+                        disabled={isRunDisabled}
+                    >
+                    </lightning-button>
+                    <span class="schedule-text">{scheduleText}</span>
+                </div>
+            </section>
+
+            <section class="settings-panel">
+                <div class="panel-header panel-header_split">
+                    <div class="panel-title">
+                        <lightning-icon icon-name="utility:event" size="small"></lightning-icon>
+                        <h2>Schedule</h2>
+                    </div>
+                    <span class={scheduleStatusClass}>{scheduleStatusLabel}</span>
+                </div>
+
+                <dl class="status-list">
+                    <div>
+                        <dt>Next Run</dt>
+                        <dd>{scheduleNextRunDisplay}</dd>
+                    </div>
+                    <div>
+                        <dt>Timezone</dt>
+                        <dd>{scheduleTimeZoneDisplay}</dd>
+                    </div>
+                    <div>
+                        <dt>Automation Status</dt>
+                        <dd>{scheduleStateDisplay}</dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="settings-panel">
+                <div class="panel-header">
+                    <lightning-icon icon-name="utility:clock" size="small"></lightning-icon>
+                    <h2>Last Run</h2>
+                </div>
+
+                <dl class="status-list">
+                    <div>
+                        <dt>Status</dt>
+                        <dd>{lastRecurringRunStatus}</dd>
+                    </div>
+                    <div>
+                        <dt>Date/Time</dt>
+                        <dd>{lastRecurringRunDateTime}</dd>
+                    </div>
+                    <div>
+                        <dt>Message</dt>
+                        <dd>{lastRecurringRunMessage}</dd>
+                    </div>
+                </dl>
+            </section>
+        </div>
+    </div>
+</template>

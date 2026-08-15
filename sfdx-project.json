@@ -1,12 +1,12 @@
 {
-  "packageDirectories": [
-    {
-      "path": "force-app",
-      "default": true
-    }
-  ],
-  "name": "sf-trackspend-app",
-  "namespace": "",
-  "sfdcLoginUrl": "https://login.salesforce.com",
-  "sourceApiVersion": "65.0"
+    "packageDirectories": [
+        {
+            "path": "force-app",
+            "default": true
+        }
+    ],
+    "name": "sf-budget-expense-manager",
+    "namespace": "bemgr",
+    "sfdcLoginUrl": "https://login.salesforce.com",
+    "sourceApiVersion": "65.0"
 }

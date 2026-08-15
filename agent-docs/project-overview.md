@@ -1,6 +1,6 @@
-# Project Overview - Spendly
+# Project Overview - Budget & Expense Manager
 
-Spendly is a Salesforce Lightning Web Components expense tracking app.
+Budget & Expense Manager is a Salesforce Lightning Web Components expense-management app being prepared for a `bemgr` second-generation managed package.
 
 Users log expenses under a two-level hierarchy:
 

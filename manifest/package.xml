@@ -1,56 +1,89 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
-        <members>SpendlyController</members>
-        <members>SpendlyControllerTest</members>
+        <members>BudgetExpenseSettingsService</members>
+        <members>BudgetExpenseSettingsServiceTest</members>
+        <members>BudgetExpenseSettingsTriggerHandler</members>
+        <members>BudgetExpenseSettingsTriggerHandlerTest</members>
+        <members>ExpenseCommandService</members>
+        <members>ExpenseController</members>
+        <members>ExpenseControllerTest</members>
+        <members>ExpenseQueryService</members>
+        <members>RecurringExpenseBatch</members>
+        <members>RecurringExpenseBatchTest</members>
+        <members>RecurringExpenseCalculator</members>
+        <members>RecurringExpenseCalculatorTest</members>
+        <members>RecurringExpenseGenerator</members>
+        <members>RecurringExpenseScheduler</members>
+        <members>RecurringExpenseSchedulerTest</members>
+        <members>RecurringExpenseService</members>
+        <members>RecurringExpenseServiceTest</members>
         <members>RecurringExpenseTriggerHandler</members>
-        <members>RecurringExpenseTriggerTest</members>
-        <members>SpendlyRecurringExpenseBatch</members>
-        <members>SpendlyRecurringExpenseBatchTest</members>
-        <members>SpendlyRecurringExpenseCalculator</members>
-        <members>SpendlyRecurringExpenseCalculatorTest</members>
-        <members>SpendlyRecurringExpenseScheduler</members>
-        <members>SpendlyRecurringExpenseSchedulerTest</members>
-        <members>SpendlyRecurringExpenseService</members>
-        <members>SpendlyRecurringExpenseServiceTest</members>
-        <members>SpendlySettingsService</members>
-        <members>SpendlySettingsServiceTest</members>
-        <members>SpendlySettingsTriggerHandler</members>
+        <members>RecurringExpenseTriggerHandlerTest</members>
         <name>ApexClass</name>
     </types>
     <types>
+        <members>BudgetExpenseSettingsTrigger</members>
         <members>RecurringExpenseTrigger</members>
-        <members>SpendlySettingsTrigger</members>
         <name>ApexTrigger</name>
     </types>
     <types>
-        <members>spendly1</members>
+        <members>budgetExpenseManagerLogo</members>
         <name>ContentAsset</name>
     </types>
     <types>
-        <members>Spendly</members>
+        <members>Budget_Expense_Manager</members>
         <name>CustomApplication</name>
     </types>
     <types>
+        <members>Budget_Expense_Manager_Setting__c.Global_Recurring_Run_Time__c</members>
+        <members>Budget_Expense_Manager_Setting__c.Last_Recurring_Run_DateTime__c</members>
+        <members>Budget_Expense_Manager_Setting__c.Last_Recurring_Run_Message__c</members>
+        <members>Budget_Expense_Manager_Setting__c.Last_Recurring_Run_Status__c</members>
+        <members>Budget_Expense_Manager_Setting__c.Recurring_Expenses_Enabled__c</members>
+        <members>Category__c.Display_Name__c</members>
+        <members>Category__c.Expense_Group__c</members>
+        <members>Category__c.Total_Amount__c</members>
+        <members>Expense__c.Amount__c</members>
+        <members>Expense__c.Bank__c</members>
+        <members>Expense__c.Category__c</members>
+        <members>Expense__c.Description__c</members>
+        <members>Expense__c.Expense_Date__c</members>
+        <members>Expense__c.Recurring_Expense__c</members>
+        <members>Expense__c.Transaction_Time__c</members>
+        <members>Expense__c.Transaction_Type__c</members>
+        <members>Recurring_Expense__c.Active__c</members>
+        <members>Recurring_Expense__c.Amount__c</members>
+        <members>Recurring_Expense__c.Bank__c</members>
+        <members>Recurring_Expense__c.Category__c</members>
+        <members>Recurring_Expense__c.Description__c</members>
+        <members>Recurring_Expense__c.End_Date__c</members>
+        <members>Recurring_Expense__c.Frequency__c</members>
+        <members>Recurring_Expense__c.Next_Run_Date__c</members>
+        <members>Recurring_Expense__c.Start_Date__c</members>
+        <members>Recurring_Expense__c.Transaction_Type__c</members>
+        <name>CustomField</name>
+    </types>
+    <types>
+        <members>Budget_Expense_Manager_Setting__c</members>
         <members>Category__c</members>
         <members>Expense__c</members>
         <members>Expense_Group__c</members>
         <members>Recurring_Expense__c</members>
-        <members>Spendly_Settings__c</members>
         <name>CustomObject</name>
     </types>
     <types>
+        <members>Budget_Expense_Manager</members>
+        <members>Budget_Expense_Manager_Settings</members>
         <members>Category__c</members>
         <members>Expense__c</members>
         <members>Expense_Group__c</members>
         <members>Recurring_Expense__c</members>
-        <members>Spendly</members>
-        <members>Spendly_Settings</members>
         <name>CustomTab</name>
     </types>
     <types>
+        <members>Budget_Expense_Manager_UtilityBar</members>
         <members>Expense_Record_Page</members>
-        <members>Spendly_UtilityBar</members>
         <name>FlexiPage</name>
     </types>
     <types>
@@ -58,26 +91,42 @@
         <name>GlobalValueSet</name>
     </types>
     <types>
+        <members
+        >Budget_Expense_Manager_Setting__c-Budget &amp; Expense Manager Settings Layout</members>
         <members>Category__c-Category Layout</members>
         <members>Expense__c-Expense Layout</members>
         <members>Expense_Group__c-Expense Group Layout</members>
         <members>Recurring_Expense__c-Recurring Expense Layout</members>
-        <members>Spendly_Settings__c-Spendly Settings Layout</members>
         <name>Layout</name>
     </types>
     <types>
-        <members>spendlyApp</members>
-        <members>spendlyBarChart</members>
-        <members>spendlyExpenseModal</members>
-        <members>spendlySummaryCards</members>
-        <members>spendlySettings</members>
-        <members>spendlyTrendChart</members>
+        <members>budgetExpenseManager</members>
+        <members>budgetExpenseSettings</members>
+        <members>expenseBarChart</members>
+        <members>expenseDashboard</members>
+        <members>expenseDashboardViewModel</members>
+        <members>expenseFormatters</members>
+        <members>expenseList</members>
+        <members>expenseListViewModel</members>
+        <members>expenseModal</members>
+        <members>expenseSummaryCards</members>
+        <members>expenseTransforms</members>
+        <members>expenseTrendChart</members>
+        <members>recurringExpenses</members>
+        <members>recurringExpenseViewModel</members>
         <name>LightningComponentBundle</name>
     </types>
     <types>
-        <members>Spendly_Admin</members>
-        <members>Spendly_All_Access</members>
-        <members>Spendly_User</members>
+        <members>Category__c.All</members>
+        <members>Expense_Group__c.All</members>
+        <members>Expense__c.All</members>
+        <members>Recurring_Expense__c.All</members>
+        <name>ListView</name>
+    </types>
+    <types>
+        <members>Budget_Expense_Manager_Admin</members>
+        <members>Budget_Expense_Manager_All_Access</members>
+        <members>Budget_Expense_Manager_User</members>
         <name>PermissionSet</name>
     </types>
     <types>

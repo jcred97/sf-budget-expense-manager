@@ -53,6 +53,9 @@ $RECYCLE.BIN/
 # Local destructive deployment package
 destructive/
 
+# Local migration and rollback exports
+scripts/migration/backups/
+
 # Project agent documentation
 !AGENTS.md
 !agent-docs/

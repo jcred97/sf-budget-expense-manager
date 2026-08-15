@@ -1,117 +1,71 @@
-# Spendly
+# Budget & Expense Manager
 
-Spendly is a Salesforce Lightning Web Components (LWC) expense tracking app for managing personal spending in a simple hierarchy:
+Budget & Expense Manager is a Salesforce Lightning Web Components application for organizing expenses, recurring entries, and spending insights in Salesforce.
 
-`Expense_Group__c -> Category__c -> Expense__c`
+```text
+Expense_Group__c -> Category__c -> Expense__c
+```
 
-The app combines a dashboard-style UI with filters, summary cards, charts, a datatable, and a modal form for creating and editing expenses.
+The project is being prepared as a second-generation managed package with the registered namespace `bemgr`. Local source remains namespace-neutral; Salesforce applies `bemgr` when source is deployed to a namespaced scratch org or built into the managed package.
 
 ## Features
 
-- Manage expenses under expense groups and categories
-- Filter by expense group, category, start date, and end date
-- Search across expense name, category, expense group, bank, and transaction type
-- View dashboard summaries for total spent, average expense, top category, and top bank
-- See chart breakdowns by category and bank
-- View a monthly trend chart
-- Sort the expense table by column
-- Use infinite loading in the datatable
-- Show or hide table columns with a column picker
-- Add, edit, duplicate, and delete expenses from row actions
-- Select multiple rows and bulk delete expenses
-- Export filtered results to CSV
-- Open a print/PDF-friendly report view from the UI
-- Use an accessible modal with focus trapping, Escape-to-close, scroll lock, and focus restoration
+- Manage expenses under expense groups and categories.
+- Filter and search expenses by group, category, date, name, bank, and transaction type.
+- Review total spending, averages, leading categories and banks, recent expenses, and monthly trends.
+- Add, edit, duplicate, delete, and bulk-delete expenses.
+- Create recurring-expense templates and generate due expenses through Batch Apex.
+- Configure global recurring automation.
+- Export filtered expenses to CSV and open a print/PDF-friendly report.
+- Use responsive, accessible modal and workspace interactions built with Lightning and SLDS patterns.
+
+All currency presentation is PHP-focused and centralized in `expenseFormatters`.
 
 ## Data Model
 
-### Expense_Group__c
+- `Expense_Group__c` — top-level expense workspace.
+- `Category__c` — master-detail child of an expense group.
+- `Expense__c` — dated expense linked to a category and optionally to its recurring template.
+- `Recurring_Expense__c` — recurring template with frequency, active state, and next-run pointer.
+- `Budget_Expense_Manager_Setting__c` — singleton global automation settings and last-run state.
 
-- Top-level expense bucket
-
-### Category__c
-
-- Master-detail to `Expense_Group__c`
-- Groups related expenses under an expense group
-
-### Expense__c
-
-- Lookup to `Category__c`
-- Main transaction record
-- Important fields include:
-    - `Amount__c`
-    - `Expense_Date__c`
-    - `Bank__c`
-    - `Transaction_Type__c`
-    - `Description__c`
-
-All amounts are formatted as PHP / Philippine Peso in the UI.
-
-## App Experience
-
-The main Spendly page is built around one primary LWC, `spendlyApp`, which provides:
-
-- Top action bar
-- Reactive filters
-- Summary cards
-- Category, bank, and trend charts
-- Expense datatable
-- Add/Edit/Duplicate modal workflow
-
-Users can narrow the dataset with filters, review high-level metrics, and then act on individual or multiple expenses from the table.
+`Budget__c` is future scope and is not included in the current source.
 
 ## Architecture
 
 ### Apex
 
-`force-app/main/default/classes/controller/SpendlyController.cls`
+- `ExpenseController` — Lightning-facing query and command façade.
+- `ExpenseQueryService` and `ExpenseCommandService` — scoped user-mode queries and DML.
+- `RecurringExpenseCalculator`, `RecurringExpenseGenerator`, `RecurringExpenseService`, `RecurringExpenseBatch`, and `RecurringExpenseScheduler` — recurring-expense calculation, generation, batching, and scheduling.
+- `BudgetExpenseSettingsService` — singleton settings and scheduler coordination.
+- `RecurringExpenseTriggerHandler` and `BudgetExpenseSettingsTriggerHandler` — thin-trigger domain behavior.
 
-The controller is responsible for:
+### Lightning Web Components
 
-- Loading all expense groups
-- Loading categories by expense group
-- Loading filtered expenses
-- Loading monthly trend aggregates
-- Deleting one expense
-- Deleting multiple expenses
+- `budgetExpenseManager` — workspace shell, navigation, state, Apex orchestration, export, print, and modal ownership.
+- `expenseDashboard` and `expenseDashboardViewModel` — dashboard presentation and pure derived state.
+- `expenseList` and `expenseListViewModel` — filtered, grouped expense list and pagination.
+- `recurringExpenses` and `recurringExpenseViewModel` — recurring-template presentation and summaries.
+- `expenseModal` — add, edit, and duplicate workflow.
+- `budgetExpenseSettings` — global recurring-automation controls.
+- `expenseBarChart`, `expenseTrendChart`, `expenseSummaryCards`, `expenseTransforms`, and `expenseFormatters` — reusable visualization and transformation modules.
 
-Notable backend behavior:
+Public component properties, event contracts, Apex DTO fields, and the existing neutral business-object APIs were preserved during the API rebrand.
 
-- Expense queries support expense group, category, and date filters
-- Monthly trend data also respects the active expense group, category, and date filters
-- Single-delete returns a handled message when a record is already missing
+## Package Identity
 
-### LWC Components
+| Concern                    | Value                                                                                              |
+| -------------------------- | -------------------------------------------------------------------------------------------------- |
+| Product/package label      | Budget & Expense Manager                                                                           |
+| Namespace                  | `bemgr`                                                                                            |
+| Salesforce application API | `Budget_Expense_Manager`                                                                           |
+| Main LWC                   | `budgetExpenseManager`                                                                             |
+| Settings object            | `Budget_Expense_Manager_Setting__c`                                                                |
+| Permission sets            | `Budget_Expense_Manager_User`, `Budget_Expense_Manager_Admin`, `Budget_Expense_Manager_All_Access` |
+| Source API version         | `65.0`                                                                                             |
 
-`force-app/main/default/lwc/spendlyApp`
-
-- Main shell for filters, charts, table, export, print, and row actions
-
-`force-app/main/default/lwc/spendlyExpenseModal`
-
-- Modal form for add, edit, and duplicate flows
-
-`force-app/main/default/lwc/spendlySummaryCards`
-
-- Displays top-level metrics
-
-`force-app/main/default/lwc/spendlyBarChart`
-
-- Reusable simple bar chart for grouped totals
-
-`force-app/main/default/lwc/spendlyTrendChart`
-
-- Monthly trend chart
-
-## Current UI Behavior
-
-- Default date range is the current month
-- Changing `expenseGroupId` resets `categoryId` to `All`
-- Invalid date ranges are blocked with an inline error
-- Search is client-side on the currently loaded filtered rows
-- Infinite loading shows 20 rows initially and loads 10 more at a time
-- Total and summary stats are calculated from the filtered dataset, not just visible rows
-- The app uses request versioning in the main data load flow so stale async responses do not overwrite newer filter results
+The checked-out directory and GitHub repository are still named `sf-spendly`. Their next planned names are `sf-budget-expense-manager`; the reviewed order and verification gates are documented in `agent-docs/repository-rename.md`. No repository or directory rename has run yet.
 
 ## Project Structure
 
@@ -119,108 +73,56 @@ Notable backend behavior:
 sf-spendly/
 |- AGENTS.md
 |- README.md
-|- package.json
-|- sfdx-project.json
-|- eslint.config.js
-|- jest.config.js
+|- agent-docs/
 |- config/
-|- destructive/
 |- manifest/
-`- force-app/main/default/
-   |- applications/
-   |- classes/
-   |  |- controller/
-   |  |- handler/
-   |  |- service/
-   |  `- test/
-   |- flexipages/
-   |- globalValueSets/
-   |- layouts/
-   |- lwc/
-   |- objects/
-   |- permissionsets/
-   |- staticresources/
-   `- tabs/
+|- force-app/main/default/
+|  |- applications/
+|  |- classes/{controller,handler,service,test}/
+|  |- contentassets/
+|  |- flexipages/
+|  |- layouts/
+|  |- lwc/
+|  |- objects/
+|  |- permissionsets/
+|  |- tabs/
+|  `- triggers/
+|- scripts/migration/
+|- package.json
+`- sfdx-project.json
 ```
 
 ## Local Development
 
-### Requirements
+Requirements:
 
 - Salesforce CLI
-- Node.js / npm
-- A Salesforce org or scratch org for deployment/testing
+- Node.js and npm
+- A Dev Hub linked to the `bemgr` namespace
+- Namespaced scratch orgs for development and package validation
 
-### Useful Commands
+Useful commands:
 
 ```bash
 npm install
 npm run lint
-npm test
 npm run test:unit
-npm run test:unit:watch
-npm run test:unit:coverage
-npm run prettier
 npm run prettier:verify
+sf code-analyzer run --workspace force-app --view detail
 ```
 
-### Deploy
+The repository-wide `prettier:verify` command currently reports legacy formatting debt outside the rebrand-owned files. Use targeted Prettier checks for changed files until that broader cleanup is handled separately.
 
-Example deployment:
-
-```bash
-sf project deploy start --source-dir force-app --target-org your-org-alias
-```
-
-### Destructive Deploy
-
-This repo also includes a destructive deployment package for removing older `TrackSpend`-named metadata before deploying the renamed Spendly assets:
-
-```bash
-sf project deploy start --manifest destructive/package.xml --post-destructive-changes destructive/destructiveChanges.xml --target-org your-org-alias
-```
+`mainDevOrg` is currently the interim unpackaged development target while feature work and violation cleanup continue. Direct source deployments there remain unprefixed. Keep `bemgr` in `sfdx-project.json`; when package work begins, use a Dev Hub linked to that namespace and validate the same source in a namespaced scratch org before creating 2GP metadata.
 
 ## Testing
 
-### Apex Tests
+Eight Apex test classes cover expense queries and commands, recurring calculation and generation, batch and scheduler behavior, trigger handlers, singleton settings, and run-status tracking.
 
-`force-app/main/default/classes/test/SpendlyControllerTest.cls`
+Jest tooling is configured through `@salesforce/sfdx-lwc-jest`, but no LWC Jest tests are currently checked in. A no-tests Jest result is therefore not behavioral coverage.
 
-The Apex tests cover:
+## Rebrand and Existing Data
 
-- Expense group retrieval
-- Category retrieval
-- Expense filtering
-- Monthly trend aggregation
-- Single delete
-- Bulk delete
-- Null and failure delete cases
-- Missing-record delete handling
+The unpackaged API rebrand and its approved legacy cleanup are deployed to `mainDevOrg`. The existing expense-group, category, expense, and recurring-template APIs were deliberately left unchanged, so their records and IDs remain in place. The settings record, all-access assignment, and recurring schedule were mapped to the rebranded identities and verified.
 
-### LWC Tests
-
-Jest tooling is configured through `@salesforce/sfdx-lwc-jest` in `package.json`.
-
-At the moment, the repo includes Jest configuration and scripts, but no checked-in LWC test files were found in `force-app/main/default/lwc`.
-
-## Tooling
-
-- ESLint for Aura/LWC JavaScript
-- Prettier for JS, HTML, XML, Apex, and related files
-- Husky for git hooks
-- lint-staged for formatting and linting staged files
-- `sfdx-lwc-jest` for LWC unit testing
-
-## Metadata Highlights
-
-- App: `Spendly`
-- API version: `65.0`
-- Permission sets: `Spendly_User`, `Spendly_Admin`, `Spendly_All_Access`
-- Static resource: `RemoveDateFormatStyle.css`
-- Includes flexipages, tabs, layouts, objects, permission sets, and app metadata
-
-## Notes
-
-- The default README scaffold has been replaced with project-specific documentation
-- The app is more feature-rich than a basic CRUD sample and behaves more like a lightweight personal finance dashboard
-- Some files in the repo still show historical encoding artifacts when viewed in certain terminals, but the project structure and code organization are clear
+No live Spendly-named metadata remains after cleanup deployment `0AfgK00000QSI4fSAH`. The old settings row was exported first, the legacy custom object was not purged, and post-cleanup reconciliation retained 3 expense groups, 18 categories, 11 recurring templates, 504 expenses, and 23 recurring links. See `agent-docs/api-rebrand.md`, `manifest/legacy-spendly-destructive.xml`, and `scripts/migration/` for the rename matrix, deployment evidence, rollback path, and verification tooling. No commit, push, managed-package creation, or GitHub repository rename has occurred.

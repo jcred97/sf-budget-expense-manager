@@ -2,8 +2,8 @@
 
 ## Workspace Shell
 
-`spendlyApp` owns an internal workspace shell driven by `VIEW_CONFIG`.
-Desktop uses a collapsible left sidebar so Spendly can have app-like
+`budgetExpenseManager` owns an internal workspace shell driven by `VIEW_CONFIG`.
+Desktop uses a collapsible left sidebar so Budget & Expense Manager can have app-like
 navigation inside Salesforce, while smaller screens fall back to a horizontal
 view strip. The first available `Expense_Group__c` is selected automatically,
 and the sidebar dropdown is the workspace group switcher. Dashboard,
@@ -32,7 +32,7 @@ insight details where precision matters.
 
 ## Reactive Filters
 
-`spendlyApp.js` binds filters to the UI state. Changing the workspace
+`budgetExpenseManager.js` binds filters to the UI state. Changing the workspace
 `expenseGroupId` reloads the scoped expense data and resets `categoryId` to
 `All`. Changing `categoryId`, `startDate`, or `endDate` reloads the data inside
 the selected expense group. Dashboard and Expenses both show previous/next
@@ -139,18 +139,18 @@ The app can export filtered rows to CSV and render a print-only expense report.
 Recurring expense templates are represented by `Recurring_Expense__c`.
 `Expense__c.Recurring_Expense__c` links an expense back to the template that
 generated it. The custom Recurring workspace view loads templates through
-`SpendlyController.getRecurringExpenseOverview()`, scoped by the current
+`ExpenseController.getRecurringExpenseOverview()`, scoped by the current
 `Expense_Group__c`, and displays active count, due-today count, and a normalized
 monthly estimate. Manual generation calls
-`SpendlyRecurringExpenseService.runDueExpensesBatch()`, while deactivation uses
+`RecurringExpenseService.runDueExpensesBatch()`, while deactivation uses
 a single-record Apex update. Generation automation uses Batch Apex so more than
 100 due templates can be processed without hitting per-transaction governor
 limits.
 
-## Spendly Settings
+## Budget & Expense Manager Settings
 
-`Spendly_Settings__c` stores singleton app-level controls. `SpendlySettingsTrigger`
-prevents multiple settings records, while `SpendlySettingsService` creates the
-default record when missing. The `spendlySettings` LWC lets users enable or
+`Budget_Expense_Manager_Setting__c` stores singleton app-level controls. `BudgetExpenseSettingsTrigger`
+prevents multiple settings records, while `BudgetExpenseSettingsService` creates the
+default record when missing. The `budgetExpenseSettings` LWC lets users enable or
 disable recurring expense generation, manually queue a recurring run, and view
 the most recent run status.

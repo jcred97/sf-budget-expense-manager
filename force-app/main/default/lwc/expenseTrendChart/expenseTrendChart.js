@@ -1,0 +1,11 @@
+import { LightningElement, api } from 'lwc';
+
+export default class ExpenseTrendChart extends LightningElement {
+    @api title = 'Monthly Trend';
+    @api trendData = [];
+    @api emptyMessage = 'No trend data available';
+
+    get hasData() {
+        return this.trendData.some(item => item.hasValue);
+    }
+}

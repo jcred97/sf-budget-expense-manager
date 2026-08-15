@@ -1,10 +1,10 @@
-﻿# Spendly Agent Instructions
+﻿# Budget & Expense Manager Agent Instructions
 
 This repo follows the shared Salesforce agent standards in `F:\Salesforce\AGENTS.md`.
 
 ## Repo Context
 
-Spendly is a Salesforce Lightning Web Components expense tracking app. Users manage a hierarchy of `Spending__c -> Category__c -> Expense__c`, with recurring expense automation and settings.
+Budget & Expense Manager is a Salesforce Lightning Web Components expense-management app. Users manage a hierarchy of `Expense_Group__c -> Category__c -> Expense__c`, with recurring expense automation and settings.
 
 ## Reference Docs
 
