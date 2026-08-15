@@ -1,8 +1,12 @@
-/* eslint-disable @salesforce-ux/slds/no-slds-class-overrides -- lightning-input exposes no supported API to hide its automatic date-format hint. */
+/* lightning-input exposes no supported API to hide its automatic date-format hint. */
+/* code-analyzer-suppress eslint:@salesforce-ux/slds/no-slds-class-overrides */
 .date-format-hide .slds-form-element__help{
 	display: none;
 }
+/* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-slds-class-overrides */
+/* lightning-input exposes no supported API to control the generated visibility utility class. */
+/* code-analyzer-suppress eslint:@salesforce-ux/slds/no-slds-class-overrides */
 .date-format-hide .slds-show{
 	display:block;
 }
-/* eslint-enable @salesforce-ux/slds/no-slds-class-overrides */
+/* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-slds-class-overrides */

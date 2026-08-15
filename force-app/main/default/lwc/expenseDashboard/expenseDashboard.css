@@ -147,8 +147,10 @@
 }
 
 .dashboard-loading {
-    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Preserves the existing loading space after extraction into shadow DOM. */
+    /* Preserves the existing loading space after extraction into shadow DOM. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-height: 12rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     position: relative;
 }
 
@@ -233,7 +235,7 @@
     gap: 1rem;
 }
 
-/* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Matches the app shell's established responsive breakpoint. */
+/* Matches the app shell's established responsive breakpoint. */
 @media (max-width: 900px) {
     .dashboard-hero,
     .dashboard-hero-actions {

@@ -315,13 +315,14 @@
     --slds-c-button-color-border: #c9c9c9;
 }
 
-/* eslint-disable @salesforce-ux/slds/no-slds-class-overrides -- lightning-input exposes no supported API to hide its automatic date-format hint. */
+/* lightning-input exposes no supported API to hide its automatic date-format hint. */
+/* code-analyzer-suppress eslint:@salesforce-ux/slds/no-slds-class-overrides */
 .date-format-hide .slds-form-element__help {
     display: none;
 }
-/* eslint-enable @salesforce-ux/slds/no-slds-class-overrides */
+/* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-slds-class-overrides */
 
-/* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Matches the app shell's established responsive breakpoint. */
+/* Matches the app shell's established responsive breakpoint. */
 @media (max-width: 900px) {
     .transactions-layout {
         grid-template-columns: 1fr;

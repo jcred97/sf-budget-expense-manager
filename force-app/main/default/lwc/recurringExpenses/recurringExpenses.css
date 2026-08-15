@@ -261,7 +261,7 @@
     --slds-c-button-color-border: #c9c9c9;
 }
 
-/* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Matches the app shell's established responsive breakpoint. */
+/* Matches the app shell's established responsive breakpoint. */
 @media (max-width: 900px) {
     .recurring-summary-grid,
     .recurring-schedule {

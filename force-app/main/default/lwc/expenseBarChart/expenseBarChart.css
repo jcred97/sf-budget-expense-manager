@@ -5,14 +5,18 @@
 .chart-panel {
     border-radius: var(--slds-g-radius-border-1, 0.125rem);
     padding: calc(var(--slds-g-spacing-4, 1rem) + var(--slds-g-spacing-1, 0.25rem));
-    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Full-height sizing is structural chart layout, not a design token. */
+    /* Full-height sizing is structural chart layout, not a design token. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     height: 100%;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     box-sizing: border-box;
 }
 
 .panel-title {
-    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- The compact 11px chart heading has no equivalent SLDS typography hook. */
+    /* The compact 11px chart heading has no equivalent SLDS typography hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-size: 0.6875rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-weight: var(--slds-g-font-weight-4, 400);
     color: var(--slds-g-color-on-surface-1, #747474);
     letter-spacing: 0;
@@ -45,16 +49,20 @@
 
 .bar-track {
     flex: 1;
-    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- The 10px track height is data-visualization geometry with no SLDS hook. */
+    /* The 10px track height is data-visualization geometry with no SLDS hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     height: 10px;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     background: var(--slds-g-color-surface-2, #f3f3f3);
     border-radius: var(--slds-g-radius-border-pill, 9999px);
     overflow: hidden;
 }
 
 .bar-fill {
-    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Percentage fill is driven by chart data, not a design token. */
+    /* Percentage fill is driven by chart data, not a design token. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     height: 100%;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     border-radius: var(--slds-g-radius-border-pill, 9999px);
     transition: width 0.4s ease;
     background-color: var(--bar-color);
@@ -62,8 +70,10 @@
 }
 
 .bar-amount {
-    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- The compact 11px amount label has no equivalent SLDS typography hook. */
+    /* The compact 11px amount label has no equivalent SLDS typography hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-size: 0.6875rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     color: var(--slds-g-color-on-surface-1, #747474);
     text-align: right;
     white-space: nowrap;
@@ -76,8 +86,10 @@
     font-size: var(--slds-g-font-scale-1, 0.875rem);
     gap: 0.5rem;
     justify-content: center;
-    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Empty-state height preserves the chart panel layout and has no SLDS hook. */
+    /* Empty-state height preserves the chart panel layout and has no SLDS hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-height: 9rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     padding: var(--slds-g-spacing-6, 2rem) 0;
     text-align: center;
 }
