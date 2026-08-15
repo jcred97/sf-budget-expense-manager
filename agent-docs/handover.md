@@ -13,6 +13,9 @@
 - Recent UI direction: keep the custom workspace, but make it feel closer to Salesforce Lightning/SLDS and avoid heavy custom styling unless needed.
 - Local rebrand validation on 2026-08-15 passed ESLint, targeted Prettier checks, JSON/XML parsing, reference and manifest consistency checks, and Salesforce source-to-Metadata-API conversion.
 - The post-rebrand Code Analyzer scan found 431 Low findings across six existing CSS files, all from `@salesforce-ux/slds/no-hardcoded-values-slds2`; it found no High or Moderate findings. Jest completed with `--passWithNoTests`, but there are no checked-in LWC Jest suites, so this is harness validation only.
+- The 2026-08-16 SLDS cleanup reduced the current normal `eslint:Recommended` scan for `force-app/main/default` to 0 findings. A companion `--no-suppressions` audit reports 145 documented Low exceptions across nine files: 142 exact hardcoded values without suitable SLDS replacements and 3 required `no-slds-class-overrides` exceptions. All suppression regions use bounded `code-analyzer-suppress` / `code-analyzer-unsuppress` pairs.
+- That cleanup also corrected earlier hook mappings that changed live visuals: pale selected states use `accent-light-1`, interactive blue text uses `accent-1`, accent borders use `border-accent-1`, the app brand green uses `palette-green-50`, and unsupported compact typography and spacing values retain their exact values under documented suppressions.
+- Targeted Prettier, `npm run lint`, and `git diff --check` pass for the current six-file CSS worktree. The pending files are `budgetExpenseManager.css`, `expenseBarChart.css`, `expenseDashboard.css`, `expenseList.css`, `expenseSummaryCards.css`, and `recurringExpenses.css`; this combined cleanup has not yet been committed, pushed, validated for deployment, or deployed.
 - Read-only endpoint smoke tests and a signed-in visual click-through passed against `mainDevOrg`, including the corrected horizontal category bars.
 - Direct `RunLocalTests` ran 171 tests with 91% org-wide coverage: 168 passed. The only failures are three unrelated `PortfolioLeadEmailActionTest` methods caused by existing notification custom metadata assumptions (test run `707gK00000mkb7x`).
 - A signed-in comparison found the newly compiled horizontal chart bars resolving the SLDS circle-radius hook as ellipses. `expenseBarChart` now uses the pill-radius hook for both tracks and fills. Dry run `0AfgK00000QRteCSAT` and deployment `0AfgK00000QReiNSAT` each succeeded for the bundle; focused Code Analyzer reported 0 violations.
@@ -79,8 +82,9 @@ The component names and scheduled-job names in this section are intentionally pr
 
 ## Next Likely Work
 
-- Continue feature development and violation cleanup in unnamespaced `mainDevOrg` using the rebranded APIs.
-- Reduce the 431 Low SLDS hardcoded-value findings and add real LWC Jest coverage before package creation.
+- Review the six-file SLDS diff, commit and push it, then run a focused check-only deployment and deploy the affected LWC bundles to unnamespaced `mainDevOrg`.
+- Perform a signed-in visual smoke test after deployment, especially active/hover navigation states, Expenses selection and row states, Dashboard panels, Recurring states, chart radii, typography, and responsive layouts.
+- Add real LWC Jest coverage before package creation; the current `--passWithNoTests` run validates only the harness.
 - When feature scope is stable, link `bemgr` to the intended Dev Hub, validate in a namespaced scratch org, and create the managed 2GP package.
 - Treat the later unpackaged-to-namespaced data migration as a separate hierarchy-aware cutover; package installation will create distinct `bemgr__*` object identities.
 
@@ -90,5 +94,6 @@ The component names and scheduled-job names in this section are intentionally pr
 - The TypeScript `jsconfig.json` fix is local tooling configuration only. It is intentionally ignored by Git and is not Salesforce metadata.
 - The historical UI-refactor deployments were LWC-only, so Apex tests were not required or run for those deployments; later API-rebrand validation and cleanup each ran the focused Apex suite documented above.
 - The API rebrand and legacy cleanup are deployed to `mainDevOrg`, committed and pushed as `50e1eeb`, and followed by the completed repository and checkout rename. No managed package has been created.
+- The earlier settings and manager-shell hook migrations were deployed successfully, including `budgetExpenseSettings` deployment `0AfgK00000QVVBpSAP`, manager-shell deployment `0AfgK00000QVJLySAP`, and active-tab contrast correction `0AfgK00000QVYfxSAH`. The later combined six-file cleanup documented above remains local and undeployed.
 - The current remote is `https://github.com/jcred97/sf-budget-expense-manager.git`, and the local checkout is `F:\Salesforce\Personal\sf-budget-expense-manager`.
 - `mainDevOrg` remains unpackaged and unnamespaced. Cleanup removed only obsolete unmanaged branding; it did not create `bemgr__` metadata or migrate the shared records into a managed package.

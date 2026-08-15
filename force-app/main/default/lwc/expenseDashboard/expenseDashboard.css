@@ -4,25 +4,37 @@
 
 .dashboard-hero {
     align-items: center;
-    border-radius: 0.25rem;
+    border-radius: var(--slds-g-radius-border-1, 0.25rem);
     display: flex;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1rem;
-    padding: 1.25rem 1.5rem;
+    margin-bottom: var(--slds-g-spacing-4, 1rem);
+    /* Preserves the exact vertical inset because SLDS has no 1.25rem spacing hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    padding: 1.25rem var(--slds-g-spacing-5, 1.5rem);
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
 .dashboard-hero h3 {
-    color: #181818;
+    color: var(--slds-g-color-on-surface-2, #181818);
+    /* Preserves the established heading scale because SLDS has no 1.125rem font hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-size: 1.125rem;
-    font-weight: 600;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    font-weight: var(--slds-g-font-weight-6, 600);
+    /* Preserves the compact heading rhythm because SLDS has no matching line-height hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     line-height: 1.2;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    /* Preserves the two-pixel optical offset because SLDS has no matching spacing hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     margin: 0.125rem 0;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
 .dashboard-hero p {
-    color: #706e6b;
-    font-size: 0.8125rem;
+    color: var(--slds-g-color-on-surface-1, #706e6b);
+    font-size: var(--slds-g-font-scale-base, 0.8125rem);
     margin: 0;
 }
 
@@ -34,25 +46,34 @@
 
 .dashboard-hero-total {
     flex: 0 0 auto;
+    /* Keeps the total column wide enough for PHP currency values. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-width: 12rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     text-align: right;
 }
 
 .dashboard-hero-total span,
 .dashboard-hero-total small {
-    color: #706e6b;
+    color: var(--slds-g-color-on-surface-1, #706e6b);
     display: block;
-    font-size: 0.75rem;
-    font-weight: 400;
+    font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+    font-weight: var(--slds-g-font-weight-4, 400);
 }
 
 .dashboard-hero-total strong {
-    color: #2e844a;
+    color: var(--slds-g-color-palette-green-50, #2e844a);
     display: block;
+    /* Preserves the established total scale because SLDS has no 1.375rem font hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-size: 1.375rem;
-    font-weight: 600;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    font-weight: var(--slds-g-font-weight-6, 600);
+    /* Preserves the compact currency line height because SLDS has no matching hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     line-height: 1.1;
-    margin: 0.25rem 0;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    margin: var(--slds-g-spacing-1, 0.25rem) 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -62,29 +83,38 @@
     display: grid;
     gap: 1rem;
     grid-template-columns: minmax(0, 1.15fr) minmax(20rem, 0.85fr);
-    margin-top: 1rem;
+    margin-top: var(--slds-g-spacing-4, 1rem);
 }
 
 .dashboard-panel {
-    border-radius: 0.25rem;
+    border-radius: var(--slds-g-radius-border-1, 0.25rem);
     min-width: 0;
     overflow: hidden;
 }
 
 .dashboard-panel-header {
     align-items: center;
-    border-bottom: 1px solid #dddbda;
+    /* Preserves the lighter legacy divider because SLDS has no equivalent color hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    border-bottom: var(--slds-g-sizing-border-1, 1px) solid #dddbda;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     display: flex;
     justify-content: space-between;
     gap: 1rem;
-    padding: 1rem 1.25rem;
+    /* Preserves the exact horizontal inset because SLDS has no 1.25rem spacing hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    padding: var(--slds-g-spacing-4, 1rem) 1.25rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
 .dashboard-panel-header h3 {
-    color: #181818;
-    font-size: 1rem;
-    font-weight: 600;
+    color: var(--slds-g-color-on-surface-2, #181818);
+    font-size: var(--slds-g-font-scale-2, 1rem);
+    font-weight: var(--slds-g-font-weight-6, 600);
+    /* Preserves the two-pixel optical offset because SLDS has no matching spacing hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     margin: 0.125rem 0 0;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
 .dashboard-transaction-list {
@@ -94,12 +124,21 @@
 
 .dashboard-transaction-row {
     align-items: center;
-    border-bottom: 1px solid #f3f2f2;
+    /* Preserves the subtle row divider because SLDS has no equivalent color hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    border-bottom: var(--slds-g-sizing-border-1, 1px) solid #f3f2f2;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     display: grid;
     gap: 1rem;
     grid-template-columns: minmax(0, 1fr) auto;
+    /* Keeps each transaction row at its established structural height. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-height: 4rem;
-    padding: 0.75rem 1.25rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    /* Preserves the exact horizontal inset because SLDS has no 1.25rem spacing hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    padding: var(--slds-g-spacing-3, 0.75rem) 1.25rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
 .dashboard-transaction-row:last-child {
@@ -107,14 +146,17 @@
 }
 
 .dashboard-transaction-row:hover {
-    background: #fafaf9;
+    background: var(--slds-g-color-surface-container-1, #fafaf9);
 }
 
 .dashboard-transaction-row a {
-    color: #181818;
+    color: var(--slds-g-color-on-surface-2, #181818);
     display: block;
+    /* Preserves the established row-label scale because SLDS has no 0.9375rem font hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-size: 0.9375rem;
-    font-weight: 600;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    font-weight: var(--slds-g-font-weight-6, 600);
     overflow: hidden;
     text-decoration: none;
     text-overflow: ellipsis;
@@ -122,27 +164,33 @@
 }
 
 .dashboard-transaction-row a:hover {
-    color: #0176d3;
+    color: var(--slds-g-color-accent-1, #0176d3);
     text-decoration: underline;
 }
 
 .dashboard-transaction-row p,
 .dashboard-transaction-row span {
-    color: #706e6b;
-    font-size: 0.75rem;
-    margin: 0.25rem 0 0;
+    color: var(--slds-g-color-on-surface-1, #706e6b);
+    font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+    margin: var(--slds-g-spacing-1, 0.25rem) 0 0;
 }
 
 .dashboard-transaction-row strong {
-    color: #181818;
+    color: var(--slds-g-color-on-surface-2, #181818);
     display: block;
+    /* Preserves the established amount scale because SLDS has no 0.9375rem font hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-size: 0.9375rem;
-    font-weight: 600;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    font-weight: var(--slds-g-font-weight-6, 600);
     text-align: right;
 }
 
 .dashboard-transaction-row div:last-child {
+    /* Reserves enough room for PHP currency amounts without wrapping. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-width: 8rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     text-align: right;
 }
 
@@ -155,30 +203,39 @@
 }
 
 .dashboard-empty-callout {
-    margin-bottom: 1rem;
+    margin-bottom: var(--slds-g-spacing-4, 1rem);
 }
 
 .dashboard-empty-callout h3 {
-    color: #181818;
+    color: var(--slds-g-color-on-surface-2, #181818);
+    /* Preserves the established callout scale because SLDS has no 0.9375rem font hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-size: 0.9375rem;
-    font-weight: 600;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    font-weight: var(--slds-g-font-weight-6, 600);
+    /* Preserves the two-pixel heading gap because SLDS has no matching spacing hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     margin: 0 0 0.125rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
 .dashboard-empty-callout p {
-    color: #706e6b;
-    font-size: 0.8125rem;
+    color: var(--slds-g-color-on-surface-1, #706e6b);
+    font-size: var(--slds-g-font-scale-base, 0.8125rem);
     margin: 0;
 }
 
 .dashboard-panel-empty {
     align-items: center;
-    color: #706e6b;
+    color: var(--slds-g-color-on-surface-1, #706e6b);
     display: flex;
     gap: 0.5rem;
     justify-content: center;
+    /* Keeps empty panels aligned with the dashboard's established layout. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-height: 10rem;
-    padding: 1rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    padding: var(--slds-g-spacing-4, 1rem);
     text-align: center;
 }
 
@@ -186,44 +243,56 @@
     display: grid;
     gap: 0.75rem;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: 1rem;
+    padding: var(--slds-g-spacing-4, 1rem);
 }
 
 .insight-card {
-    background: #fafaf9;
-    border: 1px solid #e5e5e5;
-    border-radius: 0.25rem;
+    background: var(--slds-g-color-surface-container-1, #fafaf9);
+    border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #e5e5e5);
+    border-radius: var(--slds-g-radius-border-1, 0.25rem);
     display: grid;
     gap: 0.25rem;
+    /* Keeps insight cards at the established structural height. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-height: 7.25rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-width: 0;
+    /* Preserves the established inset because SLDS has no 0.875rem spacing hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     padding: 0.875rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
 .insight-card lightning-icon {
-    --slds-c-icon-color-foreground-default: #0176d3;
+    --slds-c-icon-color-foreground-default: var(--slds-g-color-accent-1, #0176d3);
 }
 
 .insight-card span {
-    color: #706e6b;
+    color: var(--slds-g-color-on-surface-1, #706e6b);
+    /* Preserves the compact insight label because SLDS has no 0.6875rem font hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-size: 0.6875rem;
-    font-weight: 400;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    font-weight: var(--slds-g-font-weight-4, 400);
 }
 
 .insight-card strong {
-    color: #181818;
-    font-size: 1rem;
-    font-weight: 600;
+    color: var(--slds-g-color-on-surface-2, #181818);
+    font-size: var(--slds-g-font-scale-2, 1rem);
+    font-weight: var(--slds-g-font-weight-6, 600);
+    /* Preserves the compact insight value rhythm because SLDS has no matching hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     line-height: 1.2;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .insight-card small {
-    color: #706e6b;
-    font-size: 0.75rem;
-    line-height: 1.25;
+    color: var(--slds-g-color-on-surface-1, #706e6b);
+    font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+    line-height: var(--slds-g-font-line-height-2, 1.25);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -246,7 +315,10 @@
     .dashboard-hero-total {
         min-width: 0;
         text-align: left;
+        /* Keeps the responsive total column spanning its container. */
+        /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
         width: 100%;
+        /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     }
 
     .dashboard-detail-grid,

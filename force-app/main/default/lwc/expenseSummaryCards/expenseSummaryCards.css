@@ -18,7 +18,10 @@
 }
 
 .stat-label {
-    font-size: var(--slds-g-font-scale-neg-2, 0.6875rem);
+    /* The compact 11px statistic label has no equivalent SLDS typography hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    font-size: 0.6875rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-weight: var(--slds-g-font-weight-4, 400);
     color: var(--slds-g-color-on-surface-1, #706e6b);
     letter-spacing: 0;
@@ -29,7 +32,10 @@
     font-size: var(--slds-g-font-scale-3, 1.25rem);
     font-weight: var(--slds-g-font-weight-6, 600);
     color: var(--slds-g-color-on-surface-2, #181818);
-    line-height: normal;
+    /* Compact statistic-value leading has no equivalent SLDS typography hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    line-height: 1.2;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     margin-bottom: var(--slds-g-spacing-1, 0.25rem);
     white-space: nowrap;
     overflow: hidden;

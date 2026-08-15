@@ -3,7 +3,7 @@
 }
 
 .chart-panel {
-    border-radius: var(--slds-g-radius-border-1, 0.125rem);
+    border-radius: var(--slds-g-radius-border-1, 0.25rem);
     padding: calc(var(--slds-g-spacing-4, 1rem) + var(--slds-g-spacing-1, 0.25rem));
     /* Full-height sizing is structural chart layout, not a design token. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
