@@ -106,7 +106,7 @@
 }
 
 .sidebar-toggle:hover {
-    background: var(--slds-g-color-accent-container-1, #eaf4ff);
+    background: var(--slds-g-color-accent-light-1, #eaf4ff);
     border-color: var(--slds-g-color-accent-1, #0176d3);
 }
 
@@ -149,7 +149,7 @@
 }
 
 .workspace-nav-item.is-active {
-    background: var(--slds-g-color-accent-container-1, #eaf4ff);
+    background: var(--slds-g-color-accent-light-1, #eaf4ff);
     border-left-color: var(--slds-g-color-accent-1, #0176d3);
     color: var(--slds-g-color-accent-2, #032d60);
 }
