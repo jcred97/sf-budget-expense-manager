@@ -3,28 +3,32 @@
 }
 
 .chart-panel {
-    border-radius: 0.25rem;
-    padding: 1.25rem;
+    border-radius: var(--slds-g-radius-border-1, 0.25rem);
+    padding: calc(var(--slds-g-spacing-4, 1rem) + var(--slds-g-spacing-1, 0.25rem));
+    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Full-height sizing is structural chart layout, not a design token. */
     height: 100%;
     box-sizing: border-box;
 }
 
 .panel-title {
+    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- The compact 11px chart heading has no equivalent SLDS typography hook. */
     font-size: 0.6875rem;
-    font-weight: 400;
-    color: #706e6b;
+    font-weight: var(--slds-g-font-weight-4, 400);
+    color: var(--slds-g-color-on-surface-1, #747474);
     letter-spacing: 0;
-    margin-bottom: 1rem;
+    margin-bottom: var(--slds-g-spacing-4, 1rem);
     margin-top: 0;
 }
 
 .vbar-bars {
     display: flex;
     align-items: flex-end;
+    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Fixed plot height preserves comparable monthly bar geometry and has no SLDS hook. */
     height: 140px;
     gap: 0.625rem;
+    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- The two-pixel chart axis is data-visualization geometry with no equivalent SLDS hook. */
     border-bottom: 2px solid #f3f2f2;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--slds-g-spacing-2, 0.5rem);
     min-width: 0;
 }
 
@@ -38,25 +42,28 @@
 }
 
 .vbar-fill {
+    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Percentage width is structural chart geometry, not a design token. */
     width: 100%;
     height: var(--vbar-height, 3px);
     background-color: var(--vbar-color);
-    border-radius: 4px 4px 0 0;
+    border-radius: var(--slds-g-radius-border-1, 4px) var(--slds-g-radius-border-1, 4px) 0 0;
     transition: height 0.4s ease;
 }
 
 .vbar-item.is-selected .vbar-fill {
-    background-color: #2e844a;
+    background-color: var(--slds-g-color-palette-green-50, #2e844a);
 }
 
 .vbar-value {
-    color: #3e3e3c;
-    font-size: 0.625rem;
-    font-weight: 400;
+    color: var(--slds-g-color-on-surface-2, #2e2e2e);
+    font-size: var(--slds-g-font-scale-neg-2, 0.625rem);
+    font-weight: var(--slds-g-font-weight-4, 400);
+    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Compact chart-value leading has no equivalent SLDS typography hook. */
     line-height: 1.1;
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--slds-g-spacing-1, 0.25rem);
+    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Percentage width constrains data labels to their chart columns. */
     max-width: 100%;
-    min-height: 0.75rem;
+    min-height: var(--slds-g-sizing-4, 0.75rem);
     overflow: hidden;
     text-align: center;
     text-overflow: ellipsis;
@@ -64,17 +71,18 @@
 }
 
 .vbar-item.is-selected .vbar-value {
-    color: #2e844a;
+    color: var(--slds-g-color-palette-green-50, #2e844a);
 }
 
 .vbar-labels {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--slds-g-spacing-2, 0.5rem);
 }
 
 .vbar-label {
-    color: #706e6b;
+    color: var(--slds-g-color-on-surface-1, #747474);
     flex: 1;
+    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- The compact 11px axis label has no equivalent SLDS typography hook. */
     font-size: 0.6875rem;
     min-width: 0;
     overflow: hidden;
@@ -85,12 +93,13 @@
 
 .no-data-msg {
     align-items: center;
-    color: #706e6b;
+    color: var(--slds-g-color-on-surface-1, #747474);
     display: flex;
-    font-size: 0.875rem;
-    gap: 0.5rem;
+    font-size: var(--slds-g-font-scale-1, 0.875rem);
+    gap: var(--slds-g-spacing-2, 0.5rem);
     justify-content: center;
+    /* eslint-disable-next-line @salesforce-ux/slds/no-hardcoded-values-slds2 -- Empty-state height preserves the chart panel layout and has no SLDS hook. */
     min-height: 9rem;
-    padding: 2rem 0;
+    padding: var(--slds-g-spacing-6, 2rem) 0;
     text-align: center;
 }
