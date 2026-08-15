@@ -2,7 +2,7 @@
 
 ## Current State
 
-- The working tree contains the Spendly-to-Budget & Expense Manager API rebrand. It and the approved legacy cleanup are deployed to `mainDevOrg`, but the work has not been committed, pushed, packaged, or used to rename the repository.
+- The Spendly-to-Budget & Expense Manager API rebrand and approved legacy cleanup are deployed to `mainDevOrg`, committed and pushed as `50e1eeb`, and reflected in the renamed `jcred97/sf-budget-expense-manager` repository and `F:\Salesforce\Personal\sf-budget-expense-manager` checkout. Managed-package creation remains pending.
 - `mainDevOrg` is the interim unpackaged development org and has no namespace. Direct deployments remain unprefixed; `bemgr` stays in `sfdx-project.json` for later namespaced scratch-org and managed-package work.
 - Deployment `0AfgK00000QRFgkSAH` succeeded for all 47 rebrand components. Validation `0AfgK00000QRZnWSAX` passed all 52 specified Apex tests with zero component or test errors.
 - The singleton settings record, all-access assignment, and 08:00 Asia/Manila scheduler were migrated and verified. The neutral business records remained in place: 3 expense groups, 18 categories, 11 recurring templates, and 504 expenses, including 23 recurring links.
@@ -79,7 +79,6 @@ The component names and scheduled-job names in this section are intentionally pr
 
 ## Next Likely Work
 
-- Finish the repository-identity workstream in `agent-docs/repository-rename.md`: create an approved local commit checkpoint, rename GitHub from `jcred97/sf-spendly` to `jcred97/sf-budget-expense-manager`, update `origin`, rename the local checkout directory, reopen the workspace, and verify Git and tooling. None of those actions has run yet.
 - Continue feature development and violation cleanup in unnamespaced `mainDevOrg` using the rebranded APIs.
 - Reduce the 431 Low SLDS hardcoded-value findings and add real LWC Jest coverage before package creation.
 - When feature scope is stable, link `bemgr` to the intended Dev Hub, validate in a namespaced scratch org, and create the managed 2GP package.
@@ -90,6 +89,6 @@ The component names and scheduled-job names in this section are intentionally pr
 - The utility, summary-card, Dashboard, Recurring, Expenses, and view-model readability refactors are committed, pushed, and deployed to `mainDevOrg`.
 - The TypeScript `jsconfig.json` fix is local tooling configuration only. It is intentionally ignored by Git and is not Salesforce metadata.
 - The historical UI-refactor deployments were LWC-only, so Apex tests were not required or run for those deployments; later API-rebrand validation and cleanup each ran the focused Apex suite documented above.
-- The API rebrand and legacy cleanup are deployed to `mainDevOrg`; no commit, push, package creation, or repository rename has occurred.
-- The current remote is `https://github.com/jcred97/sf-spendly.git`; the planned remote is `https://github.com/jcred97/sf-budget-expense-manager.git`.
+- The API rebrand and legacy cleanup are deployed to `mainDevOrg`, committed and pushed as `50e1eeb`, and followed by the completed repository and checkout rename. No managed package has been created.
+- The current remote is `https://github.com/jcred97/sf-budget-expense-manager.git`, and the local checkout is `F:\Salesforce\Personal\sf-budget-expense-manager`.
 - `mainDevOrg` remains unpackaged and unnamespaced. Cleanup removed only obsolete unmanaged branding; it did not create `bemgr__` metadata or migrate the shared records into a managed package.

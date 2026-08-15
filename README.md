@@ -65,12 +65,12 @@ Public component properties, event contracts, Apex DTO fields, and the existing 
 | Permission sets            | `Budget_Expense_Manager_User`, `Budget_Expense_Manager_Admin`, `Budget_Expense_Manager_All_Access` |
 | Source API version         | `65.0`                                                                                             |
 
-The checked-out directory and GitHub repository are still named `sf-spendly`. Their next planned names are `sf-budget-expense-manager`; the reviewed order and verification gates are documented in `agent-docs/repository-rename.md`. No repository or directory rename has run yet.
+The GitHub repository is `jcred97/sf-budget-expense-manager`, `origin` uses `https://github.com/jcred97/sf-budget-expense-manager.git`, and the local checkout is `F:\Salesforce\Personal\sf-budget-expense-manager`. The completed repository-identity work is recorded in `agent-docs/repository-rename.md`.
 
 ## Project Structure
 
 ```text
-sf-spendly/
+sf-budget-expense-manager/
 |- AGENTS.md
 |- README.md
 |- agent-docs/
@@ -125,4 +125,4 @@ Jest tooling is configured through `@salesforce/sfdx-lwc-jest`, but no LWC Jest 
 
 The unpackaged API rebrand and its approved legacy cleanup are deployed to `mainDevOrg`. The existing expense-group, category, expense, and recurring-template APIs were deliberately left unchanged, so their records and IDs remain in place. The settings record, all-access assignment, and recurring schedule were mapped to the rebranded identities and verified.
 
-No live Spendly-named metadata remains after cleanup deployment `0AfgK00000QSI4fSAH`. The old settings row was exported first, the legacy custom object was not purged, and post-cleanup reconciliation retained 3 expense groups, 18 categories, 11 recurring templates, 504 expenses, and 23 recurring links. See `agent-docs/api-rebrand.md`, `manifest/legacy-spendly-destructive.xml`, and `scripts/migration/` for the rename matrix, deployment evidence, rollback path, and verification tooling. No commit, push, managed-package creation, or GitHub repository rename has occurred.
+No live Spendly-named metadata remains after cleanup deployment `0AfgK00000QSI4fSAH`. The old settings row was exported first, the legacy custom object was not purged, and post-cleanup reconciliation retained 3 expense groups, 18 categories, 11 recurring templates, 504 expenses, and 23 recurring links. See `agent-docs/api-rebrand.md`, `manifest/legacy-spendly-destructive.xml`, and `scripts/migration/` for the rename matrix, deployment evidence, rollback path, and verification tooling. The rebrand is committed and pushed as `50e1eeb`, and the GitHub repository and local checkout now use `sf-budget-expense-manager`; managed-package creation remains pending.

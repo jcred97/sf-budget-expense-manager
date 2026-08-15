@@ -1,7 +1,7 @@
 # Project Structure
 
 ```text
-sf-spendly/
+sf-budget-expense-manager/
   AGENTS.md
   README.md
   agent-docs/
@@ -106,6 +106,6 @@ sf-spendly/
       BudgetExpenseSettingsTrigger.trigger
 ```
 
-The checkout directory and GitHub repository currently remain `sf-spendly`. Both are planned to become `sf-budget-expense-manager` in the next workstream; see `agent-docs/repository-rename.md`. The Salesforce DX project identity is already `sf-budget-expense-manager`.
+The checkout directory, GitHub repository, Git remote, and Salesforce DX project identity now use `sf-budget-expense-manager`. See `agent-docs/repository-rename.md` for the completed repository-identity record.
 
 `destructive/` is Git-ignored and is not currently present. The completed legacy cleanup used the reviewed manifests in `manifest/`; future destructive work still requires live-org verification and explicit approval.

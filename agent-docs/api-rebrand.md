@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The source tree has been rebranded for the future `bemgr` second-generation managed package. The unpackaged rebrand and its approved legacy-metadata cleanup were deployed to `mainDevOrg` on 2026-08-15; they have not been committed, pushed, used to create a package, or used to rename the local checkout or GitHub repository.
+The source tree has been rebranded for the future `bemgr` second-generation managed package. The unpackaged rebrand and its approved legacy-metadata cleanup were deployed to `mainDevOrg` on 2026-08-15, committed and pushed as `50e1eeb`, and followed by the GitHub repository and local-checkout rename to `sf-budget-expense-manager`. They have not been used to create a managed package.
 
 `mainDevOrg` has no namespace. The deployed APIs are therefore unprefixed even though `sfdx-project.json` retains `"namespace": "bemgr"` for future namespaced scratch-org and managed-package work.
 
@@ -138,6 +138,6 @@ Live cutover identifiers for audit and rollback:
 
 The legacy branded metadata and settings object no longer remain live in the org. Rollback requires restoring the old metadata from Git revision `7881645b558050f1599e6ec0be8fb1e9bda66f61` and then importing the ignored settings backup; do not overwrite the current settings singleton during rollback.
 
-## Pending Repository Identity Rename
+## Completed Repository Identity Rename
 
-The remaining non-Salesforce rebrand is planned but not yet executed. GitHub repository `jcred97/sf-spendly` and local checkout `F:\Salesforce\Personal\sf-spendly` are both intended to become `sf-budget-expense-manager`. Follow `agent-docs/repository-rename.md`; repository renaming does not add a Salesforce namespace or create a managed package.
+The non-Salesforce repository rebrand is complete. The GitHub repository is `jcred97/sf-budget-expense-manager`, `origin` uses `https://github.com/jcred97/sf-budget-expense-manager.git`, and the local checkout is `F:\Salesforce\Personal\sf-budget-expense-manager`. See `agent-docs/repository-rename.md` for the completion record. Repository renaming did not add a Salesforce namespace or create a managed package.
