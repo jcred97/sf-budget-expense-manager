@@ -315,17 +315,10 @@
     --slds-c-button-color-border: #c9c9c9;
 }
 
-/* Matches the app shell's established responsive breakpoint. */
-@media (max-width: 900px) {
-    .recurring-summary-grid,
+/* Stack recurring rows before the sidebar makes their columns overflow. */
+@media (max-width: 1100px) {
     .recurring-schedule {
-        grid-template-columns: 1fr;
-    }
-
-    .recurring-panel-header {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 0.5rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .recurring-row {
@@ -339,5 +332,19 @@
 
     .recurring-actions {
         justify-content: flex-start;
+    }
+}
+
+/* Matches the app shell's established responsive breakpoint. */
+@media (max-width: 900px) {
+    .recurring-summary-grid,
+    .recurring-schedule {
+        grid-template-columns: 1fr;
+    }
+
+    .recurring-panel-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.5rem;
     }
 }

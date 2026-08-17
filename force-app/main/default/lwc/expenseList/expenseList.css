@@ -385,8 +385,8 @@
 }
 /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-slds-class-overrides */
 
-/* Matches the app shell's established responsive breakpoint. */
-@media (max-width: 900px) {
+/* Stack the split view when the app sidebar leaves limited workspace width. */
+@media (max-width: 1100px) {
     .transactions-layout {
         grid-template-columns: 1fr;
     }
@@ -408,7 +408,10 @@
     .transactions-total {
         text-align: left;
     }
+}
 
+/* Matches the app shell's established responsive breakpoint. */
+@media (max-width: 900px) {
     .transaction-table-footer {
         align-items: flex-start;
         flex-direction: column;

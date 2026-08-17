@@ -275,6 +275,19 @@
     text-align: center;
 }
 
+/* Adapt page-level actions before the full mobile shell takes over. */
+@media (max-width: 1100px) {
+    .view-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .view-header-actions {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+}
+
 @media (max-width: 900px) {
     .workspace-shell,
     .workspace-shell.is-sidebar-collapsed {
@@ -286,6 +299,7 @@
         border-bottom: var(--slds-g-sizing-border-1, 1px) solid
             var(--slds-g-color-border-1, #c9c9c9);
         border-right: 0;
+        min-height: 0;
         position: sticky;
         top: 0;
         /* The sticky mobile navigation must remain above workspace content. */
@@ -296,8 +310,9 @@
 
     .sidebar-brand,
     .is-sidebar-collapsed .sidebar-brand {
+        flex: 0 0 auto;
         grid-template-columns: var(--slds-g-sizing-9, 2rem) minmax(0, 1fr);
-        min-height: var(--slds-g-sizing-14, 3.5rem);
+        min-height: 0;
     }
 
     .is-sidebar-collapsed .brand-copy {
@@ -315,6 +330,7 @@
     .workspace-nav,
     .is-sidebar-collapsed .workspace-nav {
         align-items: center;
+        flex: 0 0 auto;
         flex-direction: row;
         overflow-x: auto;
         padding: 0 var(--slds-g-spacing-3, 0.75rem) var(--slds-g-spacing-3, 0.75rem);
@@ -341,11 +357,6 @@
 
     .is-sidebar-collapsed .workspace-nav-item span {
         display: inline;
-    }
-
-    .view-header {
-        align-items: flex-start;
-        flex-direction: column;
     }
 
     .view-header-actions {
