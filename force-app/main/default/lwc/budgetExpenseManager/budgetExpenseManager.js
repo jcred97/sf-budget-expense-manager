@@ -323,9 +323,10 @@ export default class BudgetExpenseManager extends LightningElement {
                 transactionTypeDisplay: row.transactionType || 'No type',
                 amountFormatted: formatPHP(row.amount || 0),
                 monthlyAmountFormatted: formatPHP(row.monthlyAmount || 0),
-                startDateFormatted: formatDate(row.startDate),
                 nextRunDateFormatted: formatDate(row.nextRunDate),
-                endDateFormatted: formatDate(row.endDate),
+                activeWindowFormatted: row.endDate
+                    ? `${formatDate(row.startDate)} – ${formatDate(row.endDate)}`
+                    : `From ${formatDate(row.startDate)}`,
                 statusLabel: row.active ? 'Active' : 'Inactive',
                 statusClass: `recurring-status ${row.active ? 'is-active' : 'is-inactive'}`,
                 deactivateDisabled: !row.active,
