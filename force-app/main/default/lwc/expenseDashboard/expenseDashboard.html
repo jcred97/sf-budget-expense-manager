@@ -12,7 +12,7 @@
             <div class="dashboard-hero-total">
                 <span>Total spent</span>
                 <strong>{viewModel.formattedTotal}</strong>
-                <small>{viewModel.transactionCountLabel}</small>
+                <small>{viewModel.countLabel}</small>
             </div>
         </div>
     </section>
@@ -75,16 +75,16 @@
                     <button
                         class="slds-button slds-button_reset slds-text-link"
                         type="button"
-                        onclick={handleViewTransactions}
+                        onclick={handleViewExpenses}
                     >
                         View all
                     </button>
                 </div>
 
                 <template lwc:if={hasRecentRows}>
-                    <div class="dashboard-transaction-list">
+                    <div class="dashboard-expense-list">
                         <template for:each={viewModel.recentRows} for:item="row">
-                            <article key={row.id} class="dashboard-transaction-row">
+                            <article key={row.id} class="dashboard-expense-row">
                                 <div>
                                     <a
                                         href={row.recordLink}

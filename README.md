@@ -49,7 +49,8 @@ All currency presentation is PHP-focused and centralized in `expenseFormatters`.
 - `recurringExpenses` and `recurringExpenseViewModel` — recurring-template presentation and summaries.
 - `expenseModal` — add, edit, and duplicate workflow.
 - `budgetExpenseSettings` — global recurring-automation controls.
-- `expenseBarChart`, `expenseTrendChart`, `expenseSummaryCards`, `expenseTransforms`, and `expenseFormatters` — reusable visualization and transformation modules.
+- `expenseBarChart`, `expenseTrendChart`, and `expenseSummaryCards` — reusable visualization components.
+- `expenseTransforms`, `recurringExpenseTransforms`, `expenseFormatters`, `expenseWorkspaceConfig`, and `expenseCsvExport` — focused mapping, formatting, workspace-configuration, and export modules.
 
 Public component properties, event contracts, Apex DTO fields, and the existing neutral business-object APIs were preserved during the API rebrand.
 

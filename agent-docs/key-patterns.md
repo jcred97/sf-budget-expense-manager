@@ -2,7 +2,8 @@
 
 ## Workspace Shell
 
-`budgetExpenseManager` owns an internal workspace shell driven by `VIEW_CONFIG`.
+`budgetExpenseManager` owns an internal workspace shell driven by the view keys and
+configuration in `expenseWorkspaceConfig`.
 Desktop uses a collapsible left sidebar so Budget & Expense Manager can have app-like
 navigation inside Salesforce, while smaller screens fall back to a horizontal
 view strip. The first available `Expense_Group__c` is selected automatically,
@@ -116,7 +117,7 @@ minute entry while preserving Lightning Data Service save behavior.
 The Expenses view uses custom date-grouped rows instead of
 `lightning-datatable`. Each row shows the expense name, category, bank,
 transaction type, time, date, and PHP amount. Checkboxes populate
-`selectedRows` for bulk delete, while row icon buttons call the shared
+`selectedExpenseIds` for bulk delete, while row action menus call the shared
 edit/duplicate/delete behavior. Prefer Lightning button/icon controls and
 quiet SLDS-like row typography over custom button chrome.
 
@@ -132,7 +133,8 @@ bulkified and avoid one-DML-per-row implementations.
 
 ## Export And Print
 
-The app can export filtered rows to CSV and render a print-only expense report.
+The app can export filtered rows to CSV through `expenseCsvExport` and render a
+print-only expense report. Shared date-range labels come from `expenseFormatters`.
 
 ## Recurring Expense Templates
 

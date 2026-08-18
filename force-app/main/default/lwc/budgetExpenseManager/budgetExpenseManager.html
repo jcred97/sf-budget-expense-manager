@@ -62,8 +62,8 @@
                     <section class="workspace-view">
                         <div class="view-header">
                             <div>
-                                <h2>{viewTitle}</h2>
-                                <p>{viewSubtitle}</p>
+                                <h2>{activeViewConfig.title}</h2>
+                                <p>{activeViewConfig.subtitle}</p>
                             </div>
                             <div class="view-header-actions">
                                 <div class="dashboard-month-controls" aria-label="Dashboard month">
@@ -89,7 +89,7 @@
                                     variant="brand"
                                     label="Add Expense"
                                     icon-name="utility:add"
-                                    onclick={openModal}
+                                    onclick={openExpenseModal}
                                 >
                                 </lightning-button>
                             </div>
@@ -97,23 +97,20 @@
 
                         <c-expense-dashboard
                             view-model={dashboardViewModel}
-                            onviewtransactions={handleViewTransactions}
+                            onviewexpenses={handleViewExpenses}
                         >
                         </c-expense-dashboard>
                     </section>
                 </template>
-                <template lwc:elseif={isTransactionsView}>
+                <template lwc:elseif={isExpensesView}>
                     <section class="workspace-view">
                         <div class="view-header">
                             <div>
-                                <h2>{viewTitle}</h2>
-                                <p>{viewSubtitle}</p>
+                                <h2>{activeViewConfig.title}</h2>
+                                <p>{activeViewConfig.subtitle}</p>
                             </div>
                             <div class="view-header-actions">
-                                <div
-                                    class="dashboard-month-controls"
-                                    aria-label="Transaction month"
-                                >
+                                <div class="dashboard-month-controls" aria-label="Expense month">
                                     <lightning-button-icon
                                         icon-name="utility:chevronleft"
                                         alternative-text="Previous month"
@@ -137,7 +134,7 @@
                                     label="Export CSV"
                                     icon-name="utility:download"
                                     onclick={handleExportCsv}
-                                    disabled={hasNoRows}
+                                    disabled={expensesViewModel.hasNoRows}
                                 >
                                 </lightning-button>
                                 <lightning-button
@@ -145,14 +142,14 @@
                                     label="Print / PDF"
                                     icon-name="utility:print"
                                     onclick={handlePrint}
-                                    disabled={hasNoRows}
+                                    disabled={expensesViewModel.hasNoRows}
                                 >
                                 </lightning-button>
                                 <lightning-button
                                     variant="brand"
                                     label="Add Expense"
                                     icon-name="utility:add"
-                                    onclick={openModal}
+                                    onclick={openExpenseModal}
                                 >
                                 </lightning-button>
                             </div>
@@ -161,11 +158,11 @@
                         <c-expense-list
                             view-model={expensesViewModel}
                             onfilterchange={handleExpenseFilterChange}
-                            onresetfilters={handleReset}
-                            onaddexpense={openModal}
-                            onselectionchange={handleTransactionSelect}
-                            onrowaction={handleTransactionAction}
-                            onbulkdelete={handleBulkDelete}
+                            onresetfilters={handleResetExpenseFilters}
+                            onaddexpense={openExpenseModal}
+                            onselectionchange={handleExpenseSelect}
+                            onrowaction={handleExpenseAction}
+                            onbulkdelete={handleBulkExpenseDelete}
                             onloadmore={handleLoadMore}
                         >
                         </c-expense-list>
@@ -176,8 +173,8 @@
                     <section class="workspace-view">
                         <div class="view-header">
                             <div>
-                                <h2>{viewTitle}</h2>
-                                <p>{viewSubtitle}</p>
+                                <h2>{activeViewConfig.title}</h2>
+                                <p>{activeViewConfig.subtitle}</p>
                             </div>
                             <div class="view-header-actions">
                                 <lightning-button
@@ -193,7 +190,7 @@
 
                         <c-recurring-expenses
                             view-model={recurringExpensesViewModel}
-                            onrowaction={handleRecurringAction}
+                            onrowaction={handleRecurringExpenseAction}
                         >
                         </c-recurring-expenses>
                     </section>
@@ -206,14 +203,20 @@
     <div class="print-only">
         <div class="print-header">
             <div class="print-title">Budget &amp; Expense Manager Report</div>
-            <div class="print-meta">{printDateRange}</div>
+            <div class="print-meta">{expensesViewModel.printDateRange}</div>
         </div>
         <div class="print-summary">
-            <span><strong>Total Spent:</strong> {formattedTotal}</span>
-            <span><strong>Expenses:</strong> {expenseCount}</span>
-            <span><strong>Average:</strong> {averageExpense}</span>
-            <span><strong>Top Category:</strong> {topCategory.name} ({topCategory.amount})</span>
-            <span><strong>Top Bank:</strong> {topBank.name} ({topBank.count} txns)</span>
+            <span><strong>Total Spent:</strong> {expensesViewModel.formattedTotal}</span>
+            <span><strong>Expenses:</strong> {expensesViewModel.expenseCount}</span>
+            <span><strong>Average:</strong> {expensesViewModel.averageExpense}</span>
+            <span
+                ><strong>Top Category:</strong> {expensesViewModel.topCategory.name}
+                ({expensesViewModel.topCategory.amount})</span
+            >
+            <span
+                ><strong>Top Bank:</strong> {expensesViewModel.topBank.name}
+                ({expensesViewModel.topBank.count} expenses)</span
+            >
         </div>
         <table class="print-table">
             <thead>
@@ -229,7 +232,7 @@
                 </tr>
             </thead>
             <tbody>
-                <template for:each={printRows} for:item="row">
+                <template for:each={expensesViewModel.printRows} for:item="row">
                     <tr key={row.id}>
                         <td>{row.expenseDateFormatted}</td>
                         <td>{row.transactionTimeFormatted}</td>
@@ -245,20 +248,22 @@
             <tfoot>
                 <tr>
                     <td colspan="7" class="print-total-label">Total</td>
-                    <td class="print-amount-col print-total-value">{formattedTotal}</td>
+                    <td class="print-amount-col print-total-value">
+                        {expensesViewModel.formattedTotal}
+                    </td>
                 </tr>
             </tfoot>
         </table>
     </div>
 
     <c-expense-modal
-        is-open={isModalOpen}
-        record-id={editRecordId}
-        duplicate-data={duplicateData}
+        is-open={isExpenseModalOpen}
+        record-id={editingExpenseId}
+        duplicate-data={duplicateExpenseFields}
         category-options={modalCategoryOptions}
         selected-expense-group-name={selectedExpenseGroupName}
-        onsuccess={handleSuccess}
-        onclose={handleModalClose}
+        onsuccess={handleExpenseSaveSuccess}
+        onclose={handleExpenseModalClose}
     >
     </c-expense-modal>
 </template>

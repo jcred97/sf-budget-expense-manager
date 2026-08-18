@@ -14,7 +14,7 @@ export default class ExpenseDashboard extends LightningElement {
         return this.viewModel.recentRows.length > 0;
     }
 
-    handleViewTransactions() {
-        this.dispatchEvent(new CustomEvent('viewtransactions'));
+    handleViewExpenses() {
+        this.dispatchEvent(new CustomEvent('viewexpenses'));
     }
 }

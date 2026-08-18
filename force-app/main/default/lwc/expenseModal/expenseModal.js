@@ -13,6 +13,7 @@ export default class ExpenseModal extends LightningElement {
     _duplicateData = null;
     _handleKeyDown;
     _previouslyFocusedElement;
+    _previousBodyOverflow;
     _saveAndNew = false;
     categoryValue = '';
     transactionTimeValue = '';
@@ -64,17 +65,14 @@ export default class ExpenseModal extends LightningElement {
         if (this.isOpen && !this.isRendered) {
             this.isRendered = true;
 
-            // 🔒 Prevent background scroll
+            // Preserve the page state before applying modal behavior.
+            this._previousBodyOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
-
-            // Save previously focused element
             this._previouslyFocusedElement = document.activeElement;
 
-            // Add keyboard listener
             this._handleKeyDown = this.handleKeyDown.bind(this);
             document.addEventListener('keydown', this._handleKeyDown);
 
-            // 🎯 Focus first focusable element
             const focusable = this.getFocusableElements();
             if (focusable.length > 0) {
                 focusable[0].focus();
@@ -82,42 +80,66 @@ export default class ExpenseModal extends LightningElement {
         }
     }
 
+    disconnectedCallback() {
+        this.teardownModalEnvironment();
+    }
+
     handleClose() {
+        if (this.isClosing) {
+            return;
+        }
+
         this.isClosing = true;
 
         const modal = this.template.querySelector('.slds-modal');
+        if (!modal) {
+            this.completeClose();
+            return;
+        }
 
         modal.addEventListener(
             'animationend',
             () => {
-                this.isClosing = false;
-                this.isRendered = false;
-
-                // 🔒 Restore scroll
-                document.body.style.overflow = '';
-
-                // Remove keyboard listener
-                document.removeEventListener('keydown', this._handleKeyDown);
-
-                // 🎯 Restore focus to opener
-                if (this._previouslyFocusedElement) {
-                    this._previouslyFocusedElement.focus();
-                }
-
-                this.dispatchEvent(new CustomEvent('close'));
+                this.completeClose();
             },
             { once: true }
         );
     }
 
+    completeClose() {
+        this.isClosing = false;
+        this.teardownModalEnvironment({ restoreFocus: true });
+        this.dispatchEvent(new CustomEvent('close'));
+    }
+
+    teardownModalEnvironment({ restoreFocus = false } = {}) {
+        if (this.isRendered) {
+            document.body.style.overflow = this._previousBodyOverflow || '';
+        }
+
+        if (this._handleKeyDown) {
+            document.removeEventListener('keydown', this._handleKeyDown);
+        }
+
+        const previousFocus = this._previouslyFocusedElement;
+        this._handleKeyDown = undefined;
+        this._previouslyFocusedElement = undefined;
+        this._previousBodyOverflow = undefined;
+        this.isRendered = false;
+
+        if (restoreFocus && previousFocus && typeof previousFocus.focus === 'function') {
+            previousFocus.focus();
+        }
+    }
+
     handleKeyDown(event) {
-        // ⌨ ESC Close
+        // Escape closes the modal.
         if (event.key === 'Escape') {
             this.handleClose();
             return;
         }
 
-        // 🎯 Focus trap
+        // Keep keyboard focus inside the modal.
         if (event.key === 'Tab') {
             const focusable = this.getFocusableElements();
 

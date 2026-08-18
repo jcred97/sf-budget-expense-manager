@@ -103,6 +103,7 @@
         <members>budgetExpenseManager</members>
         <members>budgetExpenseSettings</members>
         <members>expenseBarChart</members>
+        <members>expenseCsvExport</members>
         <members>expenseDashboard</members>
         <members>expenseDashboardViewModel</members>
         <members>expenseFormatters</members>
@@ -112,7 +113,9 @@
         <members>expenseSummaryCards</members>
         <members>expenseTransforms</members>
         <members>expenseTrendChart</members>
+        <members>expenseWorkspaceConfig</members>
         <members>recurringExpenses</members>
+        <members>recurringExpenseTransforms</members>
         <members>recurringExpenseViewModel</members>
         <name>LightningComponentBundle</name>
     </types>

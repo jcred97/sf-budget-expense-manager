@@ -54,7 +54,6 @@ export function buildDashboardViewModel({
         topBank,
         title: `${selectedMonthLabel} spending`,
         subtitle: `${expenseGroupName || 'No group selected'} / ${periodLabel}`,
-        transactionCountLabel: formatExpenseCount(expenseCount),
         isLoading,
         showEmptyState,
         summaryCards: buildSummaryCards({

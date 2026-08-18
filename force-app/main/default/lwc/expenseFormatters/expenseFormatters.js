@@ -32,6 +32,22 @@ export function formatDate(isoDate) {
     return isoDate ? DATE_FORMAT.format(new Date(isoDate)) : '-';
 }
 
+export function formatPeriodRange(startDate, endDate) {
+    const startLabel = formatDate(startDate);
+    const endLabel = formatDate(endDate);
+    return startLabel === '-' && endLabel === '-' ? 'All dates' : `${startLabel} - ${endLabel}`;
+}
+
+export function formatActiveWindow(startDate, endDate) {
+    return endDate
+        ? `${formatDate(startDate)} – ${formatDate(endDate)}`
+        : `From ${formatDate(startDate)}`;
+}
+
+export function formatIsoDateRange(startDate, endDate) {
+    return `${startDate || ''} - ${endDate || ''}`;
+}
+
 export function formatTime(value) {
     if (!value) {
         return '-';

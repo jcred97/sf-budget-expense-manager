@@ -3,7 +3,7 @@ import { LightningElement, api } from 'lwc';
 export default class ExpenseList extends LightningElement {
     @api viewModel = {
         categoryOptions: [],
-        transactionGroups: []
+        dateGroups: []
     };
 
     handleFilterChange(event) {
@@ -25,7 +25,7 @@ export default class ExpenseList extends LightningElement {
         this.dispatchEvent(new CustomEvent('addexpense'));
     }
 
-    handleTransactionSelect(event) {
+    handleExpenseSelect(event) {
         this.dispatchEvent(
             new CustomEvent('selectionchange', {
                 detail: {
@@ -47,7 +47,7 @@ export default class ExpenseList extends LightningElement {
         );
     }
 
-    handleBulkDelete() {
+    handleBulkExpenseDelete() {
         this.dispatchEvent(new CustomEvent('bulkdelete'));
     }
 

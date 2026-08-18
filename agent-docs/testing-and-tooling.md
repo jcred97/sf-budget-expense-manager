@@ -30,6 +30,16 @@ Covered behavior includes:
 
 LWC tests use `@salesforce/sfdx-lwc-jest`, but no LWC Jest tests are currently checked in. A Jest run with `--passWithNoTests` validates the test harness only and does not provide behavioral coverage.
 
+The LWC readability refactor and lifecycle cleanup follow-up were validated on 2026-08-19 with:
+
+- Targeted Prettier checks, `npm run lint`, and `git diff --check`: passed.
+- The normal Salesforce Code Analyzer `eslint:Recommended` scan: 0 findings. The `--no-suppressions` audit retained the established 145 Low CSS exceptions, with no High or Moderate findings.
+- Manifest-to-source inventory: all 17 LWC bundles matched, including the new workspace configuration, recurring-row transform, and CSV export modules.
+- Salesforce source-to-Metadata-API conversion: passed.
+- The manager guards static-resource loading across renders, while the expense modal removes its document listener and restores page state when disconnected.
+- LWC-only check-only deployment `0AfgK00000Qpm8TSAR` to `mainDevOrg`: all 17 bundles compiled successfully with `NoTestRun`.
+- No Jest tests were added or run. Deployment `0AfgK00000QpZeKSAV` then released the ten affected LWC bundles to `mainDevOrg` successfully with `NoTestRun`.
+
 The API rebrand source was validated locally on 2026-08-15 with:
 
 - ESLint: passed.

@@ -2,30 +2,30 @@
     display: block;
 }
 
-.transactions-loading {
+.expenses-loading {
     flex: 1;
-    /* The loading placeholder height prevents layout shift while transactions load. */
+    /* The loading placeholder height prevents layout shift while expenses load. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-height: 14rem;
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     position: relative;
 }
 
-.transactions-layout {
+.expenses-layout {
     align-items: start;
     display: grid;
     gap: 1rem;
     grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
 }
 
-.transaction-filters,
-.transactions-panel {
+.expense-filters,
+.expenses-panel {
     background: var(--slds-g-color-surface-container-1, #ffffff);
     border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #dddbda);
     border-radius: var(--slds-g-radius-border-1, 0.25rem);
 }
 
-.transaction-filters {
+.expense-filters {
     display: flex;
     flex-direction: column;
     gap: 0.875rem;
@@ -56,11 +56,11 @@
     align-self: flex-start;
 }
 
-.transactions-panel {
+.expenses-panel {
     display: flex;
     flex-direction: column;
     height: min(38rem, calc(100vh - 15rem));
-    /* The panel minimum height preserves the transaction table viewport. */
+    /* The panel minimum height preserves the expense list viewport. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-height: 28rem;
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
@@ -68,7 +68,7 @@
     overflow: hidden;
 }
 
-.transactions-panel-header {
+.expenses-panel-header {
     align-items: center;
     /* This divider uses the panel's original low-contrast border treatment. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
@@ -83,7 +83,7 @@
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
-.transactions-panel-header h3 {
+.expenses-panel-header h3 {
     color: var(--slds-g-color-on-surface-2, #181818);
     /* The 18px panel heading has no equivalent SLDS typography hook. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
@@ -96,11 +96,11 @@
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
-.transactions-total {
+.expenses-total {
     text-align: right;
 }
 
-.transactions-total span {
+.expenses-total span {
     color: var(--slds-g-color-on-surface-1, #706e6b);
     display: block;
     /* The compact total label has no equivalent SLDS typography hook. */
@@ -111,7 +111,7 @@
     letter-spacing: 0;
 }
 
-.transactions-total strong {
+.expenses-total strong {
     color: var(--slds-g-color-palette-green-50, #2e844a);
     display: block;
     /* The 18px total amount has no equivalent SLDS typography hook. */
@@ -131,25 +131,25 @@
     font-weight: var(--slds-g-font-weight-4, 400);
 }
 
-.transaction-body {
+.expense-body {
     display: flex;
     flex: 1;
     flex-direction: column;
     min-height: 0;
 }
 
-.transaction-body > .empty-state {
+.expense-body > .empty-state {
     flex: 1;
     justify-content: center;
 }
 
-.transaction-scroll {
+.expense-scroll {
     flex: 1;
     min-height: 0;
     overflow: auto;
 }
 
-.transaction-table-footer {
+.expense-table-footer {
     align-items: center;
     background: var(--slds-g-color-surface-container-1, #ffffff);
     /* This divider uses the panel's original low-contrast border treatment. */
@@ -210,24 +210,24 @@
     margin-top: var(--slds-g-spacing-4, 1rem);
 }
 
-.transaction-list {
+.expense-list {
     background: var(--slds-g-color-surface-container-1, #ffffff);
     display: flex;
     flex-direction: column;
 }
 
-.transaction-day {
+.expense-day {
     /* This divider preserves the list's original low-contrast grouping. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     border-bottom: 1px solid #dddbda;
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
-.transaction-day:last-child {
+.expense-day:last-child {
     border-bottom: 0;
 }
 
-.transaction-day-header {
+.expense-day-header {
     align-items: center;
     background: var(--slds-g-color-surface-container-2, #fafaf9);
     /* The day-header divider preserves the original subtle boundary. */
@@ -239,14 +239,14 @@
     padding: var(--slds-g-spacing-3, 0.75rem) var(--slds-g-spacing-4, 1rem);
 }
 
-.transaction-day-label {
+.expense-day-label {
     color: var(--slds-g-color-on-surface-2, #181818);
     font-size: var(--slds-g-font-scale-1, 0.875rem);
     font-weight: var(--slds-g-font-weight-4, 400);
     margin: 0;
 }
 
-.transaction-day-count {
+.expense-day-count {
     color: var(--slds-g-color-on-surface-1, #706e6b);
     font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
     /* The compact count offset has no equivalent SLDS spacing hook. */
@@ -255,7 +255,7 @@
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
-.transaction-day-header strong {
+.expense-day-header strong {
     color: var(--slds-g-color-palette-green-50, #2e844a);
     /* The 15px day total has no equivalent SLDS typography hook. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
@@ -264,12 +264,12 @@
     font-weight: var(--slds-g-font-weight-6, 600);
 }
 
-.transaction-day-rows {
+.expense-day-rows {
     display: flex;
     flex-direction: column;
 }
 
-.transaction-row {
+.expense-row {
     align-items: center;
     /* Row dividers intentionally remain lighter than the section boundary. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
@@ -278,35 +278,35 @@
     display: grid;
     gap: 0.75rem;
     grid-template-columns: 1.25rem minmax(10rem, 1fr) minmax(6rem, 8rem) minmax(6rem, 8rem) auto;
-    /* Fixed row height keeps the virtual transaction rhythm consistent. */
+    /* Fixed row height keeps the expense-row rhythm consistent. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-height: 4.25rem;
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     padding: var(--slds-g-spacing-3, 0.75rem) var(--slds-g-spacing-4, 1rem);
 }
 
-.transaction-row:last-child {
+.expense-row:last-child {
     border-bottom: 0;
 }
 
-.transaction-row:hover {
+.expense-row:hover {
     background: var(--slds-g-color-surface-container-3, #fafaf9);
 }
 
-.transaction-select {
+.expense-select {
     align-items: center;
     display: inline-flex;
     justify-content: center;
 }
 
-.transaction-main {
+.expense-main {
     min-width: 0;
 }
 
-.transaction-name {
+.expense-name {
     color: var(--slds-g-color-on-surface-2, #181818);
     display: block;
-    /* The 15px transaction label has no equivalent SLDS typography hook. */
+    /* The 15px expense label has no equivalent SLDS typography hook. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-size: 0.9375rem;
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
@@ -317,12 +317,12 @@
     white-space: nowrap;
 }
 
-.transaction-name:hover {
+.expense-name:hover {
     color: var(--slds-g-color-accent-1, #0176d3);
     text-decoration: underline;
 }
 
-.transaction-meta {
+.expense-meta {
     color: var(--slds-g-color-on-surface-1, #706e6b);
     display: flex;
     flex-wrap: wrap;
@@ -331,12 +331,12 @@
     margin-top: var(--slds-g-spacing-1, 0.25rem);
 }
 
-.transaction-meta span {
+.expense-meta span {
     align-items: center;
     display: inline-flex;
 }
 
-.transaction-meta span:not(:last-child)::after {
+.expense-meta span:not(:last-child)::after {
     color: var(--slds-g-color-neutral-base-80, #c9c9c9);
     content: '/';
     /* The separator offset aligns with the custom metadata gap. */
@@ -345,7 +345,7 @@
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
-.transaction-when {
+.expense-when {
     color: var(--slds-g-color-on-surface-1, #706e6b);
     display: flex;
     flex-direction: column;
@@ -354,12 +354,12 @@
     text-align: right;
 }
 
-.transaction-when span:first-child {
+.expense-when span:first-child {
     color: var(--slds-g-color-on-surface-2, #3e3e3c);
     font-weight: var(--slds-g-font-weight-4, 400);
 }
 
-.transaction-amount {
+.expense-amount {
     color: var(--slds-g-color-on-surface-2, #181818);
     /* The 15px amount has no equivalent SLDS typography hook. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
@@ -369,12 +369,12 @@
     text-align: right;
 }
 
-.transaction-actions {
+.expense-actions {
     display: flex;
     justify-content: flex-end;
 }
 
-.transaction-actions lightning-button-menu {
+.expense-actions lightning-button-menu {
     --slds-c-button-color-border: #c9c9c9;
 }
 
@@ -387,37 +387,37 @@
 
 /* Stack the split view when the app sidebar leaves limited workspace width. */
 @media (max-width: 1100px) {
-    .transactions-layout {
+    .expenses-layout {
         grid-template-columns: 1fr;
     }
 
-    .transaction-filters {
+    .expense-filters {
         position: static;
     }
 
-    .transactions-panel {
+    .expenses-panel {
         height: auto;
         min-height: 0;
     }
 
-    .transactions-panel-header {
+    .expenses-panel-header {
         align-items: flex-start;
         flex-direction: column;
     }
 
-    .transactions-total {
+    .expenses-total {
         text-align: left;
     }
 }
 
 /* Matches the app shell's established responsive breakpoint. */
 @media (max-width: 900px) {
-    .transaction-table-footer {
+    .expense-table-footer {
         align-items: flex-start;
         flex-direction: column;
     }
 
-    .transaction-row {
+    .expense-row {
         align-items: start;
         gap: 0.625rem;
         grid-template-columns: 1.25rem minmax(0, 1fr) auto;
@@ -426,27 +426,27 @@
             'select when actions';
     }
 
-    .transaction-select {
+    .expense-select {
         grid-area: select;
         padding-top: var(--slds-g-spacing-2, 0.5rem);
     }
 
-    .transaction-main {
+    .expense-main {
         grid-area: main;
     }
 
-    .transaction-when {
+    .expense-when {
         align-items: flex-start;
         flex-direction: row;
         grid-area: when;
         text-align: left;
     }
 
-    .transaction-amount {
+    .expense-amount {
         grid-area: amount;
     }
 
-    .transaction-actions {
+    .expense-actions {
         grid-area: actions;
         justify-content: flex-start;
     }

@@ -69,19 +69,22 @@ sf-budget-expense-manager/
       Budget_Expense_Manager_Setting__c-Budget & Expense Manager Settings Layout.layout-meta.xml
     lwc/
       budgetExpenseManager/
+      budgetExpenseSettings/
       expenseBarChart/
+      expenseCsvExport/
       expenseDashboard/
       expenseDashboardViewModel/
-      expenseModal/
+      expenseFormatters/
       expenseList/
       expenseListViewModel/
-      expenseTransforms/
-      expenseFormatters/
-      recurringExpenses/
-      recurringExpenseViewModel/
+      expenseModal/
       expenseSummaryCards/
-      budgetExpenseSettings/
+      expenseTransforms/
       expenseTrendChart/
+      expenseWorkspaceConfig/
+      recurringExpenses/
+      recurringExpenseTransforms/
+      recurringExpenseViewModel/
     objects/
       Expense_Group__c/
       Category__c/

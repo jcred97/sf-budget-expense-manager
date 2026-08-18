@@ -1,6 +1,6 @@
 <template>
-    <div class="transactions-layout">
-        <aside class="transaction-filters" aria-label="Expense filters">
+    <div class="expenses-layout">
+        <aside class="expense-filters" aria-label="Expense filters">
             <div class="panel-title-row">
                 <lightning-icon icon-name="utility:filterList" size="x-small"></lightning-icon>
                 <h3>Filter</h3>
@@ -59,24 +59,21 @@
             </lightning-button>
         </aside>
 
-        <div class="transactions-panel">
-            <div class="transactions-panel-header">
+        <div class="expenses-panel">
+            <div class="expenses-panel-header">
                 <div>
                     <p class="slds-text-title slds-m-around_none">{viewModel.periodLabel}</p>
                     <h3>{viewModel.countLabel}</h3>
                 </div>
-                <div class="transactions-total">
+                <div class="expenses-total">
                     <span>Total</span>
                     <strong>{viewModel.formattedTotal}</strong>
                 </div>
             </div>
 
-            <div class="transaction-body">
+            <div class="expense-body">
                 <template lwc:if={viewModel.isLoading}>
-                    <section
-                        class="transactions-loading slds-box slds-theme_default"
-                        aria-busy="true"
-                    >
+                    <section class="expenses-loading slds-box slds-theme_default" aria-busy="true">
                         <lightning-spinner
                             alternative-text="Loading expenses"
                             size="small"
@@ -124,50 +121,48 @@
                                     variant="destructive-text"
                                     label="Delete Selected"
                                     icon-name="utility:delete"
-                                    onclick={handleBulkDelete}
+                                    onclick={handleBulkExpenseDelete}
                                 >
                                 </lightning-button>
                             </div>
                         </template>
-                        <div class="transaction-scroll">
-                            <div class="transaction-list" aria-label="Expenses">
-                                <template for:each={viewModel.transactionGroups} for:item="group">
-                                    <section key={group.key} class="transaction-day">
-                                        <div class="transaction-day-header">
+                        <div class="expense-scroll">
+                            <div class="expense-list" aria-label="Expenses">
+                                <template for:each={viewModel.dateGroups} for:item="group">
+                                    <section key={group.key} class="expense-day">
+                                        <div class="expense-day-header">
                                             <div>
-                                                <p class="transaction-day-label">{group.label}</p>
-                                                <p class="transaction-day-count">
-                                                    {group.countLabel}
-                                                </p>
+                                                <p class="expense-day-label">{group.label}</p>
+                                                <p class="expense-day-count">{group.countLabel}</p>
                                             </div>
                                             <strong>{group.totalFormatted}</strong>
                                         </div>
 
-                                        <div class="transaction-day-rows">
+                                        <div class="expense-day-rows">
                                             <template for:each={group.rows} for:item="row">
-                                                <article key={row.id} class="transaction-row">
+                                                <article key={row.id} class="expense-row">
                                                     <label
-                                                        class="transaction-select"
+                                                        class="expense-select"
                                                         title="Select expense"
                                                     >
                                                         <input
                                                             type="checkbox"
                                                             data-id={row.id}
                                                             checked={row.isSelected}
-                                                            onchange={handleTransactionSelect}
+                                                            onchange={handleExpenseSelect}
                                                         />
                                                     </label>
 
-                                                    <div class="transaction-main">
+                                                    <div class="expense-main">
                                                         <a
-                                                            class="transaction-name"
+                                                            class="expense-name"
                                                             href={row.recordLink}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                         >
                                                             {row.name}
                                                         </a>
-                                                        <div class="transaction-meta">
+                                                        <div class="expense-meta">
                                                             <span>{row.categoryDisplay}</span>
                                                             <span>{row.bankDisplay}</span>
                                                             <span
@@ -176,17 +171,17 @@
                                                         </div>
                                                     </div>
 
-                                                    <div class="transaction-when">
+                                                    <div class="expense-when">
                                                         <span>{row.transactionTimeDisplay}</span>
                                                         <span>{row.expenseDateFormatted}</span>
                                                     </div>
 
-                                                    <div class="transaction-amount">
+                                                    <div class="expense-amount">
                                                         {row.amountFormatted}
                                                     </div>
 
                                                     <div
-                                                        class="transaction-actions"
+                                                        class="expense-actions"
                                                         aria-label="Expense actions"
                                                     >
                                                         <lightning-button-menu
@@ -225,15 +220,14 @@
                             </div>
                         </div>
 
-                        <div class="transaction-table-footer">
+                        <div class="expense-table-footer">
                             <span class="table-status">{viewModel.visibleRowsSummary}</span>
                             <template lwc:if={viewModel.hasMoreRows}>
                                 <lightning-button
                                     variant="neutral"
-                                    label={viewModel.loadMoreLabel}
+                                    label="Load More"
                                     icon-name="utility:chevrondown"
                                     onclick={handleLoadMore}
-                                    disabled={viewModel.isLoadingMore}
                                 >
                                 </lightning-button>
                             </template>

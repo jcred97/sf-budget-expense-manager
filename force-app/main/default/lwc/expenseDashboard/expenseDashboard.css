@@ -117,12 +117,12 @@
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
-.dashboard-transaction-list {
+.dashboard-expense-list {
     display: flex;
     flex-direction: column;
 }
 
-.dashboard-transaction-row {
+.dashboard-expense-row {
     align-items: center;
     /* Preserves the subtle row divider because SLDS has no equivalent color hook. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
@@ -131,7 +131,7 @@
     display: grid;
     gap: 1rem;
     grid-template-columns: minmax(0, 1fr) auto;
-    /* Keeps each transaction row at its established structural height. */
+    /* Keeps each expense row at its established structural height. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-height: 4rem;
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
@@ -141,15 +141,15 @@
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
-.dashboard-transaction-row:last-child {
+.dashboard-expense-row:last-child {
     border-bottom: 0;
 }
 
-.dashboard-transaction-row:hover {
+.dashboard-expense-row:hover {
     background: var(--slds-g-color-surface-container-1, #fafaf9);
 }
 
-.dashboard-transaction-row a {
+.dashboard-expense-row a {
     color: var(--slds-g-color-on-surface-2, #181818);
     display: block;
     /* Preserves the established row-label scale because SLDS has no 0.9375rem font hook. */
@@ -163,19 +163,19 @@
     white-space: nowrap;
 }
 
-.dashboard-transaction-row a:hover {
+.dashboard-expense-row a:hover {
     color: var(--slds-g-color-accent-1, #0176d3);
     text-decoration: underline;
 }
 
-.dashboard-transaction-row p,
-.dashboard-transaction-row span {
+.dashboard-expense-row p,
+.dashboard-expense-row span {
     color: var(--slds-g-color-on-surface-1, #706e6b);
     font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
     margin: var(--slds-g-spacing-1, 0.25rem) 0 0;
 }
 
-.dashboard-transaction-row strong {
+.dashboard-expense-row strong {
     color: var(--slds-g-color-on-surface-2, #181818);
     display: block;
     /* Preserves the established amount scale because SLDS has no 0.9375rem font hook. */
@@ -186,7 +186,7 @@
     text-align: right;
 }
 
-.dashboard-transaction-row div:last-child {
+.dashboard-expense-row div:last-child {
     /* Reserves enough room for PHP currency amounts without wrapping. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     min-width: 8rem;
@@ -327,13 +327,13 @@
         grid-template-columns: 1fr;
     }
 
-    .dashboard-transaction-row {
+    .dashboard-expense-row {
         align-items: start;
         grid-template-columns: 1fr;
     }
 
-    .dashboard-transaction-row strong,
-    .dashboard-transaction-row div:last-child {
+    .dashboard-expense-row strong,
+    .dashboard-expense-row div:last-child {
         text-align: left;
     }
 }
