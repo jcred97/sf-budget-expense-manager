@@ -16,8 +16,13 @@ public inherited sharing class RecurringExpenseTriggerHandler {
     ) {
         if (operation == System.TriggerOperation.BEFORE_INSERT) {
             beforeInsert(recurringExpenses);
+            BankAssignmentValidator.validateRecurringExpenses(recurringExpenses, null);
         } else if (operation == System.TriggerOperation.BEFORE_UPDATE) {
             beforeUpdate(recurringExpenses, oldRecurringExpenses);
+            BankAssignmentValidator.validateRecurringExpenses(
+                recurringExpenses,
+                oldRecurringExpenses
+            );
         }
     }
 

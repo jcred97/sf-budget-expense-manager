@@ -125,7 +125,7 @@ private class RecurringExpenseTriggerHandlerTest {
             insert recurringExpense;
 
             Recurring_Expense__c oldRecurringExpense = [
-                SELECT Id, Start_Date__c, Next_Run_Date__c
+                SELECT Id, Bank_Assignment__c, Start_Date__c, Next_Run_Date__c
                 FROM Recurring_Expense__c
                 WHERE Id = :recurringExpense.Id
             ];
@@ -171,7 +171,7 @@ private class RecurringExpenseTriggerHandlerTest {
             };
 
             List<Recurring_Expense__c> oldRecurringExpenses = [
-                SELECT Id, Name, Start_Date__c, Next_Run_Date__c
+                SELECT Id, Name, Bank_Assignment__c, Start_Date__c, Next_Run_Date__c
                 FROM Recurring_Expense__c
                 ORDER BY Name
             ];

@@ -55,6 +55,12 @@ export function buildBarChartData(entries, prefix) {
 }
 
 export function mapExpenseRow(row) {
+    const bankAssignment = row.Bank_Assignment__r;
+    const bankName = bankAssignment?.Bank__r?.Name || row.Bank__c || '';
+    const bankAssignmentActive = Boolean(
+        row.Bank_Assignment__c && bankAssignment?.Active__c && bankAssignment?.Bank__r?.Active__c
+    );
+
     return {
         id: row.Id,
         expenseDate: row.Expense_Date__c,
@@ -67,8 +73,12 @@ export function mapExpenseRow(row) {
         categoryId: row.Category__c,
         categoryDisplay: row.Category__r?.Name || 'Uncategorized',
         expenseGroup: row.Category__r?.Expense_Group__r?.Name,
-        bank: row.Bank__c,
-        bankDisplay: row.Bank__c || 'No bank',
+        bank: bankName,
+        bankDisplay: bankName || 'No bank',
+        bankAssignmentId: row.Bank_Assignment__c,
+        bankId: bankAssignment?.Bank__c,
+        bankAssignmentActive,
+        legacyBank: row.Bank__c || '',
         transactionType: row.Transaction_Type__c,
         transactionTypeDisplay: row.Transaction_Type__c || 'No type',
         amount: row.Amount__c,

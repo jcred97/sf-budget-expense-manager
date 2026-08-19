@@ -262,9 +262,15 @@
         record-id={editingExpenseId}
         duplicate-data={duplicateExpenseFields}
         category-options={modalCategoryOptions}
+        bank-options={modalBankOptions}
+        bank-options-loading={isBankOptionsLoading}
+        bank-options-error={bankOptionsError}
+        current-bank={currentExpenseBank}
+        bank-selection-notice={expenseBankNotice}
         selected-expense-group-name={selectedExpenseGroupName}
         onsuccess={handleExpenseSaveSuccess}
         onclose={handleExpenseModalClose}
+        onretrybanks={handleRetryBankOptions}
     >
     </c-expense-modal>
 </template>

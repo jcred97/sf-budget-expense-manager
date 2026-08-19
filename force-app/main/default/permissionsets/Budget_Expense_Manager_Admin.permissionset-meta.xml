@@ -20,6 +20,26 @@
         <allowEdit>true</allowEdit>
         <allowRead>true</allowRead>
         <modifyAllRecords>true</modifyAllRecords>
+        <object>Bank__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>true</modifyAllRecords>
+        <object>Expense_Group_Bank__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>true</modifyAllRecords>
         <object>Category__c</object>
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
@@ -71,6 +91,20 @@
         <readable>true</readable>
     </fieldPermissions>
 
+    <!-- Bank__c Field Permissions -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Bank__c.Active__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
+    <!-- Expense_Group_Bank__c Field Permissions -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Expense_Group_Bank__c.Active__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
     <!-- Category__c Field Permissions -->
     <fieldPermissions>
         <editable>false</editable>
@@ -92,6 +126,11 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>Expense__c.Bank__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Expense__c.Bank_Assignment__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -129,6 +168,11 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>Recurring_Expense__c.Bank__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Recurring_Expense__c.Bank_Assignment__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -205,11 +249,19 @@
         <visibility>Visible</visibility>
     </tabSettings>
     <tabSettings>
+        <tab>Bank__c</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
         <tab>Budget_Expense_Manager_Settings</tab>
         <visibility>Visible</visibility>
     </tabSettings>
 
     <!-- Apex Class Access -->
+    <classAccesses>
+        <apexClass>BankController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <classAccesses>
         <apexClass>BudgetController</apexClass>
         <enabled>true</enabled>

@@ -13,6 +13,7 @@ import getMonthlyTrend from '@salesforce/apex/ExpenseController.getMonthlyTrend'
 import getRecurringExpenseOverview from '@salesforce/apex/ExpenseController.getRecurringExpenseOverview';
 import deactivateRecurringExpense from '@salesforce/apex/ExpenseController.deactivateRecurringExpense';
 import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseService.runDueExpensesBatch';
+import getAvailableExpenseGroupBanks from '@salesforce/apex/BankController.getAvailableExpenseGroupBanks';
 import {
     formatDateISO,
     formatMonthLabel,
@@ -39,6 +40,7 @@ export default class BudgetExpenseManager extends LightningElement {
     // Request counters prevent stale responses from replacing newer view data.
     _latestExpenseLoadRequestId = 0;
     _latestDashboardLoadRequestId = 0;
+    _latestBankOptionsRequestId = 0;
     _dateFormatStyleLoadPromise;
 
     // Workspace and filter state.
@@ -55,6 +57,7 @@ export default class BudgetExpenseManager extends LightningElement {
     expenseGroups = [];
     expenseGroupOptions = [];
     categoryOptions = [{ label: 'All Categories', value: 'All' }];
+    bankOptions = [];
 
     expenseRows = [];
     dashboardRows = [];
@@ -74,9 +77,14 @@ export default class BudgetExpenseManager extends LightningElement {
     dashboardLoadError = '';
     isRecurringLoading = false;
     isRunningRecurring = false;
+    isBankOptionsLoading = false;
+    bankOptionsError = '';
     isExpenseModalOpen = false;
     editingExpenseId = null;
     duplicateExpenseFields = null;
+    duplicateExpenseBankName = '';
+    currentExpenseBank = null;
+    expenseBankNotice = '';
     expenseDateError = '';
 
     // Workspace presentation.
@@ -310,9 +318,75 @@ export default class BudgetExpenseManager extends LightningElement {
         }
     }
 
+    async loadBankOptions() {
+        if (!this.expenseGroupId) {
+            this.clearBankOptions();
+            return;
+        }
+
+        const expenseGroupId = this.expenseGroupId;
+        const requestId = ++this._latestBankOptionsRequestId;
+        this.isBankOptionsLoading = true;
+        this.bankOptionsError = '';
+
+        try {
+            const assignments = await getAvailableExpenseGroupBanks({ expenseGroupId });
+            if (
+                requestId !== this._latestBankOptionsRequestId ||
+                expenseGroupId !== this.expenseGroupId
+            ) {
+                return;
+            }
+
+            this.bankOptions = (assignments || []).map(assignment => ({
+                label: assignment.bankName,
+                value: assignment.assignmentId
+            }));
+            this.reconcileDuplicateBankSelection();
+        } catch (error) {
+            if (
+                requestId !== this._latestBankOptionsRequestId ||
+                expenseGroupId !== this.expenseGroupId
+            ) {
+                return;
+            }
+
+            this.bankOptions = [];
+            this.bankOptionsError = this.getErrorMessage(
+                error,
+                'Failed to load banks for this expense group.'
+            );
+        } finally {
+            if (requestId === this._latestBankOptionsRequestId) {
+                this.isBankOptionsLoading = false;
+            }
+        }
+    }
+
     // View models and derived presentation state.
     get modalCategoryOptions() {
         return this.categoryOptions.filter(option => option.value !== 'All');
+    }
+
+    get modalBankOptions() {
+        const options = [...this.bankOptions];
+        const currentBank = this.currentExpenseBank;
+
+        if (
+            this.editingExpenseId &&
+            currentBank?.assignmentId &&
+            !this.isBankOptionsLoading &&
+            !this.bankOptionsError &&
+            !options.some(option => option.value === currentBank.assignmentId)
+        ) {
+            options.push({
+                label: `${currentBank.label || 'Unavailable bank'} (Inactive)`,
+                value: currentBank.assignmentId,
+                inactive: true
+            });
+        }
+
+        return options;
     }
 
     get expensesViewModel() {
@@ -479,9 +553,11 @@ export default class BudgetExpenseManager extends LightningElement {
         }
 
         this.expenseGroupId = expenseGroupId;
+        this.clearBankOptions();
         this.categoryId = 'All';
         this.searchTerm = '';
         this.activeView = WORKSPACE_VIEWS.DASHBOARD;
+        this.loadBankOptions();
         this.loadDashboard();
         this.loadExpenses();
         this.loadRecurringExpenses();
@@ -493,6 +569,7 @@ export default class BudgetExpenseManager extends LightningElement {
         this.categoryOptions = [{ label: 'All Categories', value: 'All' }];
         this.searchTerm = '';
         this.activeView = WORKSPACE_VIEWS.DASHBOARD;
+        this.clearBankOptions();
         this.clearDashboardData();
         this.clearExpenseData();
         this.clearRecurringData();
@@ -522,6 +599,13 @@ export default class BudgetExpenseManager extends LightningElement {
             monthlyTotal: 0
         };
         this.isRecurringLoading = false;
+    }
+
+    clearBankOptions() {
+        this._latestBankOptionsRequestId += 1;
+        this.bankOptions = [];
+        this.bankOptionsError = '';
+        this.isBankOptionsLoading = false;
     }
 
     handleSidebarToggle() {
@@ -633,13 +717,18 @@ export default class BudgetExpenseManager extends LightningElement {
 
         if (actionName === 'edit') {
             this.duplicateExpenseFields = null;
+            this.duplicateExpenseBankName = '';
+            this.currentExpenseBank = this.buildCurrentExpenseBank(row);
+            this.expenseBankNotice = '';
             this.editingExpenseId = recordId;
+            this.loadBankOptions();
             this.isExpenseModalOpen = true;
             return;
         }
 
         if (actionName === 'duplicate') {
             this.editingExpenseId = null;
+            const canCopyBank = row.bankAssignmentId && row.bankAssignmentActive;
             this.duplicateExpenseFields = {
                 Name: `Copy of ${row.name}`,
                 Amount__c: row.amount,
@@ -647,8 +736,15 @@ export default class BudgetExpenseManager extends LightningElement {
                 Expense_Date__c: row.expenseDate,
                 Transaction_Time__c: row.transactionTime,
                 Transaction_Type__c: row.transactionType,
-                Bank__c: row.bank
+                Bank_Assignment__c: canCopyBank ? row.bankAssignmentId : null
             };
+            this.duplicateExpenseBankName = row.bank || '';
+            this.currentExpenseBank = null;
+            this.expenseBankNotice =
+                row.bank && !canCopyBank
+                    ? `${row.bank} is not currently available for new expenses and was not copied.`
+                    : '';
+            this.loadBankOptions();
             this.isExpenseModalOpen = true;
             return;
         }
@@ -724,6 +820,10 @@ export default class BudgetExpenseManager extends LightningElement {
     openExpenseModal() {
         this.editingExpenseId = null;
         this.duplicateExpenseFields = null;
+        this.duplicateExpenseBankName = '';
+        this.currentExpenseBank = null;
+        this.expenseBankNotice = '';
+        this.loadBankOptions();
         this.isExpenseModalOpen = true;
     }
 
@@ -731,6 +831,45 @@ export default class BudgetExpenseManager extends LightningElement {
         this.isExpenseModalOpen = false;
         this.editingExpenseId = null;
         this.duplicateExpenseFields = null;
+        this.duplicateExpenseBankName = '';
+        this.currentExpenseBank = null;
+        this.expenseBankNotice = '';
+    }
+
+    handleRetryBankOptions() {
+        this.loadBankOptions();
+    }
+
+    buildCurrentExpenseBank(row) {
+        if (!row.bankAssignmentId && !row.legacyBank) {
+            return null;
+        }
+
+        return {
+            assignmentId: row.bankAssignmentId || '',
+            label: row.bank || '',
+            active: row.bankAssignmentActive,
+            legacyBank: row.legacyBank || ''
+        };
+    }
+
+    reconcileDuplicateBankSelection() {
+        const assignmentId = this.duplicateExpenseFields?.Bank_Assignment__c;
+        if (
+            !this.isExpenseModalOpen ||
+            this.editingExpenseId ||
+            !assignmentId ||
+            this.bankOptions.some(option => option.value === assignmentId)
+        ) {
+            return;
+        }
+
+        this.duplicateExpenseFields = {
+            ...this.duplicateExpenseFields,
+            Bank_Assignment__c: null
+        };
+        const bankName = this.duplicateExpenseBankName || 'The selected bank';
+        this.expenseBankNotice = `${bankName} is not currently available for new expenses and was not copied.`;
     }
 
     async handleExpenseSaveSuccess() {

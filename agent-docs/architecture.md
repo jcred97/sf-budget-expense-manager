@@ -9,6 +9,10 @@ Expense_Group__c
        - Amount__c
        - Description__c (optional)
        - Budget_Key__c (generated unique group/month key)
+  -> Expense_Group_Bank__c (Bank assignment; master-detail child)
+       - Bank__c (required restricted lookup to the global Bank record)
+       - Active__c
+       - Expense_Group_Bank_Key__c (generated unique group/bank key)
   -> Category__c (Expense_Group__c master-detail)
        - Display_Name__c
        - Total_Amount__c (roll-up, read-only)
@@ -16,7 +20,8 @@ Expense_Group__c
             - Amount__c
             - Expense_Date__c
             - Transaction_Time__c (optional)
-            - Bank__c (global value set: BPI, BDO, MariBank, Metrobank, GCash)
+            - Bank_Assignment__c (optional restricted lookup during migration)
+            - Bank__c (temporary legacy global-value-set fallback)
             - Transaction_Type__c (picklist)
             - Description__c
             - Recurring_Expense__c (lookup, optional)
@@ -24,7 +29,8 @@ Expense_Group__c
 Recurring_Expense__c
   -> Category__c (required lookup)
        - Amount__c
-       - Bank__c
+       - Bank_Assignment__c (optional restricted lookup during migration)
+       - Bank__c (temporary legacy global-value-set fallback)
        - Transaction_Type__c
        - Description__c
        - Frequency__c (Daily, Weekly, Monthly, Yearly)
@@ -32,6 +38,11 @@ Recurring_Expense__c
        - End_Date__c
        - Next_Run_Date__c
        - Active__c
+
+Bank__c (global, Public Read Only catalog)
+  - Name
+  - Active__c
+  - Bank_Key__c (generated normalized unique key)
 
 Budget_Expense_Manager_Setting__c
   - Recurring_Expenses_Enabled__c
@@ -42,6 +53,8 @@ Budget_Expense_Manager_Setting__c
 
 Legacy `Spending__c` metadata has been removed. `Expense_Group__c` is the active top-level object.
 ```
+
+`Bank__c` stores each institution once. `Expense_Group_Bank__c` is a logical junction with a master-detail relationship to the Expense Group and a deletion-restricted lookup to the global Bank. Its generated composite key prevents duplicate group/Bank assignments. Expense and recurring records reference the assignment so the database retains the selected group context; deleting a referenced assignment or an assigned global Bank is restricted. Deactivation removes a choice from new selections without changing historical labels. During the additive migration, application reads prefer the assignment relationship and fall back to the unchanged legacy picklist.
 
 `Budget__c` is opt-in by record presence. A group/month with no budget record keeps the original expense-only behavior. `BudgetTrigger` normalizes the month and regenerates the unique group/month key for every insert and update, so only one budget can exist for that context. Removing a budget does not remove or change expenses. The standard `Budget__c` tab provides list-view and record-level administration alongside the Dashboard budget panel.
 
@@ -63,6 +76,8 @@ settings; `Expense_Group__c` has no group-specific settings fields.
 ## Apex Methods
 
 - `getAllExpenseGroups()` - cacheable, returns all `Expense_Group__c` ordered by Name.
+- `BankController.getAvailableExpenseGroupBanks(expenseGroupId)` - cacheable, returns active global Banks assigned to the requested accessible Expense Group.
+- `BankService` - owns user-mode group-scoped Bank assignment lookup and option mapping.
 - `BudgetController.getMonthlyBudget(expenseGroupId, budgetMonth)` - cacheable, normalizes the month and returns the optional group budget or `null`.
 - `BudgetController.saveMonthlyBudget(request)` - creates or updates the single budget for a group/month using user-mode DML.
 - `BudgetController.deleteMonthlyBudget(budgetId)` - removes the accessible budget record without affecting expenses.
@@ -79,18 +94,19 @@ settings; `Expense_Group__c` has no group-specific settings fields.
 
 ## Custom Application
 
-`Budget_Expense_Manager.app-meta.xml` supports Small and Large form factors. Its tabs are `Budget_Expense_Manager`, `Expense_Group__c`, `Expense__c`, `Recurring_Expense__c`, `Category__c`, and `Budget_Expense_Manager_Settings`; its utility bar is `Budget_Expense_Manager_UtilityBar`. The renamed `budgetExpenseManagerLogo` content asset is retained in source but is not currently referenced by the application metadata.
+`Budget_Expense_Manager.app-meta.xml` supports Small and Large form factors. Its tabs are `Budget_Expense_Manager`, `Expense_Group__c`, `Bank__c`, `Budget__c`, `Expense__c`, `Recurring_Expense__c`, `Category__c`, and `Budget_Expense_Manager_Settings`; its utility bar is `Budget_Expense_Manager_UtilityBar`. The renamed `budgetExpenseManagerLogo` content asset is retained in source but is not currently referenced by the application metadata.
 
 ## Permission Sets
 
-- `Budget_Expense_Manager_User` - Day-to-day app access. Grants normal CRUD on budgets, expense groups, categories, expenses, and recurring expense templates without `viewAllRecords` or `modifyAllRecords`. Grants `BudgetController` and `ExpenseController` Apex access and standard app tabs, but not the settings tab or settings object.
-- `Budget_Expense_Manager_Admin` - Operational admin access. Grants full access to the app objects, including budgets, settings fields and tab, and recurring-automation Apex controls.
-- `Budget_Expense_Manager_All_Access` - Development/admin convenience set. Grants broad CRUD plus `viewAllRecords` and `modifyAllRecords` on the app objects, including budgets. Generated/read-only fields stay non-editable or hidden.
+- `Budget_Expense_Manager_User` - Day-to-day app access. Grants read-only access to the global Bank catalog and normal CRUD on group Bank assignments, budgets, expense groups, categories, expenses, and recurring expense templates without `viewAllRecords` or `modifyAllRecords`. The Banks tab is hidden from this permission set; assignments are managed from the Expense Group related list.
+- `Budget_Expense_Manager_Admin` - Operational admin access. Grants full access to global Banks and group assignments as well as budgets, settings fields and tab, and recurring-automation Apex controls.
+- `Budget_Expense_Manager_All_Access` - Development/admin convenience set. Grants broad CRUD plus `viewAllRecords` and `modifyAllRecords` on the app objects, including Banks, assignments, and budgets. Generated key fields stay hidden.
 
 ## Pages And Tabs
 
 - `Budget_Expense_Manager` - LWC custom tab backed directly by `budgetExpenseManager`, which avoids the standard Lightning App Page title strip.
 - `Budget_Expense_Manager_Settings` - LWC custom tab backed directly by `budgetExpenseSettings`.
-- Monthly budgets intentionally have no standard tab; they are managed from the Dashboard so the feature remains contextual and optional.
+- `Bank__c` - standard Banks tab for Admin/All Access catalog maintenance; group assignments remain contextual on Expense Group records and have no standalone tab.
+- `Budget__c` - standard Budgets tab for list-view and record-level administration.
 - `Budget_Expense_Manager_UtilityBar` - UtilityBar, left-aligned desktop.
 - `Expense_Record_Page` - RecordPage for `Expense__c`, overrides the View action.

@@ -71,6 +71,14 @@ expense row display labels, such as `No bank` for blank bank values.
 
 `budgetPanel` owns the budget wire, mutation state, retry handling, confirmation, and toasts. It receives the selected expense group, the Dashboard month, and that month's total spending from `expenseDashboard`. It displays budget, spent, remaining or over-budget amount, percentage used, and a capped visual progress value while retaining the exact uncapped percentage label. `budgetModal` owns positive PHP amount validation, the optional description, initial focus, Escape handling, and local Tab focus trapping.
 
+## Record-Based Banks
+
+`Bank__c` is the global catalog; `Expense_Group_Bank__c` assigns reusable Banks to Expense Groups. New selectors query only active assignments whose global Bank is also active. Expense and recurring records store `Bank_Assignment__c`, while row transformation keeps one canonical `bank` display value so search, charts, summaries, print, and CSV do not need separate migration logic.
+
+The compatibility read order is assignment Bank name first, then the temporary legacy `Bank__c` picklist. Editing preserves an existing inactive assignment so historical data remains editable; Add and Duplicate do not offer inactive choices. Server validation, rather than the optional lookup filter, enforces that the assignment belongs to the Category's Expense Group and that newly chosen assignments are active. Assignment Bank identity is immutable after creation because changing it would relabel every historical record that references that junction row.
+
+Standard layouts show the new Bank lookup plus the legacy value read-only during migration. The assignment Name is an auto-number, so custom application selectors must present `Bank__r.Name`; complete removal of the legacy field from standard Recurring edit waits for a later custom recurring editor or equivalent signed-in UX verification.
+
 ## Charts
 
 The app renders category, bank, and monthly trend visualizations from the

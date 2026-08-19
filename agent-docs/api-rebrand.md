@@ -72,7 +72,7 @@ Component public properties, custom events, controller method signatures, and se
 | All-access permission set | `Spendly_All_Access`              | `Budget_Expense_Manager_All_Access`      |
 | Scheduled job             | `Spendly Recurring Expense Daily` | `Budget Expense Manager Recurring Daily` |
 
-The settings fields retain their existing APIs. The neutral business APIs `Expense_Group__c`, `Category__c`, `Expense__c`, `Recurring_Expense__c`, and `Bank` also remain unchanged. `Budget__c` was added after the rebrand as the optional monthly expense-group budget object.
+The settings fields retain their existing APIs. The neutral business APIs `Expense_Group__c`, `Category__c`, `Expense__c`, `Recurring_Expense__c`, and legacy global value set `Bank` also remain unchanged. `Budget__c` was added after the rebrand as the optional monthly expense-group budget object. The later additive Bank work adds `Bank__c`, `Expense_Group_Bank__c`, and optional assignment lookups without removing or converting the legacy `Bank__c` picklist fields; that cleanup remains a separate migration boundary.
 
 The org also contained an older, unreferenced `spendly` content asset that was no longer in the current source tree. Cleanup removed both `spendly` and `spendly1`; `budgetExpenseManagerLogo` remains.
 

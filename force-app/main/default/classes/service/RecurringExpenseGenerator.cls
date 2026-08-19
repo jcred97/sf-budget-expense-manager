@@ -137,6 +137,7 @@ public with sharing class RecurringExpenseGenerator {
             Name = recurringExpense.Name,
             Amount__c = recurringExpense.Amount__c,
             Bank__c = recurringExpense.Bank__c,
+            Bank_Assignment__c = recurringExpense.Bank_Assignment__c,
             Category__c = recurringExpense.Category__c,
             Description__c = recurringExpense.Description__c,
             Expense_Date__c = dueDate,

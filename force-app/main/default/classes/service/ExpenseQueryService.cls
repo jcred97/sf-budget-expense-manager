@@ -67,7 +67,9 @@ public with sharing class ExpenseQueryService {
             'SELECT Id, Name, Expense_Date__c, Transaction_Time__c, Description__c, ' +
             'Category__c, Category__r.Name, ' +
             'Category__r.Expense_Group__c, Category__r.Expense_Group__r.Name, ' +
-            'Bank__c, Transaction_Type__c, Amount__c ' +
+            'Bank__c, Bank_Assignment__c, Bank_Assignment__r.Active__c, ' +
+            'Bank_Assignment__r.Bank__c, Bank_Assignment__r.Bank__r.Name, ' +
+            'Bank_Assignment__r.Bank__r.Active__c, Transaction_Type__c, Amount__c ' +
             'FROM Expense__c WHERE Id != null ';
         query += getRecordFilters(expenseGroupRecordId, categoryRecordId, bindValues);
         query += getDateFilters(safeFilters.startDate, safeFilters.endDate, bindValues);
@@ -159,7 +161,10 @@ public with sharing class ExpenseQueryService {
         Id expenseGroupRecordId = getFilterId(expenseGroupId);
         Map<String, Object> bindValues = new Map<String, Object>();
         String query =
-            'SELECT Id, Name, Active__c, Amount__c, Bank__c, Category__c, Category__r.Name, ' +
+            'SELECT Id, Name, Active__c, Amount__c, Bank__c, Bank_Assignment__c, ' +
+            'Bank_Assignment__r.Active__c, Bank_Assignment__r.Bank__c, ' +
+            'Bank_Assignment__r.Bank__r.Name, Bank_Assignment__r.Bank__r.Active__c, ' +
+            'Category__c, Category__r.Name, ' +
             'Category__r.Expense_Group__r.Name, End_Date__c, Frequency__c, Next_Run_Date__c, ' +
             'Start_Date__c, Transaction_Type__c ' +
             'FROM Recurring_Expense__c WHERE Id != null ';
@@ -188,7 +193,10 @@ public with sharing class ExpenseQueryService {
             recurringExpense.Amount__c,
             recurringExpense.Frequency__c
         );
-        row.bank = recurringExpense.Bank__c;
+        row.bank = recurringExpense.Bank_Assignment__r?.Bank__r?.Name;
+        if (String.isBlank(row.bank)) {
+            row.bank = recurringExpense.Bank__c;
+        }
         row.transactionType = recurringExpense.Transaction_Type__c;
         row.frequency = recurringExpense.Frequency__c;
         row.startDate = recurringExpense.Start_Date__c;

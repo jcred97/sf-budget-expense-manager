@@ -9,6 +9,16 @@ private class ExpenseControllerTest {
         Expense_Group__c eg2 = new Expense_Group__c(Name = 'Transport');
         insert new List<Expense_Group__c>{ eg1, eg2 };
 
+        Bank__c bpi = new Bank__c(Name = 'BPI', Active__c = true);
+        Bank__c bdo = new Bank__c(Name = 'BDO', Active__c = true);
+        insert new List<Bank__c>{ bpi, bdo };
+        Expense_Group_Bank__c foodBpi = new Expense_Group_Bank__c(
+            Expense_Group__c = eg1.Id,
+            Bank__c = bpi.Id,
+            Active__c = true
+        );
+        insert foodBpi;
+
         // Categories
         Category__c c1 = new Category__c(Name = 'Groceries', Expense_Group__c = eg1.Id);
         Category__c c2 = new Category__c(Name = 'Dining', Expense_Group__c = eg1.Id);
@@ -20,6 +30,8 @@ private class ExpenseControllerTest {
                 Name = 'Monthly Groceries',
                 Active__c = true,
                 Amount__c = 100,
+                Bank__c = 'BDO',
+                Bank_Assignment__c = foodBpi.Id,
                 Category__c = c1.Id,
                 Frequency__c = 'Monthly',
                 Next_Run_Date__c = Date.today(),
@@ -29,6 +41,7 @@ private class ExpenseControllerTest {
                 Name = 'Yearly Dining',
                 Active__c = true,
                 Amount__c = 1200,
+                Bank__c = 'BDO',
                 Category__c = c2.Id,
                 Frequency__c = 'Yearly',
                 Next_Run_Date__c = Date.today().addMonths(1),
@@ -49,6 +62,8 @@ private class ExpenseControllerTest {
         List<Expense__c> expenses = new List<Expense__c>{
             new Expense__c(
                 Name = 'Expense 1',
+                Bank__c = 'BDO',
+                Bank_Assignment__c = foodBpi.Id,
                 Category__c = c1.Id,
                 Expense_Date__c = Date.today().addDays(-5),
                 Amount__c = 100
@@ -168,6 +183,21 @@ private class ExpenseControllerTest {
             Test.stopTest();
 
             System.assertEquals(1, result.size(), 'Should return only Groceries expense');
+            System.assertNotEquals(
+                null,
+                result[0].Bank_Assignment__c,
+                'The expense query should return the assignment ID needed for editing.'
+            );
+            System.assertEquals(
+                'BPI',
+                result[0].Bank_Assignment__r.Bank__r.Name,
+                'The expense query should return the global Bank name.'
+            );
+            System.assertEquals(
+                true,
+                result[0].Bank_Assignment__r.Active__c,
+                'The expense query should return assignment availability.'
+            );
         }
     }
 
@@ -396,6 +426,21 @@ private class ExpenseControllerTest {
                 2,
                 result.activeCount,
                 'Food group active count should match related templates'
+            );
+            Map<String, ExpenseController.RecurringExpenseRow> rowsByName = new Map<String, ExpenseController.RecurringExpenseRow>();
+            for (ExpenseController.RecurringExpenseRow row : result.rows) {
+                rowsByName.put(row.name, row);
+            }
+            ExpenseController.RecurringExpenseRow assignedRow = rowsByName.get('Monthly Groceries');
+            System.assertEquals(
+                'BPI',
+                assignedRow.bank,
+                'The assignment Bank should win over a conflicting legacy picklist.'
+            );
+            System.assertEquals(
+                'BDO',
+                rowsByName.get('Yearly Dining').bank,
+                'A legacy-only recurring template should retain its Bank fallback.'
             );
         }
     }

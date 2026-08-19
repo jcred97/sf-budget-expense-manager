@@ -2,7 +2,7 @@
 
 ## Apex Tests
 
-Apex tests live in `ExpenseControllerTest.cls`, `BudgetControllerTest.cls`, `BudgetTriggerHandlerTest.cls`, `RecurringExpenseTriggerHandlerTest.cls`, `BudgetExpenseSettingsTriggerHandlerTest.cls`, `RecurringExpenseBatchTest.cls`, `RecurringExpenseCalculatorTest.cls`, `RecurringExpenseServiceTest.cls`, `RecurringExpenseSchedulerTest.cls`, and `BudgetExpenseSettingsServiceTest.cls`.
+Apex tests live in `BankAssignmentValidatorTest.cls`, `BankControllerTest.cls`, `BankTriggerHandlerTest.cls`, `ExpenseGroupBankTriggerHandlerTest.cls`, `ExpenseControllerTest.cls`, `BudgetControllerTest.cls`, `BudgetTriggerHandlerTest.cls`, `RecurringExpenseTriggerHandlerTest.cls`, `BudgetExpenseSettingsTriggerHandlerTest.cls`, `RecurringExpenseBatchTest.cls`, `RecurringExpenseCalculatorTest.cls`, `RecurringExpenseServiceTest.cls`, `RecurringExpenseSchedulerTest.cls`, and `BudgetExpenseSettingsServiceTest.cls`.
 
 The test setup creates:
 
@@ -12,6 +12,10 @@ The test setup creates:
 
 Covered behavior includes:
 
+- normalized unique global Bank keys and duplicate prevention
+- unique Expense Group/Bank assignment keys, immutable Bank identity, and inactive-Bank rejection
+- group-scoped active Bank selector options
+- Expense and Recurring Expense assignment/group validation, active-choice validation, legacy fallback, and recurring-generation assignment copying
 - `getAllExpenseGroups`
 - `getCategoriesByExpenseGroup`
 - `getExpensesByFilters`
@@ -31,6 +35,32 @@ Covered behavior includes:
 ## LWC Tests
 
 LWC tests use `@salesforce/sfdx-lwc-jest`, but no LWC Jest tests are currently checked in. A Jest run with `--passWithNoTests` validates the test harness only and does not provide behavioral coverage.
+
+## Record-Based Bank Workstream
+
+The additive Bank work introduces `Bank__c`, `Expense_Group_Bank__c`, the optional `Bank_Assignment__c` lookups, `BankController`, `ExpenseGroupBankOptionDto`, `BankService`, `BankAssignmentValidator`, Bank/assignment/Expense trigger handlers and triggers, four focused Bank test classes, and migration scripts 6-7. The legacy `Bank__c` picklists and `Bank` global value set remain in source during the compatibility window.
+
+Local validation completed on 2026-08-19:
+
+- Whole-change targeted Prettier, `npm run lint`, and `git diff --check`: passed.
+- Salesforce Code Analyzer `eslint:Recommended`, `pmd:Recommended`, and `sfge:Recommended`: 0 findings. The normal combined scan retained the established 145 inline-suppressed CSS exceptions without reporting a violation.
+- Salesforce source-to-Metadata-API conversion: passed.
+- All 39 changed or new XML files parsed successfully.
+- Manifest/source inventory matched exactly: 37 Apex classes, 6 triggers, 8 custom objects, 39 custom fields, 8 tabs, 7 layouts, 7 list views, 19 LWC bundles, and 3 permission sets.
+- Permission audit passed: regular users have read-only global Banks and no Bank tab, administrators and all-access users can manage global Banks, all three sets can manage group assignments and edit the new lookups, and generated key fields remain hidden.
+
+Org validation and deployment completed on 2026-08-19:
+
+- Initial full-manifest check-only deployment `0AfgK00000Quh3JSAR` was blocked before compilation by the active recurring Apex schedule; no metadata changed and no tests ran.
+- After the approved guarded scheduler pause, full-manifest check-only deployment `0AfgK00000Qu99kSAB` compiled the Bank source but exposed three test-fixture issues plus unrelated full-manifest coverage warnings. The fixtures were corrected locally; no metadata changed.
+- Focused check-only deployment `0AfgK00000QusoLSAR` compiled all 51 metadata components and passed all 58 focused tests with zero component errors, test errors, or coverage warnings. Touched production coverage ranged from 92.96% to 100%.
+- Deployment `0AfgK00000Qun3uSAB` released the same 51 components to `mainDevOrg` and passed the same 58 tests with zero errors or coverage warnings.
+- The recurring schedule was restored as job `08egK00000cGpiDQAS`, `WAITING`, with cron `0 0 8 * * ?`, timezone `Asia/Manila`, owner `005gK000034mODtQAM`, and next fire `2026-08-20T00:00:00.000+0000`.
+- The pre-migration baseline found 505 Expenses totaling PHP 1,667,469.07 and 11 Recurring Expenses totaling PHP 16,871.00. Of those, 483 Expenses and 8 Recurring Expenses retained legacy Bank values; no lookup was populated and both new Bank objects were empty.
+- The first script compile attempts stopped before DML. They exposed an invalid describe chain and then anonymous-Apex visibility of the intentionally hidden generated-key fields. Check-only deployment `0AfgK00000Qux87SAB` confirmed both fields already existed unchanged, so no corrective deployment was needed. Scripts 6-7 were corrected to identify records through normalized visible Bank names and Expense Group/Bank relationships while the deployed triggers remain the sole owners of hidden keys.
+- `06_migrate_banks.apex` completed successfully: 5 active Banks were inserted, 15 active assignments established the complete 3-group-by-5-Bank matrix, 483 Expenses were backfilled, and 8 Recurring Expenses were backfilled. Legacy picklists were unchanged.
+- Read-only `07_verify_bank_migration.apex` passed with 5 active Banks, 15 active assignments, and zero Expense or Recurring Expense mismatches. Post-migration counts and amount totals exactly matched the baseline; all 483 legacy-banked Expenses and all 8 legacy-banked Recurring Expenses now have assignments.
+- The scheduler remains `WAITING` as job `08egK00000cGpiDQAS` with its original 08:00 Asia/Manila schedule. Signed-in smoke testing remains pending.
 
 The LWC readability refactor and lifecycle cleanup follow-up were validated on 2026-08-19 with:
 

@@ -26,21 +26,30 @@ sf-budget-expense-manager/
       03_verify_rebrand.apex
       04_smoke_read_endpoints.apex
       05_verify_post_cleanup.apex
+      06_migrate_banks.apex
+      07_verify_bank_migration.apex
       backups/ (Git-ignored rollback exports)
   force-app/main/default/
     applications/
       Budget_Expense_Manager.app-meta.xml
     classes/
       controller/
+        BankController.cls
+        ExpenseGroupBankOptionDto.cls
         BudgetController.cls
         BudgetDto.cls
         BudgetSaveRequest.cls
         ExpenseController.cls
       handler/
+        BankTriggerHandler.cls
         BudgetTriggerHandler.cls
+        ExpenseGroupBankTriggerHandler.cls
+        ExpenseTriggerHandler.cls
         RecurringExpenseTriggerHandler.cls
         BudgetExpenseSettingsTriggerHandler.cls
       service/
+        BankAssignmentValidator.cls
+        BankService.cls
         BudgetService.cls
         ExpenseCommandService.cls
         ExpenseQueryService.cls
@@ -51,8 +60,12 @@ sf-budget-expense-manager/
         RecurringExpenseService.cls
         BudgetExpenseSettingsService.cls
       test/
+        BankAssignmentValidatorTest.cls
+        BankControllerTest.cls
+        BankTriggerHandlerTest.cls
         BudgetControllerTest.cls
         BudgetTriggerHandlerTest.cls
+        ExpenseGroupBankTriggerHandlerTest.cls
         RecurringExpenseTriggerHandlerTest.cls
         ExpenseControllerTest.cls
         RecurringExpenseBatchTest.cls
@@ -69,8 +82,10 @@ sf-budget-expense-manager/
     globalValueSets/
       Bank.globalValueSet-meta.xml
     layouts/
+      Bank__c-Bank Layout.layout-meta.xml
       Category__c-Category Layout.layout-meta.xml
       Expense__c-Expense Layout.layout-meta.xml
+      Expense_Group_Bank__c-Expense Group Bank Layout.layout-meta.xml
       Expense_Group__c-Expense Group Layout.layout-meta.xml
       Recurring_Expense__c-Recurring Expense Layout.layout-meta.xml
       Budget_Expense_Manager_Setting__c-Budget & Expense Manager Settings Layout.layout-meta.xml
@@ -95,7 +110,9 @@ sf-budget-expense-manager/
       recurringExpenseTransforms/
       recurringExpenseViewModel/
     objects/
+      Bank__c/
       Budget__c/
+      Expense_Group_Bank__c/
       Expense_Group__c/
       Category__c/
       Expense__c/
@@ -108,6 +125,7 @@ sf-budget-expense-manager/
     staticresources/
       RemoveDateFormatStyle.css
     tabs/
+      Bank__c.tab-meta.xml
       Budget_Expense_Manager.tab-meta.xml
       Budget__c.tab-meta.xml
       Category__c.tab-meta.xml
@@ -116,7 +134,10 @@ sf-budget-expense-manager/
       Recurring_Expense__c.tab-meta.xml
       Budget_Expense_Manager_Settings.tab-meta.xml
     triggers/
+      BankTrigger.trigger
       BudgetTrigger.trigger
+      ExpenseGroupBankTrigger.trigger
+      ExpenseTrigger.trigger
       RecurringExpenseTrigger.trigger
       BudgetExpenseSettingsTrigger.trigger
 ```

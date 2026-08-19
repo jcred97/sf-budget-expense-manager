@@ -1,8 +1,15 @@
 import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
+const NO_BANK_VALUE = '__NO_BANK__';
+
 export default class ExpenseModal extends LightningElement {
     @api categoryOptions = [];
+    @api bankOptions = [];
+    @api bankOptionsLoading = false;
+    @api bankOptionsError = '';
+    @api currentBank;
+    @api bankSelectionNotice = '';
     @api selectedExpenseGroupName = '';
 
     @track isClosing = false;
@@ -16,6 +23,8 @@ export default class ExpenseModal extends LightningElement {
     _previousBodyOverflow;
     _saveAndNew = false;
     categoryValue = '';
+    bankAssignmentValue = '';
+    bankSelectionTouched = false;
     transactionTimeValue = '';
 
     @api
@@ -29,6 +38,8 @@ export default class ExpenseModal extends LightningElement {
 
         if (isOpening && !this._recordId && !this._duplicateData) {
             this.categoryValue = '';
+            this.bankAssignmentValue = '';
+            this.bankSelectionTouched = false;
             this.transactionTimeValue = '';
         }
     }
@@ -42,6 +53,8 @@ export default class ExpenseModal extends LightningElement {
         this._recordId = value;
         if (!value) {
             this.categoryValue = this._duplicateData?.Category__c || '';
+            this.bankAssignmentValue = this._duplicateData?.Bank_Assignment__c || '';
+            this.bankSelectionTouched = false;
             this.transactionTimeValue = this.normalizeTimeForInput(
                 this._duplicateData?.Transaction_Time__c
             );
@@ -57,6 +70,8 @@ export default class ExpenseModal extends LightningElement {
         this._duplicateData = value;
         if (!this._recordId) {
             this.categoryValue = value?.Category__c || '';
+            this.bankAssignmentValue = value?.Bank_Assignment__c || '';
+            this.bankSelectionTouched = false;
             this.transactionTimeValue = this.normalizeTimeForInput(value?.Transaction_Time__c);
         }
     }
@@ -183,6 +198,9 @@ export default class ExpenseModal extends LightningElement {
 
         const record = event.detail.records?.[this.recordId];
         this.categoryValue = record?.fields?.Category__c?.value || '';
+        this.bankAssignmentValue =
+            record?.fields?.Bank_Assignment__c?.value || this.currentBank?.assignmentId || '';
+        this.bankSelectionTouched = false;
         this.transactionTimeValue = this.normalizeTimeForInput(
             record?.fields?.Transaction_Time__c?.value
         );
@@ -191,14 +209,31 @@ export default class ExpenseModal extends LightningElement {
     handleSubmit(event) {
         event.preventDefault();
 
+        if (this.isBankSaveBlocked) {
+            this.template.querySelector('[data-bank-options-error]')?.focus();
+            return;
+        }
+
         const categoryInput = this.template.querySelector('[data-field="category"]');
         if (categoryInput && !categoryInput.reportValidity()) {
+            return;
+        }
+
+        const bankInput = this.template.querySelector('[data-field="bank"]');
+        if (bankInput && !bankInput.reportValidity()) {
             return;
         }
 
         const fields = { ...event.detail.fields };
         fields.Category__c = this.categoryValue;
         fields.Transaction_Time__c = this.normalizeTimeForSubmit(this.transactionTimeValue);
+
+        if (!this.hasUntouchedLegacyBank) {
+            fields.Bank_Assignment__c = this.normalizedBankAssignmentValue;
+        }
+        if (this.bankSelectionTouched) {
+            fields.Bank__c = null;
+        }
 
         this.template.querySelector('lightning-record-edit-form').submit(fields);
     }
@@ -211,6 +246,15 @@ export default class ExpenseModal extends LightningElement {
         this.transactionTimeValue = event.detail.value;
     }
 
+    handleBankChange(event) {
+        this.bankAssignmentValue = event.detail.value;
+        this.bankSelectionTouched = true;
+    }
+
+    handleRetryBanks() {
+        this.dispatchEvent(new CustomEvent('retrybanks'));
+    }
+
     handleSuccess() {
         this.dispatchEvent(new CustomEvent('success'));
 
@@ -221,6 +265,8 @@ export default class ExpenseModal extends LightningElement {
                 }
             });
             this.categoryValue = '';
+            this.bankAssignmentValue = '';
+            this.bankSelectionTouched = false;
             this.transactionTimeValue = '';
             this._saveAndNew = false;
         } else {
@@ -247,6 +293,82 @@ export default class ExpenseModal extends LightningElement {
         return this.selectedExpenseGroupName
             ? `Select a ${this.selectedExpenseGroupName} category`
             : 'Select a category';
+    }
+
+    get bankComboboxOptions() {
+        return [{ label: 'No bank', value: NO_BANK_VALUE }, ...this.bankOptions];
+    }
+
+    get bankPlaceholder() {
+        return this.selectedExpenseGroupName
+            ? `Select a bank assigned to ${this.selectedExpenseGroupName}`
+            : 'Select a bank';
+    }
+
+    get normalizedBankAssignmentValue() {
+        return this.bankAssignmentValue && this.bankAssignmentValue !== NO_BANK_VALUE
+            ? this.bankAssignmentValue
+            : null;
+    }
+
+    get hasUntouchedLegacyBank() {
+        return Boolean(
+            this.isEditMode &&
+            !this.currentBank?.assignmentId &&
+            this.currentBank?.legacyBank &&
+            !this.bankSelectionTouched
+        );
+    }
+
+    get hasNoAvailableBanks() {
+        return (
+            !this.bankOptionsLoading &&
+            !this.bankOptionsError &&
+            !this.bankOptions.some(option => !option.inactive)
+        );
+    }
+
+    get isBankInputDisabled() {
+        return this.bankOptionsLoading || Boolean(this.bankOptionsError);
+    }
+
+    get isBankSaveBlocked() {
+        return this.bankOptionsLoading || Boolean(this.bankOptionsError);
+    }
+
+    get bankContextNotice() {
+        if (this.bankSelectionNotice) {
+            return this.bankSelectionNotice;
+        }
+
+        if (this.hasUntouchedLegacyBank) {
+            return `Legacy bank: ${this.currentBank.legacyBank}. Leave it unchanged to preserve it, or choose an assigned bank.`;
+        }
+
+        if (this.isEditMode && this.isCurrentBankInactive) {
+            return `${this.currentBank.label || 'This bank'} is inactive. You can keep it on this expense or choose another bank.`;
+        }
+
+        return '';
+    }
+
+    get isCurrentBankInactive() {
+        const assignmentId = this.currentBank?.assignmentId;
+        if (!assignmentId) {
+            return false;
+        }
+
+        const currentOption = this.bankOptions.find(option => option.value === assignmentId);
+        if (currentOption) {
+            return Boolean(currentOption.inactive || currentOption.disabled);
+        }
+
+        return !this.bankOptionsLoading && !this.bankOptionsError;
+    }
+
+    get noAvailableBanksMessage() {
+        const groupName = this.selectedExpenseGroupName || 'this expense group';
+        return `No active banks are assigned to ${groupName}. You can save this expense without a bank.`;
     }
 
     normalizeTimeForInput(value) {

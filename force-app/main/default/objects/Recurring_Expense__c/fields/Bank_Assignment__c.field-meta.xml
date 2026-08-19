@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Bank_Assignment__c</fullName>
+    <deleteConstraint>Restrict</deleteConstraint>
+    <externalId>false</externalId>
+    <label>Bank</label>
+    <lookupFilter>
+        <active>true</active>
+        <booleanFilter>1 AND 2</booleanFilter>
+        <filterItems>
+            <field>Expense_Group_Bank__c.Active__c</field>
+            <operation>equals</operation>
+            <value>true</value>
+        </filterItems>
+        <filterItems>
+            <field>Expense_Group_Bank__c.Bank__r.Active__c</field>
+            <operation>equals</operation>
+            <value>true</value>
+        </filterItems>
+        <isOptional>true</isOptional>
+    </lookupFilter>
+    <referenceTo>Expense_Group_Bank__c</referenceTo>
+    <relationshipLabel>Recurring Expenses</relationshipLabel>
+    <relationshipName>Recurring_Expenses</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

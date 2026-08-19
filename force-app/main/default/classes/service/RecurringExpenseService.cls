@@ -76,6 +76,7 @@ public with sharing class RecurringExpenseService {
                 Active__c,
                 Amount__c,
                 Bank__c,
+                Bank_Assignment__c,
                 Category__c,
                 Description__c,
                 End_Date__c,

@@ -13,6 +13,7 @@
 - Budget check-only deployment `0AfgK00000Qptd0SAB` compiled 25/25 components and passed all 10 specified tests. Deployment `0AfgK00000Qs215SAB` then released all 25 components to `mainDevOrg` and passed the same 10 tests. The budget work is committed and pushed on `main`.
 - The Budgets-navigation follow-up adds `Budget__c` after Expense Groups in the standard app navigation and grants tab visibility through all three permission sets. Check-only deployment `0AfgK00000QsAwHSAV` and deployment `0AfgK00000QsGX5SAN` each passed 5/5 components with `NoTestRun`; the follow-up is committed and pushed as `82d6ef1`.
 - Signed-in budget smoke testing passed the opt-out state, create, edit, budget-month change, within-budget and over-budget calculations, capped progress, removal without expense deletion, and standard Budgets list-view access.
+- The record-based Bank compatibility metadata, code, and same-org data migration are complete in `mainDevOrg`. They add global `Bank__c` records, `Expense_Group_Bank__c` assignments, optional Expense and Recurring Expense `Bank_Assignment__c` lookups, group-scoped selectors, trigger validation, and idempotent migration/verification scripts 6-7. Both legacy Bank picklists and their global value set remain for fallback and rollback. Focused check-only deployment `0AfgK00000QusoLSAR` and deployment `0AfgK00000Qun3uSAB` each passed 51/51 components and all 58 tests with zero errors or coverage warnings; touched production coverage ranged from 92.96% to 100%. Migration created 5 active Banks and 15 active group assignments, then backfilled 483 Expenses and 8 Recurring Expenses; read-only verification found zero mismatches and unchanged record counts and amount totals. The source is not yet committed or pushed, and signed-in smoke testing remains pending.
 - The app also uses `Expense_Group__c`, `Category__c`, `Expense__c`, `Recurring_Expense__c`, recurring expense automation, and `Budget_Expense_Manager_Setting__c`.
 - Recent UI direction: keep the custom workspace, but make it feel closer to Salesforce Lightning/SLDS and avoid heavy custom styling unless needed.
 - Local rebrand validation on 2026-08-15 passed ESLint, targeted Prettier checks, JSON/XML parsing, reference and manifest consistency checks, and Salesforce source-to-Metadata-API conversion.
@@ -91,6 +92,7 @@ The component names and scheduled-job names in this section are intentionally pr
 
 ## Next Likely Work
 
+- Smoke test the migrated Bank experience: group switching, active/inactive choices, Add/Edit/Duplicate, recurring generation, standard layouts, and legacy fallback. Keep destructive cleanup out of scope until the compatibility window closes.
 - Visually re-test the deployed mobile brand-row height fix at narrow mobile width.
 - Visually re-test the deployed intermediate-width Expenses and Recurring responsive fix around 989px, at 800px, and at comfortable desktop width.
 - Add real LWC Jest coverage before package creation; the current `--passWithNoTests` run validates only the harness.
@@ -99,6 +101,7 @@ The component names and scheduled-job names in this section are intentionally pr
 
 ## Clarifications
 
+- The record-based Bank work is additive, deployed, and data-migrated, but not yet committed or pushed. The org retains 505 Expenses totaling PHP 1,667,469.07 and 11 Recurring Expenses totaling PHP 16,871.00; all 483 legacy-banked Expenses and all 8 legacy-banked Recurring Expenses have same-group Bank assignments. The catalog contains active BDO, BPI, Gcash, MariBank, and Metrobank records, and each of the three Expense Groups has all five assignments. The recurring scheduler remains `08egK00000cGpiDQAS` with its original 08:00 Asia/Manila schedule. The legacy `Bank__c` picklists are intentionally retained and relabeled as temporary read-only fields on standard layouts; removing them or the `Bank` global value set requires a later separately approved destructive deployment.
 - The optional monthly budget first version and its standard navigation follow-up are deployed, committed, pushed, and signed-in smoke tested; the feature commit is `56aca05` and the navigation commit is `82d6ef1`.
 - The utility, summary-card, Dashboard, Recurring, Expenses, and view-model readability refactors are committed, pushed, and deployed to `mainDevOrg`.
 - The TypeScript `jsconfig.json` fix is local tooling configuration only. It is intentionally ignored by Git and is not Salesforce metadata.

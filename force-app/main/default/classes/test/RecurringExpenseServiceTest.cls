@@ -10,12 +10,26 @@ private class RecurringExpenseServiceTest {
             Expense_Group__c = expenseGroup.Id
         );
         insert category;
+
+        Bank__c bank = new Bank__c(Name = 'BPI', Active__c = true);
+        insert bank;
+        insert new Expense_Group_Bank__c(
+            Expense_Group__c = expenseGroup.Id,
+            Bank__c = bank.Id,
+            Active__c = true
+        );
     }
 
     @IsTest
     static void testGenerateDueExpensesCatchesUpMonthlyExpenses() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
+            Expense_Group_Bank__c bankAssignment = [
+                SELECT Id
+                FROM Expense_Group_Bank__c
+                WHERE Bank__r.Name = 'BPI'
+                LIMIT 1
+            ];
             Date firstDueDate = Date.newInstance(2026, 3, 1);
             Date runDate = Date.newInstance(2026, 5, 16);
 
@@ -24,6 +38,7 @@ private class RecurringExpenseServiceTest {
                 Active__c = true,
                 Amount__c = 1500,
                 Bank__c = 'BPI',
+                Bank_Assignment__c = bankAssignment.Id,
                 Category__c = category.Id,
                 Description__c = 'Monthly gym membership',
                 Frequency__c = 'Monthly',
@@ -60,6 +75,7 @@ private class RecurringExpenseServiceTest {
                     Name,
                     Amount__c,
                     Bank__c,
+                    Bank_Assignment__c,
                     Category__c,
                     Description__c,
                     Expense_Date__c,
@@ -105,6 +121,11 @@ private class RecurringExpenseServiceTest {
                 'BPI',
                 generatedExpenses[0].Bank__c,
                 'Generated expenses should copy the recurring bank.'
+            );
+            System.assertEquals(
+                bankAssignment.Id,
+                generatedExpenses[0].Bank_Assignment__c,
+                'Generated expenses should copy the record-based Bank assignment.'
             );
             System.assertNotEquals(
                 null,
@@ -334,6 +355,59 @@ private class RecurringExpenseServiceTest {
                 0,
                 [SELECT COUNT() FROM Expense__c],
                 'No expense records should be inserted'
+            );
+        }
+    }
+
+    @IsTest
+    static void testGenerateDueExpensesCopiesLookupOnlyBank() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Category__c category = [
+                SELECT Id, Expense_Group__c
+                FROM Category__c
+                WHERE Name = 'Fitness'
+                LIMIT 1
+            ];
+            Bank__c bank = new Bank__c(Name = 'Digital Bank', Active__c = true);
+            insert bank;
+            Expense_Group_Bank__c assignment = new Expense_Group_Bank__c(
+                Expense_Group__c = category.Expense_Group__c,
+                Bank__c = bank.Id,
+                Active__c = true
+            );
+            insert assignment;
+            Date dueDate = Date.newInstance(2026, 5, 1);
+            Recurring_Expense__c recurringExpense = new Recurring_Expense__c(
+                Name = 'Digital Subscription',
+                Active__c = true,
+                Amount__c = 500,
+                Bank_Assignment__c = assignment.Id,
+                Category__c = category.Id,
+                Frequency__c = 'Monthly',
+                Next_Run_Date__c = dueDate,
+                Start_Date__c = dueDate
+            );
+            insert recurringExpense;
+
+            Test.startTest();
+            RecurringExpenseService.generateDueExpenses(dueDate);
+            Test.stopTest();
+
+            Expense__c generatedExpense = [
+                SELECT Bank__c, Bank_Assignment__c
+                FROM Expense__c
+                WHERE Recurring_Expense__c = :recurringExpense.Id
+                LIMIT 1
+            ];
+            System.assertEquals(
+                assignment.Id,
+                generatedExpense.Bank_Assignment__c,
+                'A Bank outside the legacy value set should copy through the lookup.'
+            );
+            System.assertEquals(
+                null,
+                generatedExpense.Bank__c,
+                'Generation must not derive an invalid legacy picklist from the Bank name.'
             );
         }
     }

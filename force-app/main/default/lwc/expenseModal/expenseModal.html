@@ -32,6 +32,7 @@
                     onsuccess={handleSuccess}
                     onerror={handleError}
                 >
+                    <lightning-messages></lightning-messages>
                     <div class="slds-modal__content slds-p-around_medium">
                         <div class="slds-form slds-form_stacked">
                             <lightning-input-field
@@ -73,8 +74,73 @@
                                 value={fieldValue.Transaction_Type__c}
                             >
                             </lightning-input-field>
-                            <lightning-input-field field-name="Bank__c" value={fieldValue.Bank__c}>
-                            </lightning-input-field>
+                            <lightning-combobox
+                                class="slds-m-bottom_x-small"
+                                data-field="bank"
+                                label="Bank"
+                                value={bankAssignmentValue}
+                                options={bankComboboxOptions}
+                                placeholder={bankPlaceholder}
+                                disabled={isBankInputDisabled}
+                                onchange={handleBankChange}
+                            >
+                            </lightning-combobox>
+
+                            <template lwc:if={bankOptionsLoading}>
+                                <div
+                                    class="slds-is-relative slds-p-vertical_large"
+                                    role="status"
+                                    aria-live="polite"
+                                >
+                                    <lightning-spinner
+                                        alternative-text="Loading available banks"
+                                        size="small"
+                                    >
+                                    </lightning-spinner>
+                                </div>
+                            </template>
+                            <template lwc:elseif={bankOptionsError}>
+                                <div
+                                    class="slds-notify slds-notify_alert slds-alert_error slds-m-bottom_small"
+                                    role="alert"
+                                    tabindex="-1"
+                                    data-bank-options-error
+                                >
+                                    <span class="slds-assistive-text">Error</span>
+                                    <div
+                                        class="slds-grid slds-grid_vertical-align-center slds-wrap slds-grow"
+                                    >
+                                        <p class="slds-grow">{bankOptionsError}</p>
+                                        <lightning-button
+                                            class="slds-var-m-left_small"
+                                            variant="inverse"
+                                            label="Retry"
+                                            onclick={handleRetryBanks}
+                                        >
+                                        </lightning-button>
+                                    </div>
+                                </div>
+                            </template>
+                            <template lwc:elseif={hasNoAvailableBanks}>
+                                <p
+                                    class="slds-text-color_weak slds-m-bottom_small"
+                                    role="status"
+                                    aria-live="polite"
+                                >
+                                    {noAvailableBanksMessage}
+                                </p>
+                            </template>
+
+                            <template lwc:if={bankContextNotice}>
+                                <div
+                                    class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_small"
+                                    role="status"
+                                    aria-live="polite"
+                                >
+                                    <span class="slds-assistive-text">Bank notice</span>
+                                    <p>{bankContextNotice}</p>
+                                </div>
+                            </template>
                         </div>
                     </div>
 
@@ -88,6 +154,7 @@
                                 type="submit"
                                 label="Save &amp; New"
                                 onclick={handleSaveAndNew}
+                                disabled={isBankSaveBlocked}
                             >
                             </lightning-button>
                         </template>
@@ -97,6 +164,7 @@
                             type="submit"
                             label="Save"
                             onclick={handleSave}
+                            disabled={isBankSaveBlocked}
                         >
                         </lightning-button>
                     </footer>

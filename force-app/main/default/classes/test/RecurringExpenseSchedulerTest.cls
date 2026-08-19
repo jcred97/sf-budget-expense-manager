@@ -11,7 +11,7 @@ private class RecurringExpenseSchedulerTest {
             Test.stopTest();
 
             List<Expense__c> generatedExpenses = [
-                SELECT Name, Expense_Date__c, Recurring_Expense__c
+                SELECT Name, Expense_Date__c, Recurring_Expense__c, Bank_Assignment__c
                 FROM Expense__c
                 WHERE Recurring_Expense__c = :recurringExpense.Id
             ];
@@ -29,6 +29,11 @@ private class RecurringExpenseSchedulerTest {
                 dueDate,
                 generatedExpenses[0].Expense_Date__c,
                 'The scheduled batch should generate the expense for its due date.'
+            );
+            System.assertNotEquals(
+                null,
+                generatedExpenses[0].Bank_Assignment__c,
+                'The scheduled path should preserve the recurring Bank assignment.'
             );
 
             Recurring_Expense__c updatedRecurringExpense = [
@@ -88,10 +93,20 @@ private class RecurringExpenseSchedulerTest {
         );
         insert category;
 
+        Bank__c bank = new Bank__c(Name = 'BPI', Active__c = true);
+        insert bank;
+        Expense_Group_Bank__c bankAssignment = new Expense_Group_Bank__c(
+            Expense_Group__c = expenseGroup.Id,
+            Bank__c = bank.Id,
+            Active__c = true
+        );
+        insert bankAssignment;
+
         Recurring_Expense__c recurringExpense = new Recurring_Expense__c(
             Name = 'Gym',
             Active__c = true,
             Amount__c = 1500,
+            Bank_Assignment__c = bankAssignment.Id,
             Category__c = category.Id,
             Frequency__c = 'Monthly',
             Next_Run_Date__c = dueDate,

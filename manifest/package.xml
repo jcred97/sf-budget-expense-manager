@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
+        <members>BankAssignmentValidator</members>
+        <members>BankAssignmentValidatorTest</members>
+        <members>BankController</members>
+        <members>BankControllerTest</members>
+        <members>BankService</members>
+        <members>BankTriggerHandler</members>
+        <members>BankTriggerHandlerTest</members>
         <members>BudgetExpenseSettingsService</members>
         <members>BudgetExpenseSettingsServiceTest</members>
         <members>BudgetExpenseSettingsTriggerHandler</members>
@@ -15,7 +22,11 @@
         <members>ExpenseCommandService</members>
         <members>ExpenseController</members>
         <members>ExpenseControllerTest</members>
+        <members>ExpenseGroupBankOptionDto</members>
+        <members>ExpenseGroupBankTriggerHandler</members>
+        <members>ExpenseGroupBankTriggerHandlerTest</members>
         <members>ExpenseQueryService</members>
+        <members>ExpenseTriggerHandler</members>
         <members>RecurringExpenseBatch</members>
         <members>RecurringExpenseBatchTest</members>
         <members>RecurringExpenseCalculator</members>
@@ -30,8 +41,11 @@
         <name>ApexClass</name>
     </types>
     <types>
+        <members>BankTrigger</members>
         <members>BudgetExpenseSettingsTrigger</members>
         <members>BudgetTrigger</members>
+        <members>ExpenseGroupBankTrigger</members>
+        <members>ExpenseTrigger</members>
         <members>RecurringExpenseTrigger</members>
         <name>ApexTrigger</name>
     </types>
@@ -49,6 +63,8 @@
         <members>Budget_Expense_Manager_Setting__c.Last_Recurring_Run_Message__c</members>
         <members>Budget_Expense_Manager_Setting__c.Last_Recurring_Run_Status__c</members>
         <members>Budget_Expense_Manager_Setting__c.Recurring_Expenses_Enabled__c</members>
+        <members>Bank__c.Active__c</members>
+        <members>Bank__c.Bank_Key__c</members>
         <members>Budget__c.Amount__c</members>
         <members>Budget__c.Budget_Key__c</members>
         <members>Budget__c.Budget_Month__c</members>
@@ -58,6 +74,7 @@
         <members>Category__c.Expense_Group__c</members>
         <members>Category__c.Total_Amount__c</members>
         <members>Expense__c.Amount__c</members>
+        <members>Expense__c.Bank_Assignment__c</members>
         <members>Expense__c.Bank__c</members>
         <members>Expense__c.Category__c</members>
         <members>Expense__c.Description__c</members>
@@ -65,8 +82,13 @@
         <members>Expense__c.Recurring_Expense__c</members>
         <members>Expense__c.Transaction_Time__c</members>
         <members>Expense__c.Transaction_Type__c</members>
+        <members>Expense_Group_Bank__c.Active__c</members>
+        <members>Expense_Group_Bank__c.Bank__c</members>
+        <members>Expense_Group_Bank__c.Expense_Group__c</members>
+        <members>Expense_Group_Bank__c.Expense_Group_Bank_Key__c</members>
         <members>Recurring_Expense__c.Active__c</members>
         <members>Recurring_Expense__c.Amount__c</members>
+        <members>Recurring_Expense__c.Bank_Assignment__c</members>
         <members>Recurring_Expense__c.Bank__c</members>
         <members>Recurring_Expense__c.Category__c</members>
         <members>Recurring_Expense__c.Description__c</members>
@@ -78,15 +100,18 @@
         <name>CustomField</name>
     </types>
     <types>
+        <members>Bank__c</members>
         <members>Budget_Expense_Manager_Setting__c</members>
         <members>Budget__c</members>
         <members>Category__c</members>
         <members>Expense__c</members>
+        <members>Expense_Group_Bank__c</members>
         <members>Expense_Group__c</members>
         <members>Recurring_Expense__c</members>
         <name>CustomObject</name>
     </types>
     <types>
+        <members>Bank__c</members>
         <members>Budget_Expense_Manager</members>
         <members>Budget_Expense_Manager_Settings</members>
         <members>Budget__c</members>
@@ -106,10 +131,12 @@
         <name>GlobalValueSet</name>
     </types>
     <types>
+        <members>Bank__c-Bank Layout</members>
         <members
         >Budget_Expense_Manager_Setting__c-Budget &amp; Expense Manager Settings Layout</members>
         <members>Category__c-Category Layout</members>
         <members>Expense__c-Expense Layout</members>
+        <members>Expense_Group_Bank__c-Expense Group Bank Layout</members>
         <members>Expense_Group__c-Expense Group Layout</members>
         <members>Recurring_Expense__c-Recurring Expense Layout</members>
         <name>Layout</name>
@@ -137,9 +164,11 @@
         <name>LightningComponentBundle</name>
     </types>
     <types>
+        <members>Bank__c.All</members>
         <members>Budget__c.All</members>
         <members>Category__c.All</members>
         <members>Expense_Group__c.All</members>
+        <members>Expense_Group_Bank__c.All</members>
         <members>Expense__c.All</members>
         <members>Recurring_Expense__c.All</members>
         <name>ListView</name>

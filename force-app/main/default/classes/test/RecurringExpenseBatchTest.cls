@@ -12,6 +12,15 @@ private class RecurringExpenseBatchTest {
             );
             insert category;
 
+            Bank__c bank = new Bank__c(Name = 'BPI', Active__c = true);
+            insert bank;
+            Expense_Group_Bank__c bankAssignment = new Expense_Group_Bank__c(
+                Expense_Group__c = expenseGroup.Id,
+                Bank__c = bank.Id,
+                Active__c = true
+            );
+            insert bankAssignment;
+
             Date dueDate = Date.newInstance(2026, 5, 1);
             List<Recurring_Expense__c> recurringExpenses = new List<Recurring_Expense__c>();
             for (Integer index = 0; index < 250; index++) {
@@ -20,6 +29,7 @@ private class RecurringExpenseBatchTest {
                         Name = 'Gym ' + index,
                         Active__c = true,
                         Amount__c = 1500,
+                        Bank_Assignment__c = bankAssignment.Id,
                         Category__c = category.Id,
                         Frequency__c = 'Monthly',
                         Next_Run_Date__c = dueDate,
@@ -38,6 +48,11 @@ private class RecurringExpenseBatchTest {
                 250,
                 [SELECT COUNT() FROM Expense__c],
                 'All due recurring expenses should generate'
+            );
+            System.assertEquals(
+                250,
+                [SELECT COUNT() FROM Expense__c WHERE Bank_Assignment__c = :bankAssignment.Id],
+                'Every generated expense should retain the record-based Bank assignment.'
             );
             System.assertEquals(
                 250,
