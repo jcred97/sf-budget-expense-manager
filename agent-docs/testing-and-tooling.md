@@ -51,7 +51,8 @@ The optional monthly budget first version was validated on 2026-08-19 with:
 - Final check-only deployment `0AfgK00000Qptd0SAB` to `mainDevOrg`: 25/25 components compiled and all 10 specified tests passed. `BudgetController`, both top-level DTOs, `BudgetTrigger`, and `BudgetTriggerHandler` reported 100% coverage; `BudgetService` reported 91%.
 - No LWC Jest tests were added or run.
 - Deployment `0AfgK00000Qs215SAB` released all 25 components to `mainDevOrg` and passed all 10 specified tests with zero component or test errors.
-- Budgets-navigation check-only deployment `0AfgK00000QsAwHSAV` validated the app, standard `Budget__c` tab, and three permission sets: 5/5 components passed with `NoTestRun`. Deployment `0AfgK00000QsGX5SAN` then released the same five components to `mainDevOrg` successfully with `NoTestRun`.
+- Budgets-navigation check-only deployment `0AfgK00000QsAwHSAV` validated the app, standard `Budget__c` tab, and three permission sets: 5/5 components passed with `NoTestRun`. Deployment `0AfgK00000QsGX5SAN` then released the same five components to `mainDevOrg` successfully with `NoTestRun`; the follow-up is committed and pushed as `82d6ef1`.
+- Signed-in budget smoke testing passed the opt-out state, create, edit, budget-month change, within-budget and over-budget calculations, capped progress with the true percentage label, removal without expense deletion, and standard Budgets list-view access.
 
 The API rebrand source was validated locally on 2026-08-15 with:
 
