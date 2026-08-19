@@ -1,0 +1,102 @@
+<template>
+    <section
+        role="dialog"
+        tabindex="-1"
+        aria-modal="true"
+        aria-labelledby="budget-modal-heading"
+        aria-describedby="budget-modal-description"
+        class="slds-modal slds-fade-in-open"
+        onkeydown={handleKeyDown}
+    >
+        <div class="slds-modal__container">
+            <button
+                class="slds-button slds-button_icon slds-modal__close"
+                type="button"
+                title="Close"
+                disabled={isSaving}
+                onclick={handleClose}
+            >
+                <lightning-icon
+                    icon-name="utility:close"
+                    size="small"
+                    alternative-text="Close"
+                ></lightning-icon>
+                <span class="slds-assistive-text">Close</span>
+            </button>
+
+            <header class="slds-modal__header">
+                <h2 id="budget-modal-heading" class="slds-modal__title slds-hyphenate">
+                    {modalTitle}
+                </h2>
+            </header>
+
+            <form onsubmit={handleSubmit}>
+                <div class="slds-modal__content slds-var-p-around_medium">
+                    <p
+                        id="budget-modal-description"
+                        class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_medium"
+                    >
+                        {modalDescription}
+                    </p>
+
+                    <lightning-input
+                        data-field="amount"
+                        type="number"
+                        label="Monthly budget"
+                        formatter="currency"
+                        currency-code="PHP"
+                        min="0.01"
+                        step="0.01"
+                        value={amountValue}
+                        required
+                        disabled={isSaving}
+                        onchange={handleAmountChange}
+                    ></lightning-input>
+
+                    <lightning-textarea
+                        class="slds-var-m-top_small"
+                        label="Description"
+                        field-level-help="Optional note about this budget."
+                        max-length="32768"
+                        value={descriptionValue}
+                        disabled={isSaving}
+                        onchange={handleDescriptionChange}
+                    ></lightning-textarea>
+
+                    <template lwc:if={isSaving}>
+                        <div
+                            class="slds-is-relative slds-var-p-vertical_large"
+                            data-saving-status
+                            role="status"
+                            tabindex="-1"
+                            aria-busy="true"
+                            aria-label="Saving monthly budget"
+                        >
+                            <lightning-spinner
+                                alternative-text="Saving monthly budget"
+                                size="small"
+                            ></lightning-spinner>
+                        </div>
+                    </template>
+                </div>
+
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        variant="neutral"
+                        label="Cancel"
+                        disabled={isSaving}
+                        onclick={handleClose}
+                    ></lightning-button>
+                    <lightning-button
+                        class="slds-var-m-left_x-small"
+                        variant="brand"
+                        type="submit"
+                        label={saveButtonLabel}
+                        disabled={isSaving}
+                    ></lightning-button>
+                </footer>
+            </form>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open"></div>
+</template>

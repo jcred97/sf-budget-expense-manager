@@ -54,6 +54,23 @@
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
 
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>true</modifyAllRecords>
+        <object>Budget__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+
+    <!-- Budget__c Field Permissions -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Budget__c.Description__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
     <!-- Category__c Field Permissions -->
     <fieldPermissions>
         <editable>false</editable>
@@ -189,6 +206,10 @@
     </tabSettings>
 
     <!-- Apex Class Access -->
+    <classAccesses>
+        <apexClass>BudgetController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <classAccesses>
         <apexClass>ExpenseController</apexClass>
         <enabled>true</enabled>

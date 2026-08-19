@@ -28,10 +28,13 @@ export function buildDashboardViewModel({
     rows = [],
     trend = [],
     endDate,
+    expenseGroupId,
+    budgetMonth,
     selectedMonthLabel,
     expenseGroupName,
     periodLabel,
     isLoading,
+    loadError,
     showEmptyState
 }) {
     const totalAmount = sumExpenseAmounts(rows);
@@ -52,9 +55,16 @@ export function buildDashboardViewModel({
         averageExpense,
         topCategory,
         topBank,
+        budgetContext: {
+            expenseGroupId,
+            expenseGroupName,
+            budgetMonth,
+            spentAmount: totalAmount
+        },
         title: `${selectedMonthLabel} spending`,
         subtitle: `${expenseGroupName || 'No group selected'} / ${periodLabel}`,
         isLoading,
+        loadError,
         showEmptyState,
         summaryCards: buildSummaryCards({
             formattedTotal,

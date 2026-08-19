@@ -1,0 +1,134 @@
+<template>
+    <template lwc:if={hasContext}>
+        <lightning-card
+            class="slds-var-m-bottom_medium"
+            title="Monthly budget"
+            icon-name="utility:moneybag"
+        >
+            <div slot="actions">
+                <template lwc:if={hasBudget}>
+                    <lightning-button-group>
+                        <lightning-button
+                            data-budget-opener
+                            label="Edit"
+                            disabled={isBusy}
+                            onclick={handleEditBudget}
+                        ></lightning-button>
+                        <lightning-button
+                            data-budget-remove
+                            label="Remove"
+                            disabled={isBusy}
+                            onclick={handleRemoveBudget}
+                        ></lightning-button>
+                    </lightning-button-group>
+                </template>
+            </div>
+
+            <div class="slds-var-p-horizontal_medium slds-var-p-bottom_medium">
+                <template lwc:if={isLoading}>
+                    <div class="slds-is-relative slds-var-p-vertical_x-large" aria-busy="true">
+                        <lightning-spinner
+                            alternative-text="Loading monthly budget"
+                            size="small"
+                        ></lightning-spinner>
+                    </div>
+                </template>
+                <template lwc:elseif={loadError}>
+                    <div class="slds-notify slds-notify_alert slds-alert_error" role="alert">
+                        <span class="slds-assistive-text">Error</span>
+                        <div class="slds-grid slds-grid_vertical-align-center slds-wrap">
+                            <p class="slds-grow">{loadError}</p>
+                            <lightning-button
+                                class="slds-var-m-left_small"
+                                variant="inverse"
+                                label="Retry"
+                                onclick={handleRetry}
+                            ></lightning-button>
+                        </div>
+                    </div>
+                </template>
+                <template lwc:elseif={hasBudget}>
+                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_medium">
+                        {contextLabel} · {monthLabel}
+                    </p>
+
+                    <div class="slds-grid slds-wrap slds-gutters_small">
+                        <div
+                            class="slds-col slds-size_1-of-1 slds-small-size_1-of-3 slds-var-m-bottom_small"
+                        >
+                            <p class="slds-text-title_caps">Budget</p>
+                            <p class="slds-text-heading_small">{budgetAmountFormatted}</p>
+                        </div>
+                        <div
+                            class="slds-col slds-size_1-of-1 slds-small-size_1-of-3 slds-var-m-bottom_small"
+                        >
+                            <p class="slds-text-title_caps">Spent</p>
+                            <p class="slds-text-heading_small">{spentAmountFormatted}</p>
+                        </div>
+                        <div
+                            class="slds-col slds-size_1-of-1 slds-small-size_1-of-3 slds-var-m-bottom_small"
+                        >
+                            <p class="slds-text-title_caps">{varianceLabel}</p>
+                            <p class={varianceValueClass}>{varianceAmountFormatted}</p>
+                        </div>
+                    </div>
+
+                    <div class="slds-grid slds-grid_align-spread slds-var-m-top_x-small">
+                        <span>{percentageLabel}</span>
+                        <span class={budgetStatusClass}>{budgetStatusLabel}</span>
+                    </div>
+                    <lightning-progress-bar
+                        class="slds-var-m-top_x-small"
+                        value={progressValue}
+                        size="large"
+                        aria-label={progressAssistiveText}
+                    ></lightning-progress-bar>
+
+                    <template lwc:if={hasDescription}>
+                        <div class="slds-var-m-top_medium">
+                            <p class="slds-text-title_caps">Note</p>
+                            <p class="slds-text-body_small">{budget.description}</p>
+                        </div>
+                    </template>
+                </template>
+                <template lwc:else>
+                    <div class="slds-media slds-media_center slds-media_responsive">
+                        <div class="slds-media__figure">
+                            <lightning-icon
+                                icon-name="utility:moneybag"
+                                size="small"
+                                alternative-text="Optional budget"
+                            ></lightning-icon>
+                        </div>
+                        <div class="slds-media__body">
+                            <p class="slds-text-heading_small">Track a monthly spending target</p>
+                            <p class="slds-text-body_small slds-text-color_weak">
+                                {emptyStateMessage}
+                            </p>
+                        </div>
+                        <div class="slds-media__figure slds-media__figure_reverse">
+                            <lightning-button
+                                data-budget-opener
+                                variant="brand-outline"
+                                label="Set Budget"
+                                disabled={isBusy}
+                                onclick={handleSetBudget}
+                            ></lightning-button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </lightning-card>
+
+        <template lwc:if={isModalOpen}>
+            <c-budget-modal
+                budget={budget}
+                budget-month={budgetMonth}
+                expense-group-name={expenseGroupName}
+                is-saving={isSaving}
+                onsave={handleModalSave}
+                onclose={handleModalClose}
+            ></c-budget-modal>
+        </template>
+    </template>
+</template>

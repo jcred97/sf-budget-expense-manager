@@ -5,6 +5,13 @@
         <members>BudgetExpenseSettingsServiceTest</members>
         <members>BudgetExpenseSettingsTriggerHandler</members>
         <members>BudgetExpenseSettingsTriggerHandlerTest</members>
+        <members>BudgetController</members>
+        <members>BudgetControllerTest</members>
+        <members>BudgetDto</members>
+        <members>BudgetSaveRequest</members>
+        <members>BudgetService</members>
+        <members>BudgetTriggerHandler</members>
+        <members>BudgetTriggerHandlerTest</members>
         <members>ExpenseCommandService</members>
         <members>ExpenseController</members>
         <members>ExpenseControllerTest</members>
@@ -24,6 +31,7 @@
     </types>
     <types>
         <members>BudgetExpenseSettingsTrigger</members>
+        <members>BudgetTrigger</members>
         <members>RecurringExpenseTrigger</members>
         <name>ApexTrigger</name>
     </types>
@@ -41,6 +49,11 @@
         <members>Budget_Expense_Manager_Setting__c.Last_Recurring_Run_Message__c</members>
         <members>Budget_Expense_Manager_Setting__c.Last_Recurring_Run_Status__c</members>
         <members>Budget_Expense_Manager_Setting__c.Recurring_Expenses_Enabled__c</members>
+        <members>Budget__c.Amount__c</members>
+        <members>Budget__c.Budget_Key__c</members>
+        <members>Budget__c.Budget_Month__c</members>
+        <members>Budget__c.Description__c</members>
+        <members>Budget__c.Expense_Group__c</members>
         <members>Category__c.Display_Name__c</members>
         <members>Category__c.Expense_Group__c</members>
         <members>Category__c.Total_Amount__c</members>
@@ -66,6 +79,7 @@
     </types>
     <types>
         <members>Budget_Expense_Manager_Setting__c</members>
+        <members>Budget__c</members>
         <members>Category__c</members>
         <members>Expense__c</members>
         <members>Expense_Group__c</members>
@@ -102,6 +116,8 @@
     <types>
         <members>budgetExpenseManager</members>
         <members>budgetExpenseSettings</members>
+        <members>budgetModal</members>
+        <members>budgetPanel</members>
         <members>expenseBarChart</members>
         <members>expenseCsvExport</members>
         <members>expenseDashboard</members>
@@ -120,6 +136,7 @@
         <name>LightningComponentBundle</name>
     </types>
     <types>
+        <members>Budget__c.All</members>
         <members>Category__c.All</members>
         <members>Expense_Group__c.All</members>
         <members>Expense__c.All</members>
@@ -131,6 +148,11 @@
         <members>Budget_Expense_Manager_All_Access</members>
         <members>Budget_Expense_Manager_User</members>
         <name>PermissionSet</name>
+    </types>
+    <types>
+        <members>Budget__c.Amount_Must_Be_Positive</members>
+        <members>Budget__c.Budget_Month_Must_Be_First_Day</members>
+        <name>ValidationRule</name>
     </types>
     <types>
         <members>RemoveDateFormatStyle</members>

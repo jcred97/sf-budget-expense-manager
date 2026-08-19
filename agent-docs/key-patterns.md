@@ -65,6 +65,12 @@ Summary cards show total amount, expense count, average expense, top
 category, and top bank. Dashboard chart and summary fallbacks should match the
 expense row display labels, such as `No bank` for blank bank values.
 
+## Optional Monthly Budgets
+
+`Budget__c` stores at most one budget per `Expense_Group__c` and calendar month. Budgeting is data-driven rather than controlled by a global toggle: when no record exists, the Dashboard shows a quiet Set Budget invitation and all expense behavior remains unchanged. Saving creates or updates the normalized month record; ID-less saves lock the parent expense group so concurrent first-time requests converge on the same record. Removing it opts that group/month back out without changing expenses.
+
+`budgetPanel` owns the budget wire, mutation state, retry handling, confirmation, and toasts. It receives the selected expense group, the Dashboard month, and that month's total spending from `expenseDashboard`. It displays budget, spent, remaining or over-budget amount, percentage used, and a capped visual progress value while retaining the exact uncapped percentage label. `budgetModal` owns positive PHP amount validation, the optional description, initial focus, Escape handling, and local Tab focus trapping.
+
 ## Charts
 
 The app renders category, bank, and monthly trend visualizations from the

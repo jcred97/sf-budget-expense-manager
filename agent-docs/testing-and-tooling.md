@@ -2,7 +2,7 @@
 
 ## Apex Tests
 
-Apex tests live in `ExpenseControllerTest.cls`, `RecurringExpenseTriggerHandlerTest.cls`, `BudgetExpenseSettingsTriggerHandlerTest.cls`, `RecurringExpenseBatchTest.cls`, `RecurringExpenseCalculatorTest.cls`, `RecurringExpenseServiceTest.cls`, `RecurringExpenseSchedulerTest.cls`, and `BudgetExpenseSettingsServiceTest.cls`.
+Apex tests live in `ExpenseControllerTest.cls`, `BudgetControllerTest.cls`, `BudgetTriggerHandlerTest.cls`, `RecurringExpenseTriggerHandlerTest.cls`, `BudgetExpenseSettingsTriggerHandlerTest.cls`, `RecurringExpenseBatchTest.cls`, `RecurringExpenseCalculatorTest.cls`, `RecurringExpenseServiceTest.cls`, `RecurringExpenseSchedulerTest.cls`, and `BudgetExpenseSettingsServiceTest.cls`.
 
 The test setup creates:
 
@@ -19,6 +19,8 @@ Covered behavior includes:
 - bulk expense delete
 - monthly trend data
 - handled delete failures
+- optional monthly budget opt-out, create, normalized lookup, update, group/month upsert, validation, ownership mismatch, and removal
+- budget trigger month/key normalization, key regeneration, duplicate prevention, and invariant errors
 - recurring expense trigger defaults for `Next_Run_Date__c`
 - recurring expense batch generation for more than the manual run cap, default construction, and null run-date validation
 - recurring expense next-run-date calculation for daily, weekly, monthly, and yearly frequencies
@@ -39,6 +41,16 @@ The LWC readability refactor and lifecycle cleanup follow-up were validated on 2
 - The manager guards static-resource loading across renders, while the expense modal removes its document listener and restores page state when disconnected.
 - LWC-only check-only deployment `0AfgK00000Qpm8TSAR` to `mainDevOrg`: all 17 bundles compiled successfully with `NoTestRun`.
 - No Jest tests were added or run. Deployment `0AfgK00000QpZeKSAV` then released the ten affected LWC bundles to `mainDevOrg` successfully with `NoTestRun`.
+
+The optional monthly budget first version was validated on 2026-08-19 with:
+
+- Targeted Prettier checks, `npm run lint`, `git diff --check`, XML parsing, manifest/source inventory, and Salesforce source conversion: passed.
+- Salesforce Code Analyzer `eslint:Recommended`, `pmd:Recommended`, and `sfge:Recommended` scans: 0 findings. The `eslint:Recommended --no-suppressions` audit retained the established 145 Low CSS exceptions across nine unchanged files, with no High or Moderate findings.
+- Initial check-only deployment `0AfgK00000QpzGzSAJ` compiled all 25 components and ran 10 tests; 9 passed and one direct-handler test exposed an incorrect multiple-`addError` count assumption. No org metadata changed.
+- Intermediate check-only deployment `0AfgK00000Qq2unSAB` compiled all 25 components and ran 10 tests; 9 passed and one assertion caught a changed null-group validation message during complexity cleanup. The original API message was restored through request-level validation, and no org metadata changed.
+- Final check-only deployment `0AfgK00000Qptd0SAB` to `mainDevOrg`: 25/25 components compiled and all 10 specified tests passed. `BudgetController`, both top-level DTOs, `BudgetTrigger`, and `BudgetTriggerHandler` reported 100% coverage; `BudgetService` reported 91%.
+- No LWC Jest tests were added or run.
+- Deployment `0AfgK00000Qs215SAB` released all 25 components to `mainDevOrg` and passed all 10 specified tests with zero component or test errors.
 
 The API rebrand source was validated locally on 2026-08-15 with:
 

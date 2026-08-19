@@ -1,9 +1,11 @@
 # Budget & Expense Manager
 
-Budget & Expense Manager is a Salesforce Lightning Web Components application for organizing expenses, recurring entries, and spending insights in Salesforce.
+Budget & Expense Manager is a Salesforce Lightning Web Components application for organizing expenses, optional monthly budgets, recurring entries, and spending insights in Salesforce.
 
 ```text
-Expense_Group__c -> Category__c -> Expense__c
+Expense_Group__c
+|- Budget__c (optional, one per month)
+`- Category__c -> Expense__c
 ```
 
 The project is being prepared as a second-generation managed package with the registered namespace `bemgr`. Local source remains namespace-neutral; Salesforce applies `bemgr` when source is deployed to a namespaced scratch org or built into the managed package.
@@ -13,6 +15,7 @@ The project is being prepared as a second-generation managed package with the re
 - Manage expenses under expense groups and categories.
 - Filter and search expenses by group, category, date, name, bank, and transaction type.
 - Review total spending, averages, leading categories and banks, recent expenses, and monthly trends.
+- Optionally set a monthly budget for an expense group and track spent, remaining, or over-budget amounts.
 - Add, edit, duplicate, delete, and bulk-delete expenses.
 - Create recurring-expense templates and generate due expenses through Batch Apex.
 - Configure global recurring automation.
@@ -24,27 +27,28 @@ All currency presentation is PHP-focused and centralized in `expenseFormatters`.
 ## Data Model
 
 - `Expense_Group__c` — top-level expense workspace.
+- `Budget__c` — optional monthly spending target for an expense group; absence of a record means budgeting is off for that month.
 - `Category__c` — master-detail child of an expense group.
 - `Expense__c` — dated expense linked to a category and optionally to its recurring template.
 - `Recurring_Expense__c` — recurring template with frequency, active state, and next-run pointer.
 - `Budget_Expense_Manager_Setting__c` — singleton global automation settings and last-run state.
-
-`Budget__c` is future scope and is not included in the current source.
 
 ## Architecture
 
 ### Apex
 
 - `ExpenseController` — Lightning-facing query and command façade.
+- `BudgetController` and `BudgetService` — user-mode lookup and mutation of optional monthly expense-group budgets.
 - `ExpenseQueryService` and `ExpenseCommandService` — scoped user-mode queries and DML.
 - `RecurringExpenseCalculator`, `RecurringExpenseGenerator`, `RecurringExpenseService`, `RecurringExpenseBatch`, and `RecurringExpenseScheduler` — recurring-expense calculation, generation, batching, and scheduling.
 - `BudgetExpenseSettingsService` — singleton settings and scheduler coordination.
-- `RecurringExpenseTriggerHandler` and `BudgetExpenseSettingsTriggerHandler` — thin-trigger domain behavior.
+- `BudgetTriggerHandler`, `RecurringExpenseTriggerHandler`, and `BudgetExpenseSettingsTriggerHandler` — thin-trigger domain behavior and budget invariant enforcement.
 
 ### Lightning Web Components
 
 - `budgetExpenseManager` — workspace shell, navigation, state, Apex orchestration, export, print, and modal ownership.
 - `expenseDashboard` and `expenseDashboardViewModel` — dashboard presentation and pure derived state.
+- `budgetPanel` and `budgetModal` — optional monthly budget status, creation, editing, and removal.
 - `expenseList` and `expenseListViewModel` — filtered, grouped expense list and pagination.
 - `recurringExpenses` and `recurringExpenseViewModel` — recurring-template presentation and summaries.
 - `expenseModal` — add, edit, and duplicate workflow.
@@ -118,7 +122,7 @@ The repository-wide `prettier:verify` command currently reports legacy formattin
 
 ## Testing
 
-Eight Apex test classes cover expense queries and commands, recurring calculation and generation, batch and scheduler behavior, trigger handlers, singleton settings, and run-status tracking.
+Ten Apex test classes cover expense queries and commands, optional monthly budgets, recurring calculation and generation, batch and scheduler behavior, trigger handlers, singleton settings, and run-status tracking.
 
 Jest tooling is configured through `@salesforce/sfdx-lwc-jest`, but no LWC Jest tests are currently checked in. A no-tests Jest result is therefore not behavioral coverage.
 

@@ -71,6 +71,7 @@ export default class BudgetExpenseManager extends LightningElement {
 
     isExpensesLoading = false;
     isDashboardLoading = false;
+    dashboardLoadError = '';
     isRecurringLoading = false;
     isRunningRecurring = false;
     isExpenseModalOpen = false;
@@ -230,6 +231,7 @@ export default class BudgetExpenseManager extends LightningElement {
 
         const requestId = ++this._latestDashboardLoadRequestId;
         this.isDashboardLoading = true;
+        this.dashboardLoadError = '';
 
         try {
             const trendEndDate = parseDateString(this.dashboardEndDate) || new Date();
@@ -268,6 +270,9 @@ export default class BudgetExpenseManager extends LightningElement {
             if (requestId !== this._latestDashboardLoadRequestId) {
                 return;
             }
+            this.dashboardRows = [];
+            this.dashboardTrend = [];
+            this.dashboardLoadError = 'Failed to load the dashboard.';
             this.showToast('Error', 'Failed to load dashboard.', 'error');
         } finally {
             if (requestId === this._latestDashboardLoadRequestId) {
@@ -331,10 +336,13 @@ export default class BudgetExpenseManager extends LightningElement {
             rows: this.dashboardRows,
             trend: this.dashboardTrend,
             endDate: this.dashboardEndDate,
+            expenseGroupId: this.expenseGroupId,
+            budgetMonth: this.dashboardStartDate,
             selectedMonthLabel: this.selectedMonthLabel,
             expenseGroupName: this.selectedExpenseGroupName,
             periodLabel: this.dashboardPeriodLabel,
             isLoading,
+            loadError: this.dashboardLoadError,
             showEmptyState: this.isDashboardView && this.dashboardRows.length === 0 && !isLoading
         });
     }
@@ -502,6 +510,7 @@ export default class BudgetExpenseManager extends LightningElement {
         this._latestDashboardLoadRequestId += 1;
         this.dashboardRows = [];
         this.dashboardTrend = [];
+        this.dashboardLoadError = '';
         this.isDashboardLoading = false;
     }
 

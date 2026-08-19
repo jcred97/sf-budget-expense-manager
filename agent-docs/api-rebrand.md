@@ -72,7 +72,7 @@ Component public properties, custom events, controller method signatures, and se
 | All-access permission set | `Spendly_All_Access`              | `Budget_Expense_Manager_All_Access`      |
 | Scheduled job             | `Spendly Recurring Expense Daily` | `Budget Expense Manager Recurring Daily` |
 
-The settings fields retain their existing APIs. The neutral business APIs `Expense_Group__c`, `Category__c`, `Expense__c`, `Recurring_Expense__c`, and `Bank` also remain unchanged. `Budget__c` is future scope.
+The settings fields retain their existing APIs. The neutral business APIs `Expense_Group__c`, `Category__c`, `Expense__c`, `Recurring_Expense__c`, and `Bank` also remain unchanged. `Budget__c` was added after the rebrand as the optional monthly expense-group budget object.
 
 The org also contained an older, unreferenced `spendly` content asset that was no longer in the current source tree. Cleanup removed both `spendly` and `spendly1`; `budgetExpenseManagerLogo` remains.
 
@@ -99,12 +99,13 @@ If the destination is a new namespaced package installation, every packaged cust
 
 ```text
 Expense_Group__c
-  -> Category__c
-     -> Recurring_Expense__c
-     -> Expense__c
+  |- Budget__c
+  `- Category__c
+     |- Recurring_Expense__c
+     `- Expense__c
 ```
 
-Preserve lookup mappings, recurrence pointers, transaction dates/times, and source identifiers for reconciliation.
+Preserve lookup mappings, monthly budget contexts, recurrence pointers, transaction dates/times, and source identifiers for reconciliation.
 
 ## Validation Boundary
 

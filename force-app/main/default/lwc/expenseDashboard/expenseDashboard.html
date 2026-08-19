@@ -9,11 +9,13 @@
             <p>{viewModel.subtitle}</p>
         </div>
         <div class="dashboard-hero-actions">
-            <div class="dashboard-hero-total">
-                <span>Total spent</span>
-                <strong>{viewModel.formattedTotal}</strong>
-                <small>{viewModel.countLabel}</small>
-            </div>
+            <template lwc:if={showHeroTotal}>
+                <div class="dashboard-hero-total">
+                    <span>Total spent</span>
+                    <strong>{viewModel.formattedTotal}</strong>
+                    <small>{viewModel.countLabel}</small>
+                </div>
+            </template>
         </div>
     </section>
 
@@ -25,7 +27,29 @@
             ></lightning-spinner>
         </section>
     </template>
+    <template lwc:elseif={viewModel.loadError}>
+        <section class="slds-notify slds-notify_alert slds-alert_error" role="alert">
+            <span class="slds-assistive-text">Error</span>
+            <div class="slds-grid slds-grid_vertical-align-center slds-wrap slds-grow">
+                <p class="slds-grow">{viewModel.loadError}</p>
+                <lightning-button
+                    class="slds-var-m-left_small"
+                    variant="inverse"
+                    label="Retry"
+                    onclick={handleRetryDashboard}
+                ></lightning-button>
+            </div>
+        </section>
+    </template>
     <template lwc:else>
+        <c-budget-panel
+            expense-group-id={viewModel.budgetContext.expenseGroupId}
+            expense-group-name={viewModel.budgetContext.expenseGroupName}
+            budget-month={viewModel.budgetContext.budgetMonth}
+            spent-amount={viewModel.budgetContext.spentAmount}
+        >
+        </c-budget-panel>
+
         <template lwc:if={viewModel.showEmptyState}>
             <section class="dashboard-empty-callout slds-box slds-theme_default">
                 <div class="slds-media">

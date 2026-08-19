@@ -7,14 +7,24 @@ export default class ExpenseDashboard extends LightningElement {
         monthlyTrendData: [],
         bankChartData: [],
         recentRows: [],
-        insights: []
+        insights: [],
+        budgetContext: {},
+        loadError: ''
     };
 
     get hasRecentRows() {
         return this.viewModel.recentRows.length > 0;
     }
 
+    get showHeroTotal() {
+        return !this.viewModel.isLoading && !this.viewModel.loadError;
+    }
+
     handleViewExpenses() {
         this.dispatchEvent(new CustomEvent('viewexpenses'));
+    }
+
+    handleRetryDashboard() {
+        this.dispatchEvent(new CustomEvent('retrydashboard'));
     }
 }

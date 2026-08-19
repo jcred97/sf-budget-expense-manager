@@ -4,6 +4,11 @@
 
 ```text
 Expense_Group__c
+  -> Budget__c (optional monthly master-detail child)
+       - Budget_Month__c (normalized to first day)
+       - Amount__c
+       - Description__c (optional)
+       - Budget_Key__c (generated unique group/month key)
   -> Category__c (Expense_Group__c master-detail)
        - Display_Name__c
        - Total_Amount__c (roll-up, read-only)
@@ -38,6 +43,8 @@ Budget_Expense_Manager_Setting__c
 Legacy `Spending__c` metadata has been removed. `Expense_Group__c` is the active top-level object.
 ```
 
+`Budget__c` is opt-in by record presence. A group/month with no budget record keeps the original expense-only behavior. `BudgetTrigger` normalizes the month and regenerates the unique group/month key for every insert and update, so only one budget can exist for that context. Removing a budget does not remove or change expenses.
+
 Recurring expenses are managed as templates. The generator Apex creates due
 `Expense__c` records, links them back through `Expense__c.Recurring_Expense__c`,
 sets `Expense__c.Transaction_Time__c` to the user-local time of generation, then
@@ -56,6 +63,10 @@ settings; `Expense_Group__c` has no group-specific settings fields.
 ## Apex Methods
 
 - `getAllExpenseGroups()` - cacheable, returns all `Expense_Group__c` ordered by Name.
+- `BudgetController.getMonthlyBudget(expenseGroupId, budgetMonth)` - cacheable, normalizes the month and returns the optional group budget or `null`.
+- `BudgetController.saveMonthlyBudget(request)` - creates or updates the single budget for a group/month using user-mode DML.
+- `BudgetController.deleteMonthlyBudget(budgetId)` - removes the accessible budget record without affecting expenses.
+- `BudgetService` - owns user-mode budget queries, mutations, lookup normalization, and Lightning-safe responses; `BudgetSaveRequest` validates and normalizes incoming save values.
 - `getCategoriesByExpenseGroup(expenseGroupId)` - cacheable, filters by expense group or returns all.
 - `getExpensesByFilters(expenseGroupId, categoryId, startDate, endDate)` - dynamic SOQL; filters by `Category__r.Expense_Group__c`, selects category and expense group names; ordered by `Expense_Date__c DESC`, then `Transaction_Time__c DESC`.
 - `deleteExpense(expenseId)` - non-cacheable, null-checks `expenseId`, deletes a single `Expense__c`, catches `DmlException`.
@@ -72,13 +83,14 @@ settings; `Expense_Group__c` has no group-specific settings fields.
 
 ## Permission Sets
 
-- `Budget_Expense_Manager_User` - Day-to-day app access. Grants CRUD on expense groups, categories, expenses, and recurring expense templates without `viewAllRecords` or `modifyAllRecords`. Grants `ExpenseController` Apex access and standard app tabs, but not the settings tab or settings object.
-- `Budget_Expense_Manager_Admin` - Operational admin access. Grants full access to the app objects, settings fields and tab, and recurring-automation Apex controls.
-- `Budget_Expense_Manager_All_Access` - Development/admin convenience set. Grants broad CRUD plus `viewAllRecords` and `modifyAllRecords` on the app objects. Read-only fields stay non-editable.
+- `Budget_Expense_Manager_User` - Day-to-day app access. Grants normal CRUD on budgets, expense groups, categories, expenses, and recurring expense templates without `viewAllRecords` or `modifyAllRecords`. Grants `BudgetController` and `ExpenseController` Apex access and standard app tabs, but not the settings tab or settings object.
+- `Budget_Expense_Manager_Admin` - Operational admin access. Grants full access to the app objects, including budgets, settings fields and tab, and recurring-automation Apex controls.
+- `Budget_Expense_Manager_All_Access` - Development/admin convenience set. Grants broad CRUD plus `viewAllRecords` and `modifyAllRecords` on the app objects, including budgets. Generated/read-only fields stay non-editable or hidden.
 
 ## Pages And Tabs
 
 - `Budget_Expense_Manager` - LWC custom tab backed directly by `budgetExpenseManager`, which avoids the standard Lightning App Page title strip.
 - `Budget_Expense_Manager_Settings` - LWC custom tab backed directly by `budgetExpenseSettings`.
+- Monthly budgets intentionally have no standard tab; they are managed from the Dashboard so the feature remains contextual and optional.
 - `Budget_Expense_Manager_UtilityBar` - UtilityBar, left-aligned desktop.
 - `Expense_Record_Page` - RecordPage for `Expense__c`, overrides the View action.

@@ -32,11 +32,16 @@ sf-budget-expense-manager/
       Budget_Expense_Manager.app-meta.xml
     classes/
       controller/
+        BudgetController.cls
+        BudgetDto.cls
+        BudgetSaveRequest.cls
         ExpenseController.cls
       handler/
+        BudgetTriggerHandler.cls
         RecurringExpenseTriggerHandler.cls
         BudgetExpenseSettingsTriggerHandler.cls
       service/
+        BudgetService.cls
         ExpenseCommandService.cls
         ExpenseQueryService.cls
         RecurringExpenseBatch.cls
@@ -46,6 +51,8 @@ sf-budget-expense-manager/
         RecurringExpenseService.cls
         BudgetExpenseSettingsService.cls
       test/
+        BudgetControllerTest.cls
+        BudgetTriggerHandlerTest.cls
         RecurringExpenseTriggerHandlerTest.cls
         ExpenseControllerTest.cls
         RecurringExpenseBatchTest.cls
@@ -69,6 +76,8 @@ sf-budget-expense-manager/
       Budget_Expense_Manager_Setting__c-Budget & Expense Manager Settings Layout.layout-meta.xml
     lwc/
       budgetExpenseManager/
+      budgetModal/
+      budgetPanel/
       budgetExpenseSettings/
       expenseBarChart/
       expenseCsvExport/
@@ -86,6 +95,7 @@ sf-budget-expense-manager/
       recurringExpenseTransforms/
       recurringExpenseViewModel/
     objects/
+      Budget__c/
       Expense_Group__c/
       Category__c/
       Expense__c/
@@ -105,6 +115,7 @@ sf-budget-expense-manager/
       Recurring_Expense__c.tab-meta.xml
       Budget_Expense_Manager_Settings.tab-meta.xml
     triggers/
+      BudgetTrigger.trigger
       RecurringExpenseTrigger.trigger
       BudgetExpenseSettingsTrigger.trigger
 ```

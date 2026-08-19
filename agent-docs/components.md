@@ -7,6 +7,8 @@
 | `lwc/expenseCsvExport`                     | Non-exposed CSV construction and browser download boundary for filtered expense rows                                                         |
 | `lwc/expenseDashboard`                     | Dashboard presentation: hero, loading/empty states, summary cards, charts, latest expenses, insights, responsive styling, and View All event |
 | `lwc/expenseDashboardViewModel`            | Non-exposed pure builder for dashboard totals, summaries, charts, trends, recent rows, and insight data                                      |
+| `lwc/budgetPanel`                          | Non-exposed optional monthly budget card: load, opt-in state, spent/remaining/over status, edit, remove, retry, and toasts                   |
+| `lwc/budgetModal`                          | Non-exposed accessible create/edit dialog for a positive PHP budget amount and optional description                                          |
 | `lwc/expenseList`                          | Expenses presentation: filters, loading/empty states, grouped rows, selection, actions, pagination, and responsive styling                   |
 | `lwc/expenseListViewModel`                 | Non-exposed pure builder for filtered/grouped expense rows, totals, empty states, pagination, and print data                                 |
 | `lwc/recurringExpenses`                    | Recurring-expense presentation: summary cards, template list, due/inactive states, and row actions                                           |
@@ -19,7 +21,10 @@
 | `lwc/expenseTransforms`                    | Non-exposed pure utilities for expense mapping, grouping, summaries, chart construction, chart colors, totals, and count labels              |
 | `lwc/expenseModal`                         | Add/Edit Expense modal: form, animations, focus management, and document-level lifecycle cleanup                                             |
 | `lwc/budgetExpenseSettings`                | Settings page for recurring automation controls, global run time, and last-run status                                                        |
+| `classes/controller/BudgetController.cls`  | Lightning-facing monthly budget query/save/delete façade                                                                                     |
+| `classes/controller/BudgetDto.cls`         | Top-level Lightning response DTO for one monthly budget                                                                                      |
+| `classes/controller/BudgetSaveRequest.cls` | Top-level Lightning request DTO for monthly budget creation and updates                                                                      |
 | `classes/controller/ExpenseController.cls` | Apex backend: expense group/category/expense queries, dashboard trend query, recurring template overview query, and scoped DML actions       |
-| `classes/handler/`                         | Trigger handlers for recurring expense defaults and Budget & Expense Manager settings singleton enforcement                                  |
-| `classes/service/`                         | Expense query/command services and recurring expense calculation, generation, batch, scheduling, and settings services                       |
+| `classes/handler/`                         | Trigger handlers for budget invariants, recurring expense defaults, and Budget & Expense Manager settings singleton enforcement              |
+| `classes/service/`                         | Budget/expense queries and commands plus recurring expense calculation, generation, batch, scheduling, and settings services                 |
 | `classes/test/`                            | Apex tests grouped separately from production classes                                                                                        |

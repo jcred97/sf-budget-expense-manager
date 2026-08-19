@@ -8,8 +8,10 @@
 - The singleton settings record, all-access assignment, and 08:00 Asia/Manila scheduler were migrated and verified. The neutral business records remained in place: 3 expense groups, 18 categories, 11 recurring templates, and 504 expenses, including 23 recurring links.
 - Cleanup deployment `0AfgK00000QSI4fSAH` removed all live Spendly-named app metadata, Apex, LWCs, permissions, settings metadata/data, and both legacy content assets after check-only deployment `0AfgK00000QSD8ESAX` passed. The obsolete permission assignment was removed first; the current all-access assignment remains.
 - Budget & Expense Manager uses `budgetExpenseManager` as the workspace shell and state coordinator. Dashboard, Expenses, and Recurring presentation live in dedicated child components; pure derived data lives in feature-specific view-model modules.
-- `budgetExpenseManager.js` is 858 lines after the readability refactor, down from 1,257 lines before the view-model extraction.
-- The app currently uses `Expense_Group__c`, `Category__c`, `Expense__c`, `Recurring_Expense__c`, recurring expense automation, and `Budget_Expense_Manager_Setting__c`.
+- `budgetExpenseManager.js` is 762 lines after the readability refactor and budget integration, down from 1,257 lines before the view-model extraction.
+- The local source now includes optional monthly expense-group budgets through `Budget__c`, `BudgetController`, `BudgetService`, `BudgetTrigger`, `budgetPanel`, and `budgetModal`. No budget record means the group/month remains in the original expense-only state; no standard Budget tab was added.
+- Budget check-only deployment `0AfgK00000Qptd0SAB` compiled 25/25 components and passed all 10 specified tests. Deployment `0AfgK00000Qs215SAB` then released all 25 components to `mainDevOrg` and passed the same 10 tests. The budget work is committed and pushed on `main`.
+- The app also uses `Expense_Group__c`, `Category__c`, `Expense__c`, `Recurring_Expense__c`, recurring expense automation, and `Budget_Expense_Manager_Setting__c`.
 - Recent UI direction: keep the custom workspace, but make it feel closer to Salesforce Lightning/SLDS and avoid heavy custom styling unless needed.
 - Local rebrand validation on 2026-08-15 passed ESLint, targeted Prettier checks, JSON/XML parsing, reference and manifest consistency checks, and Salesforce source-to-Metadata-API conversion.
 - The post-rebrand Code Analyzer scan found 431 Low findings across six existing CSS files, all from `@salesforce-ux/slds/no-hardcoded-values-slds2`; it found no High or Moderate findings. Jest completed with `--passWithNoTests`, but there are no checked-in LWC Jest suites, so this is harness validation only.
@@ -87,6 +89,7 @@ The component names and scheduled-job names in this section are intentionally pr
 
 ## Next Likely Work
 
+- Perform a signed-in Dashboard smoke test for budget opt-out, create, edit, over-budget, month/group switching, and removal flows.
 - Visually re-test the deployed mobile brand-row height fix at narrow mobile width.
 - Visually re-test the deployed intermediate-width Expenses and Recurring responsive fix around 989px, at 800px, and at comfortable desktop width.
 - Add real LWC Jest coverage before package creation; the current `--passWithNoTests` run validates only the harness.
@@ -95,6 +98,7 @@ The component names and scheduled-job names in this section are intentionally pr
 
 ## Clarifications
 
+- The optional monthly budget first version passed check-only deployment `0AfgK00000Qptd0SAB`, is deployed to `mainDevOrg` as `0AfgK00000Qs215SAB`, and is committed and pushed on `main`.
 - The utility, summary-card, Dashboard, Recurring, Expenses, and view-model readability refactors are committed, pushed, and deployed to `mainDevOrg`.
 - The TypeScript `jsconfig.json` fix is local tooling configuration only. It is intentionally ignored by Git and is not Salesforce metadata.
 - The historical UI-refactor deployments were LWC-only, so Apex tests were not required or run for those deployments; later API-rebrand validation and cleanup each ran the focused Apex suite documented above.
