@@ -109,6 +109,7 @@ sf-budget-expense-manager/
       RemoveDateFormatStyle.css
     tabs/
       Budget_Expense_Manager.tab-meta.xml
+      Budget__c.tab-meta.xml
       Category__c.tab-meta.xml
       Expense__c.tab-meta.xml
       Expense_Group__c.tab-meta.xml

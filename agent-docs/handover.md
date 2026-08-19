@@ -9,8 +9,9 @@
 - Cleanup deployment `0AfgK00000QSI4fSAH` removed all live Spendly-named app metadata, Apex, LWCs, permissions, settings metadata/data, and both legacy content assets after check-only deployment `0AfgK00000QSD8ESAX` passed. The obsolete permission assignment was removed first; the current all-access assignment remains.
 - Budget & Expense Manager uses `budgetExpenseManager` as the workspace shell and state coordinator. Dashboard, Expenses, and Recurring presentation live in dedicated child components; pure derived data lives in feature-specific view-model modules.
 - `budgetExpenseManager.js` is 762 lines after the readability refactor and budget integration, down from 1,257 lines before the view-model extraction.
-- The local source now includes optional monthly expense-group budgets through `Budget__c`, `BudgetController`, `BudgetService`, `BudgetTrigger`, `budgetPanel`, and `budgetModal`. No budget record means the group/month remains in the original expense-only state; no standard Budget tab was added.
+- The source includes optional monthly expense-group budgets through `Budget__c`, `BudgetController`, `BudgetService`, `BudgetTrigger`, `budgetPanel`, and `budgetModal`. No budget record means the group/month remains in the original expense-only state. A standard Budgets tab now provides list-view and record-level administration in the Salesforce app navigation.
 - Budget check-only deployment `0AfgK00000Qptd0SAB` compiled 25/25 components and passed all 10 specified tests. Deployment `0AfgK00000Qs215SAB` then released all 25 components to `mainDevOrg` and passed the same 10 tests. The budget work is committed and pushed on `main`.
+- The Budgets-navigation follow-up adds `Budget__c` after Expense Groups in the standard app navigation and grants tab visibility through all three permission sets. Check-only deployment `0AfgK00000QsAwHSAV` and deployment `0AfgK00000QsGX5SAN` each passed 5/5 components with `NoTestRun`; this follow-up is not committed or pushed.
 - The app also uses `Expense_Group__c`, `Category__c`, `Expense__c`, `Recurring_Expense__c`, recurring expense automation, and `Budget_Expense_Manager_Setting__c`.
 - Recent UI direction: keep the custom workspace, but make it feel closer to Salesforce Lightning/SLDS and avoid heavy custom styling unless needed.
 - Local rebrand validation on 2026-08-15 passed ESLint, targeted Prettier checks, JSON/XML parsing, reference and manifest consistency checks, and Salesforce source-to-Metadata-API conversion.
@@ -89,6 +90,7 @@ The component names and scheduled-job names in this section are intentionally pr
 
 ## Next Likely Work
 
+- Verify the deployed standard Budgets tab and list view in a signed-in app session.
 - Perform a signed-in Dashboard smoke test for budget opt-out, create, edit, over-budget, month/group switching, and removal flows.
 - Visually re-test the deployed mobile brand-row height fix at narrow mobile width.
 - Visually re-test the deployed intermediate-width Expenses and Recurring responsive fix around 989px, at 800px, and at comfortable desktop width.

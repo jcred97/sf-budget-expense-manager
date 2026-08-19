@@ -43,7 +43,7 @@ Budget_Expense_Manager_Setting__c
 Legacy `Spending__c` metadata has been removed. `Expense_Group__c` is the active top-level object.
 ```
 
-`Budget__c` is opt-in by record presence. A group/month with no budget record keeps the original expense-only behavior. `BudgetTrigger` normalizes the month and regenerates the unique group/month key for every insert and update, so only one budget can exist for that context. Removing a budget does not remove or change expenses.
+`Budget__c` is opt-in by record presence. A group/month with no budget record keeps the original expense-only behavior. `BudgetTrigger` normalizes the month and regenerates the unique group/month key for every insert and update, so only one budget can exist for that context. Removing a budget does not remove or change expenses. The standard `Budget__c` tab provides list-view and record-level administration alongside the Dashboard budget panel.
 
 Recurring expenses are managed as templates. The generator Apex creates due
 `Expense__c` records, links them back through `Expense__c.Recurring_Expense__c`,

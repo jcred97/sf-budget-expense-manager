@@ -152,6 +152,10 @@
         <visibility>Visible</visibility>
     </tabSettings>
     <tabSettings>
+        <tab>Budget__c</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
         <tab>Recurring_Expense__c</tab>
         <visibility>Visible</visibility>
     </tabSettings>

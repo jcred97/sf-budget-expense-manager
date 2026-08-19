@@ -10,6 +10,7 @@
     <navType>Standard</navType>
     <tabs>Budget_Expense_Manager</tabs>
     <tabs>Expense_Group__c</tabs>
+    <tabs>Budget__c</tabs>
     <tabs>Expense__c</tabs>
     <tabs>Recurring_Expense__c</tabs>
     <tabs>Category__c</tabs>

@@ -49,6 +49,7 @@ All currency presentation is PHP-focused and centralized in `expenseFormatters`.
 - `budgetExpenseManager` — workspace shell, navigation, state, Apex orchestration, export, print, and modal ownership.
 - `expenseDashboard` and `expenseDashboardViewModel` — dashboard presentation and pure derived state.
 - `budgetPanel` and `budgetModal` — optional monthly budget status, creation, editing, and removal.
+- The Salesforce app navigation includes a standard **Budgets** tab for list-view and record-level administration.
 - `expenseList` and `expenseListViewModel` — filtered, grouped expense list and pagination.
 - `recurringExpenses` and `recurringExpenseViewModel` — recurring-template presentation and summaries.
 - `expenseModal` — add, edit, and duplicate workflow.

@@ -89,6 +89,7 @@
     <types>
         <members>Budget_Expense_Manager</members>
         <members>Budget_Expense_Manager_Settings</members>
+        <members>Budget__c</members>
         <members>Category__c</members>
         <members>Expense__c</members>
         <members>Expense_Group__c</members>
