@@ -37,6 +37,37 @@ Covered behavior includes:
 
 LWC tests use `@salesforce/sfdx-lwc-jest`, but no LWC Jest tests are currently checked in. A Jest run with `--passWithNoTests` validates the test harness only and does not provide behavioral coverage.
 
+## LWC Boundary Refactor Workstream
+
+The local follow-up after the Apex boundary deployment keeps Salesforce's required flat LWC
+bundle layout while extracting shared presentation and infrastructure boundaries:
+`expenseMonthNavigator`, `expensePrintReport`, `modalFocusUtils`, `expenseErrorUtils`,
+`expenseWorkspaceData`, and `expenseWorkspaceViewModels`. The manager retains shared workspace
+state, cacheable wire results, stale-response guards, mutations, and modal orchestration.
+
+Local validation completed on 2026-08-21:
+
+- Targeted Prettier, `npm run lint`, `git diff --check`, XML parsing, custom-import resolution, and exact source/manifest inventory: passed.
+- The inventory contains 26/26 LWC bundles, and the local LWC compiler transformed all 51 JavaScript, HTML, and CSS sources successfully.
+- Salesforce source-to-Metadata-API conversion: passed.
+- Targeted Salesforce Code Analyzer `eslint:Recommended`: 0 findings. The full `--no-suppressions` LWC audit reports 143 established Low CSS exceptions across 10 files, two fewer than the prior 145 baseline; the additional file count reflects moving existing scoped month/print CSS into their owning bundles.
+- The shared error normalizer was subsequently hardened for Apex, LDS/UI API, record-form, network, and JavaScript shapes. Its 11-case semantic check, targeted Prettier and ESLint, 51-file LWC compilation, `git diff --check`, and targeted `eslint:Recommended --no-suppressions` Code Analyzer scan passed with 0 findings.
+- LWC-only check-only deployment `0AfgK00000RBEBOSA5` compiled all 12 affected bundles and 51 files successfully with `NoTestRun`.
+- Deployment `0AfgK00000RBLRNSA5` released the same 12 bundles and 51 files to `mainDevOrg` with zero component errors. Signed-in smoke testing, commit, and push remain pending; no Jest tests were added or run.
+
+## Apex Boundary Architecture Workstream
+
+The local follow-up after commit `0a8f201` makes controllers the only Lightning-facing Apex entry points, extracts every LWC contract into a top-level DTO, moves budget validation into `BudgetService`, isolates reusable Expense Group and Category lookups in user-mode selectors, and places Batch/Schedulable classes under `classes/async`. UI-only `"All"` Category values are translated to null before Apex; server group/category contracts use `Id`.
+
+Local validation completed on 2026-08-21:
+
+- Targeted Prettier, `npm run lint`, `git diff --check`, changed/new XML parsing, architecture-policy scans, and Salesforce source-to-Metadata-API conversion: passed.
+- Exact source/manifest inventory passed with 49 Apex classes, 49 paired class metadata files, 14 Apex test classes, and 20 LWC bundles.
+- Salesforce Code Analyzer `eslint:Recommended`, `pmd:Recommended`, and `sfge:Recommended`: 0 findings at the Low threshold.
+- The `eslint:Recommended --no-suppressions` audit remains exactly 145 established Low CSS exceptions across nine unchanged files: 142 `no-hardcoded-values-slds2` and 3 `no-slds-class-overrides`. No new suppression was added.
+- Controller SOQL, non-controller `@AuraEnabled` methods, stale inner-class references, and stale direct-service LWC imports: 0.
+- No Jest, org Apex tests, check-only deployment, deployment, commit, or push was performed for this local architecture workstream.
+
 ## Record-Based Bank Workstream
 
 The additive Bank work introduces `Bank__c`, `Expense_Group_Bank__c`, the optional `Bank_Assignment__c` lookups, `BankController`, `ExpenseGroupBankOptionDto`, `BankService`, `BankAssignmentValidator`, Bank/assignment/Expense trigger handlers and triggers, and four focused Bank test classes. The legacy `Bank__c` picklists and `Bank` global value set remain in source during the compatibility window. The verified one-off migration scripts were removed from the app repository afterward.
@@ -64,6 +95,15 @@ Org validation and deployment completed on 2026-08-19:
 - The scheduler remains `WAITING` as job `08egK00000cGpiDQAS` with its original 08:00 Asia/Manila schedule. Signed-in smoke testing remains pending.
 
 ## Custom Recurring Editor Workstream
+
+## Apex Boundary Architecture Deployment
+
+The controller/DTO/service/selector/async boundary refactor was released to `mainDevOrg` on 2026-08-21:
+
+- Check-only deployment `0AfgK00000R9f64SAB`: 155/155 components and 90/90 specified tests passed, with zero component or test errors.
+- Deployment `0AfgK00000R9xz6SAB`: 155/155 components and 90/90 specified tests passed, with zero errors or coverage warnings.
+- The recurring schedule was paused for the Apex dependency cutover and restored as the only active job, `08egK00000cahiIQAQ`, in `WAITING` state with cron `0 0 8 * * ?`, timezone `Asia/Manila`, owner `005gK000034mODtQAM`, and next fire `2026-08-22T08:00:00+08:00`.
+- No LWC Jest tests were added or run. Commit, push, and signed-in smoke testing remain pending.
 
 The follow-up adds the non-exposed `recurringExpenseModal`, replaces workspace Add/Edit navigation with an LDS form, refreshes group-scoped Category and Bank choices, and preserves legacy or inactive Bank history. It also enforces the recurring date window, prevents capped generation from replaying expenses, and keeps already-ended pointers out of due status and generation.
 

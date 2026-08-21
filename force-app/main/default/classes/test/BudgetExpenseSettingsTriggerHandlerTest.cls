@@ -27,7 +27,7 @@ private class BudgetExpenseSettingsTriggerHandlerTest {
     @IsTest
     static void testBeforeInsertRejectsRecordWhenSettingsAlreadyExist() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            BudgetExpenseSettingsService.getSettings();
+            SettingsController.getSettings();
             Budget_Expense_Manager_Setting__c secondSettings = new Budget_Expense_Manager_Setting__c(
                 Name = 'Second',
                 Recurring_Expenses_Enabled__c = true
@@ -79,7 +79,7 @@ private class BudgetExpenseSettingsTriggerHandlerTest {
     @IsTest
     static void testTriggerDelegatesBeforeInsert() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            BudgetExpenseSettingsService.getSettings();
+            SettingsController.getSettings();
 
             Test.startTest();
             Database.SaveResult result = Database.insert(

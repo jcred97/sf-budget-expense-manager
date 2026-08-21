@@ -8,7 +8,14 @@ import LEGACY_BANK_FIELD from '@salesforce/schema/Recurring_Expense__c.Bank__c';
 import CATEGORY_FIELD from '@salesforce/schema/Recurring_Expense__c.Category__c';
 import NEXT_RUN_DATE_FIELD from '@salesforce/schema/Recurring_Expense__c.Next_Run_Date__c';
 
+import { getErrorMessage } from 'c/expenseErrorUtils';
 import { formatDate, formatDateISO } from 'c/expenseFormatters';
+import {
+    captureModalEnvironment,
+    getFocusableElements,
+    restoreModalEnvironment,
+    trapTabFocus
+} from 'c/modalFocusUtils';
 
 const NO_BANK_VALUE = '__NO_BANK__';
 const RECORD_CONTEXT_FIELDS = [
@@ -46,8 +53,7 @@ export default class RecurringExpenseModal extends LightningElement {
     _isOpen = false;
     _recordId = null;
     _modalEnvironmentReady = false;
-    _previouslyFocusedElement;
-    _previousBodyOverflow;
+    _modalEnvironment;
     _hasFocusedInitialField = false;
     _hasFocusedSavingStatus = false;
     _hasInitializedAddDefaults = false;
@@ -106,7 +112,7 @@ export default class RecurringExpenseModal extends LightningElement {
             this.recordContextError = '';
             this.isRecordContextLoading = false;
         } else if (error && this.recordIdForWire) {
-            this.recordContextError = this.getErrorMessage(
+            this.recordContextError = getErrorMessage(
                 error,
                 'Failed to load the current recurring expense details.'
             );
@@ -121,9 +127,7 @@ export default class RecurringExpenseModal extends LightningElement {
         }
 
         if (!this._modalEnvironmentReady) {
-            this._previousBodyOverflow = document.body.style.overflow;
-            document.body.style.overflow = 'hidden';
-            this._previouslyFocusedElement = document.activeElement;
+            this._modalEnvironment = captureModalEnvironment();
             this._modalEnvironmentReady = true;
             this.template.querySelector('.slds-modal')?.focus();
         }
@@ -187,21 +191,12 @@ export default class RecurringExpenseModal extends LightningElement {
 
     teardownModalEnvironment({ restoreFocus = false } = {}) {
         this._latestRecordContextRetryId += 1;
-        if (this._modalEnvironmentReady) {
-            document.body.style.overflow = this._previousBodyOverflow || '';
-        }
-
-        const previousFocus = this._previouslyFocusedElement;
-        this._previouslyFocusedElement = undefined;
-        this._previousBodyOverflow = undefined;
+        restoreModalEnvironment(this._modalEnvironment, { restoreFocus });
+        this._modalEnvironment = undefined;
         this._modalEnvironmentReady = false;
         this._hasFocusedInitialField = false;
         this._hasFocusedSavingStatus = false;
         this._pendingFocusSelector = undefined;
-
-        if (restoreFocus && previousFocus && typeof previousFocus.focus === 'function') {
-            previousFocus.focus();
-        }
     }
 
     handleClose() {
@@ -222,38 +217,19 @@ export default class RecurringExpenseModal extends LightningElement {
             return;
         }
 
-        if (event.key !== 'Tab') {
-            return;
-        }
-
         const focusableElements = this.getFocusableElements();
-        if (focusableElements.length === 0) {
-            event.preventDefault();
-            return;
-        }
-
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
         const activeElement = this.template.activeElement || document.activeElement;
-
-        if (!focusableElements.includes(activeElement)) {
-            event.preventDefault();
-            (event.shiftKey ? lastElement : firstElement).focus();
-        } else if (event.shiftKey && activeElement === firstElement) {
-            event.preventDefault();
-            lastElement.focus();
-        } else if (!event.shiftKey && activeElement === lastElement) {
-            event.preventDefault();
-            firstElement.focus();
-        }
+        trapTabFocus(event, focusableElements, activeElement, {
+            preventWhenEmpty: true,
+            recoverExternalFocus: true
+        });
     }
 
     getFocusableElements() {
-        return Array.from(
-            this.template.querySelectorAll(
-                'button, lightning-button, lightning-input-field, lightning-combobox, [tabindex="0"]'
-            )
-        ).filter(element => !element.disabled);
+        return getFocusableElements(
+            this.template,
+            'button, lightning-button, lightning-input-field, lightning-combobox, [tabindex="0"]'
+        );
     }
 
     handleFormLoad() {
@@ -342,8 +318,7 @@ export default class RecurringExpenseModal extends LightningElement {
 
     handleError(event) {
         this.isSaving = false;
-        this.formError =
-            event.detail?.detail || event.detail?.message || 'Failed to save recurring expense.';
+        this.formError = getErrorMessage(event.detail, 'Failed to save recurring expense.');
         this.focusAfterRender('[data-form-error]');
     }
 
@@ -396,7 +371,7 @@ export default class RecurringExpenseModal extends LightningElement {
                 return;
             }
 
-            this.recordContextError = this.getErrorMessage(
+            this.recordContextError = getErrorMessage(
                 error,
                 'Failed to reload the current recurring expense details.'
             );
@@ -587,9 +562,5 @@ export default class RecurringExpenseModal extends LightningElement {
 
     get nextRunDateDisplay() {
         return this.nextRunDate ? formatDate(this.nextRunDate) : 'Set automatically after save';
-    }
-
-    getErrorMessage(error, fallback) {
-        return error?.body?.message || fallback;
     }
 }

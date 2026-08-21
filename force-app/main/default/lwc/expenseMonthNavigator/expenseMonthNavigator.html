@@ -1,0 +1,21 @@
+<template>
+    <div class="month-controls" role="group" aria-label={navigationLabel}>
+        <lightning-button-icon
+            icon-name="utility:chevronleft"
+            alternative-text="Previous month"
+            title="Previous month"
+            variant="border-filled"
+            onclick={handlePrevious}
+        >
+        </lightning-button-icon>
+        <span>{label}</span>
+        <lightning-button-icon
+            icon-name="utility:chevronright"
+            alternative-text="Next month"
+            title="Next month"
+            variant="border-filled"
+            onclick={handleNext}
+        >
+        </lightning-button-icon>
+    </div>
+</template>

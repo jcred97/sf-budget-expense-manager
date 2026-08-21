@@ -49,7 +49,7 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseService.GenerationResult result = RecurringExpenseService.generateDueExpenses(
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
                 runDate
             );
             Test.stopTest();
@@ -174,7 +174,7 @@ private class RecurringExpenseServiceTest {
             firstOptions.generatedTransactionTime = Time.newInstance(8, 0, 0, 0);
 
             Test.startTest();
-            RecurringExpenseService.GenerationResult firstResult = RecurringExpenseGenerator.generate(
+            RecurringExpenseGenerationResult firstResult = RecurringExpenseGenerator.generate(
                 new List<Recurring_Expense__c>{ recurringExpense },
                 firstOptions
             );
@@ -202,7 +202,7 @@ private class RecurringExpenseServiceTest {
             secondOptions.runDate = runDate;
             secondOptions.maxExpenses = 2;
             secondOptions.generatedTransactionTime = Time.newInstance(9, 0, 0, 0);
-            RecurringExpenseService.GenerationResult secondResult = RecurringExpenseGenerator.generate(
+            RecurringExpenseGenerationResult secondResult = RecurringExpenseGenerator.generate(
                 new List<Recurring_Expense__c>{ persistedAfterLimit },
                 secondOptions
             );
@@ -288,7 +288,7 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseService.GenerationResult result = RecurringExpenseService.generateDueExpenses(
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
                 dueDate
             );
             Test.stopTest();
@@ -339,7 +339,7 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseService.GenerationResult result = RecurringExpenseService.generateDueExpenses(
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
                 Date.newInstance(2026, 3, 1)
             );
             Test.stopTest();
@@ -382,7 +382,7 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseService.GenerationResult result = RecurringExpenseService.generateDueExpenses(
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
                 Date.newInstance(2026, 5, 3)
             );
             Test.stopTest();
@@ -433,7 +433,7 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseService.GenerationResult result = RecurringExpenseService.generateDueExpenses(
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
                 Date.newInstance(2026, 3, 30)
             );
             Test.stopTest();
@@ -497,7 +497,7 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseService.GenerationResult result = RecurringExpenseService.generateDueExpenses(
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
                 Date.newInstance(2026, 7, 16)
             );
             Test.stopTest();
@@ -566,7 +566,7 @@ private class RecurringExpenseServiceTest {
             };
 
             Test.startTest();
-            RecurringExpenseService.GenerationResult result = RecurringExpenseService.generateDueExpenses(
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
                 runDate
             );
             Test.stopTest();
@@ -634,6 +634,43 @@ private class RecurringExpenseServiceTest {
     }
 
     @IsTest
+    static void testAutomationControllerGeneratesDueExpenses() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
+            Date dueDate = Date.today();
+            Recurring_Expense__c recurringExpense = new Recurring_Expense__c(
+                Name = 'Controller Gym',
+                Active__c = true,
+                Amount__c = 1500,
+                Category__c = category.Id,
+                Frequency__c = 'Monthly',
+                Next_Run_Date__c = dueDate,
+                Start_Date__c = dueDate
+            );
+            insert recurringExpense;
+
+            Test.startTest();
+            RecurringExpenseGenerationResult result = RecurringExpenseAutomationController.generateDueExpenses();
+            Test.stopTest();
+
+            System.assertEquals(
+                1,
+                result.expensesCreated,
+                'The automation controller should return the generated expense count.'
+            );
+            System.assertEquals(
+                1,
+                [
+                    SELECT COUNT()
+                    FROM Expense__c
+                    WHERE Recurring_Expense__c = :recurringExpense.Id
+                ],
+                'The automation controller should delegate synchronous generation.'
+            );
+        }
+    }
+
+    @IsTest
     static void testRunDueExpensesBatchStartsBatch() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
@@ -652,7 +689,7 @@ private class RecurringExpenseServiceTest {
 
             Id jobId;
             Test.startTest();
-            jobId = RecurringExpenseService.runDueExpensesBatch();
+            jobId = RecurringExpenseAutomationController.runDueExpensesBatch();
             Test.stopTest();
 
             System.assertNotEquals(null, jobId, 'The manual run should return the batch job id');
@@ -671,15 +708,15 @@ private class RecurringExpenseServiceTest {
     @IsTest
     static void testRunDueExpensesBatchRespectsDisabledSetting() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            BudgetExpenseSettingsService.SettingsUpdateRequest settingsRequest = new BudgetExpenseSettingsService.SettingsUpdateRequest();
+            BudgetExpenseSettingsUpdateRequest settingsRequest = new BudgetExpenseSettingsUpdateRequest();
             settingsRequest.recurringExpensesEnabled = 'false';
             settingsRequest.globalRecurringRunTime = '08:00';
-            BudgetExpenseSettingsService.saveSettings(settingsRequest);
+            SettingsController.saveSettings(settingsRequest);
 
             Boolean exceptionThrown = false;
             try {
                 Test.startTest();
-                RecurringExpenseService.runDueExpensesBatch();
+                RecurringExpenseAutomationController.runDueExpensesBatch();
                 Test.stopTest();
             } catch (AuraHandledException e) {
                 exceptionThrown = true;

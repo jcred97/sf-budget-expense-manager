@@ -1,0 +1,88 @@
+:host {
+    display: none;
+}
+
+/* Print/PDF values intentionally use physical colors and dimensions independent of the active Salesforce theme. */
+/* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+@media print {
+    :host {
+        display: block !important;
+    }
+
+    .print-report {
+        color: #000;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 1.5rem;
+    }
+
+    .print-header {
+        border-bottom: 2px solid #000;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+    }
+
+    .print-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    .print-meta {
+        color: #444;
+        font-size: 0.8125rem;
+        margin-top: 0.2rem;
+    }
+
+    .print-summary {
+        border-bottom: 1px solid #ccc;
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 0.8125rem;
+        gap: 1rem;
+        margin-bottom: 0.875rem;
+        padding: 0.5rem 0;
+    }
+
+    .print-table {
+        border-collapse: collapse;
+        font-size: 0.8rem;
+        width: 100%;
+    }
+
+    .print-table th,
+    .print-table td {
+        border: 1px solid #bbb;
+        padding: 0.3rem 0.5rem;
+        text-align: left;
+    }
+
+    .print-table thead th {
+        background: #f0f0f0;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .print-amount-col {
+        text-align: right;
+    }
+
+    .print-table tfoot td {
+        border-top: 2px solid #000;
+    }
+
+    .print-total-label {
+        font-weight: 700;
+        text-align: right;
+    }
+
+    .print-total-value {
+        font-weight: 700;
+    }
+
+    .print-table tbody tr:nth-child(even) {
+        background: #f9f9f9;
+    }
+}
+/* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */

@@ -55,10 +55,10 @@ private class RecurringExpenseSchedulerTest {
             Date dueDate = Date.today();
             createDueRecurringExpense(dueDate);
 
-            BudgetExpenseSettingsService.SettingsUpdateRequest settingsRequest = new BudgetExpenseSettingsService.SettingsUpdateRequest();
+            BudgetExpenseSettingsUpdateRequest settingsRequest = new BudgetExpenseSettingsUpdateRequest();
             settingsRequest.recurringExpensesEnabled = 'false';
             settingsRequest.globalRecurringRunTime = '08:00';
-            BudgetExpenseSettingsService.saveSettings(settingsRequest);
+            SettingsController.saveSettings(settingsRequest);
 
             Test.startTest();
             new RecurringExpenseScheduler().execute(null);

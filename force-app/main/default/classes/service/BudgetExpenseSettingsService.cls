@@ -5,79 +5,13 @@ public with sharing class BudgetExpenseSettingsService {
     private static final Time DEFAULT_RECURRING_RUN_TIME = Time.newInstance(8, 0, 0, 0);
     private static final String RUN_TIME_PATTERN = '^(?:[01]\\d|2[0-3]):[0-5]\\d$';
 
-    /** User-editable settings values accepted from the settings LWC. */
-    public class SettingsUpdateRequest {
-        /** Whether recurring expense automation should be enabled. */
-        @AuraEnabled
-        public String recurringExpensesEnabled { get; set; }
-        /** Daily recurring expense run time in HH:mm format. */
-        @AuraEnabled
-        public String globalRecurringRunTime { get; set; }
-    }
-
-    /** Settings and scheduler state returned to the settings LWC. */
-    public class SettingsState {
-        @AuraEnabled
-        public Id settingsId;
-        @AuraEnabled
-        public Boolean recurringExpensesEnabled;
-        @AuraEnabled
-        public String globalRecurringRunTime;
-        @AuraEnabled
-        public Datetime lastRecurringRunDateTime;
-        @AuraEnabled
-        public String lastRecurringRunStatus;
-        @AuraEnabled
-        public String lastRecurringRunMessage;
-        @AuraEnabled
-        public Boolean recurringScheduleActive;
-        @AuraEnabled
-        public String recurringScheduleState;
-        @AuraEnabled
-        public Datetime recurringScheduleNextRunDateTime;
-        @AuraEnabled
-        public String recurringScheduleTimeZone;
-        @AuraEnabled
-        public String recurringScheduleCronExpression;
-
-        /**
-         * Builds UI state from the settings record and current recurring schedule.
-         *
-         * @param settings Singleton app settings record.
-         */
-        public SettingsState(Budget_Expense_Manager_Setting__c settings) {
-            this.settingsId = settings.Id;
-            this.recurringExpensesEnabled = settings.Recurring_Expenses_Enabled__c;
-            this.globalRecurringRunTime = formatRunTime(
-                getEffectiveRunTime(settings.Global_Recurring_Run_Time__c)
-            );
-            this.lastRecurringRunDateTime = settings.Last_Recurring_Run_DateTime__c;
-            this.lastRecurringRunStatus = settings.Last_Recurring_Run_Status__c;
-            this.lastRecurringRunMessage = settings.Last_Recurring_Run_Message__c;
-
-            CronTrigger recurringSchedule = getRecurringSchedule();
-            this.recurringScheduleActive =
-                recurringSchedule != null &&
-                recurringSchedule.NextFireTime != null;
-            this.recurringScheduleState = recurringSchedule == null
-                ? 'Not scheduled'
-                : recurringSchedule.State;
-            this.recurringScheduleNextRunDateTime = recurringSchedule?.NextFireTime;
-            this.recurringScheduleTimeZone = recurringSchedule == null
-                ? UserInfo.getTimeZone().getID()
-                : recurringSchedule.TimeZoneSidKey;
-            this.recurringScheduleCronExpression = recurringSchedule?.CronExpression;
-        }
-    }
-
     /**
      * Returns the current settings and scheduler state, creating default settings when absent.
      *
      * @return Settings state for the current user.
      */
-    @AuraEnabled
-    public static SettingsState getSettings() {
-        return new SettingsState(getOrCreateSettings());
+    public static BudgetExpenseSettingsState getSettings() {
+        return buildSettingsState(getOrCreateSettings());
     }
 
     /**
@@ -86,10 +20,11 @@ public with sharing class BudgetExpenseSettingsService {
      * @param request Updated enablement and daily run-time values.
      * @return Persisted settings and current scheduler state.
      */
-    @AuraEnabled
-    public static SettingsState saveSettings(SettingsUpdateRequest request) {
+    public static BudgetExpenseSettingsState saveSettings(
+        BudgetExpenseSettingsUpdateRequest request
+    ) {
         Budget_Expense_Manager_Setting__c settings = getOrCreateSettings();
-        SettingsUpdateRequest safeRequest = getSafeSettingsUpdate(request, settings);
+        BudgetExpenseSettingsUpdateRequest safeRequest = getSafeSettingsUpdate(request, settings);
         Time originalRunTime = getEffectiveRunTime(settings.Global_Recurring_Run_Time__c);
         Time requestedRunTime = parseRunTime(safeRequest.globalRecurringRunTime);
         Boolean requestedEnabled = safeRequest.recurringExpensesEnabled == 'true';
@@ -112,7 +47,7 @@ public with sharing class BudgetExpenseSettingsService {
             rescheduleRecurringExpenses(requestedRunTime);
         }
 
-        return new SettingsState(settings);
+        return buildSettingsState(settings);
     }
 
     /**
@@ -207,14 +142,14 @@ public with sharing class BudgetExpenseSettingsService {
         return runTime == null ? DEFAULT_RECURRING_RUN_TIME : runTime;
     }
 
-    private static SettingsUpdateRequest getSafeSettingsUpdate(
-        SettingsUpdateRequest request,
+    private static BudgetExpenseSettingsUpdateRequest getSafeSettingsUpdate(
+        BudgetExpenseSettingsUpdateRequest request,
         Budget_Expense_Manager_Setting__c settings
     ) {
         if (request != null) {
             return request;
         }
-        SettingsUpdateRequest defaultRequest = new SettingsUpdateRequest();
+        BudgetExpenseSettingsUpdateRequest defaultRequest = new BudgetExpenseSettingsUpdateRequest();
         defaultRequest.recurringExpensesEnabled = String.valueOf(
             settings.Recurring_Expenses_Enabled__c
         );
@@ -222,6 +157,34 @@ public with sharing class BudgetExpenseSettingsService {
             getEffectiveRunTime(settings.Global_Recurring_Run_Time__c)
         );
         return defaultRequest;
+    }
+
+    private static BudgetExpenseSettingsState buildSettingsState(
+        Budget_Expense_Manager_Setting__c settings
+    ) {
+        BudgetExpenseSettingsState state = new BudgetExpenseSettingsState();
+        state.settingsId = settings.Id;
+        state.recurringExpensesEnabled = settings.Recurring_Expenses_Enabled__c;
+        state.globalRecurringRunTime = formatRunTime(
+            getEffectiveRunTime(settings.Global_Recurring_Run_Time__c)
+        );
+        state.lastRecurringRunDateTime = settings.Last_Recurring_Run_DateTime__c;
+        state.lastRecurringRunStatus = settings.Last_Recurring_Run_Status__c;
+        state.lastRecurringRunMessage = settings.Last_Recurring_Run_Message__c;
+
+        CronTrigger recurringSchedule = getRecurringSchedule();
+        state.recurringScheduleActive =
+            recurringSchedule != null &&
+            recurringSchedule.NextFireTime != null;
+        state.recurringScheduleState = recurringSchedule == null
+            ? 'Not scheduled'
+            : recurringSchedule.State;
+        state.recurringScheduleNextRunDateTime = recurringSchedule?.NextFireTime;
+        state.recurringScheduleTimeZone = recurringSchedule == null
+            ? UserInfo.getTimeZone().getID()
+            : recurringSchedule.TimeZoneSidKey;
+        state.recurringScheduleCronExpression = recurringSchedule?.CronExpression;
+        return state;
     }
 
     private static Time parseRunTime(String runTimeValue) {

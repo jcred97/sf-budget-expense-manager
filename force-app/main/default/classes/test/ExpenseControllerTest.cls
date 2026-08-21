@@ -135,9 +135,7 @@ private class ExpenseControllerTest {
     @IsTest
     static void testGetExpensesNoFilters() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            ExpenseController.ExpenseFilterRequest filters = new ExpenseController.ExpenseFilterRequest();
-            filters.expenseGroupId = 'All';
-            filters.categoryId = 'All';
+            ExpenseFilterRequest filters = new ExpenseFilterRequest();
 
             Test.startTest();
             List<Expense__c> result = ExpenseController.getExpensesByFilters(filters);
@@ -152,9 +150,8 @@ private class ExpenseControllerTest {
     static void testGetExpensesByExpenseGroup() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Expense_Group__c food = [SELECT Id FROM Expense_Group__c WHERE Name = 'Food' LIMIT 1];
-            ExpenseController.ExpenseFilterRequest filters = new ExpenseController.ExpenseFilterRequest();
+            ExpenseFilterRequest filters = new ExpenseFilterRequest();
             filters.expenseGroupId = food.Id;
-            filters.categoryId = 'All';
 
             Test.startTest();
             List<Expense__c> result = ExpenseController.getExpensesByFilters(filters);
@@ -172,8 +169,7 @@ private class ExpenseControllerTest {
 
             Date startDate = Date.today().addDays(-10);
             Date endDate = Date.today().addDays(-1);
-            ExpenseController.ExpenseFilterRequest filters = new ExpenseController.ExpenseFilterRequest();
-            filters.expenseGroupId = 'All';
+            ExpenseFilterRequest filters = new ExpenseFilterRequest();
             filters.categoryId = groceries.Id;
             filters.startDate = startDate;
             filters.endDate = endDate;
@@ -223,8 +219,7 @@ private class ExpenseControllerTest {
                     Amount__c = 200
                 )
             };
-            ExpenseController.ExpenseFilterRequest filters = new ExpenseController.ExpenseFilterRequest();
-            filters.expenseGroupId = 'All';
+            ExpenseFilterRequest filters = new ExpenseFilterRequest();
             filters.categoryId = groceries.Id;
             filters.startDate = expenseDate;
             filters.endDate = expenseDate;
@@ -320,14 +315,10 @@ private class ExpenseControllerTest {
     @IsTest
     static void testGetMonthlyTrendAll() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            ExpenseController.ExpenseFilterRequest filters = new ExpenseController.ExpenseFilterRequest();
-            filters.expenseGroupId = 'All';
-            filters.categoryId = 'All';
+            ExpenseFilterRequest filters = new ExpenseFilterRequest();
 
             Test.startTest();
-            List<ExpenseController.MonthlyTotal> result = ExpenseController.getMonthlyTrend(
-                filters
-            );
+            List<MonthlyExpenseTotalDto> result = ExpenseController.getMonthlyTrend(filters);
             Test.stopTest();
 
             System.assert(result.size() > 0, 'Should return monthly trend data');
@@ -339,14 +330,11 @@ private class ExpenseControllerTest {
     static void testGetMonthlyTrendByExpenseGroup() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Expense_Group__c food = [SELECT Id FROM Expense_Group__c WHERE Name = 'Food' LIMIT 1];
-            ExpenseController.ExpenseFilterRequest filters = new ExpenseController.ExpenseFilterRequest();
+            ExpenseFilterRequest filters = new ExpenseFilterRequest();
             filters.expenseGroupId = food.Id;
-            filters.categoryId = 'All';
 
             Test.startTest();
-            List<ExpenseController.MonthlyTotal> result = ExpenseController.getMonthlyTrend(
-                filters
-            );
+            List<MonthlyExpenseTotalDto> result = ExpenseController.getMonthlyTrend(filters);
             Test.stopTest();
 
             System.assert(result != null, 'Should return trend data for expense group');
@@ -357,16 +345,13 @@ private class ExpenseControllerTest {
     static void testGetMonthlyTrendByCategoryAndDateRange() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Category__c groceries = [SELECT Id FROM Category__c WHERE Name = 'Groceries' LIMIT 1];
-            ExpenseController.ExpenseFilterRequest filters = new ExpenseController.ExpenseFilterRequest();
-            filters.expenseGroupId = 'All';
+            ExpenseFilterRequest filters = new ExpenseFilterRequest();
             filters.categoryId = groceries.Id;
             filters.startDate = Date.today().addDays(-10);
             filters.endDate = Date.today().addDays(-1);
 
             Test.startTest();
-            List<ExpenseController.MonthlyTotal> result = ExpenseController.getMonthlyTrend(
-                filters
-            );
+            List<MonthlyExpenseTotalDto> result = ExpenseController.getMonthlyTrend(filters);
             Test.stopTest();
 
             System.assertEquals(
@@ -386,8 +371,8 @@ private class ExpenseControllerTest {
     static void testGetRecurringExpenseOverviewAll() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Test.startTest();
-            ExpenseController.RecurringExpenseOverview result = ExpenseController.getRecurringExpenseOverview(
-                'All'
+            RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(
+                null
             );
             Test.stopTest();
 
@@ -428,13 +413,13 @@ private class ExpenseControllerTest {
             );
 
             Test.startTest();
-            ExpenseController.RecurringExpenseOverview result = ExpenseController.getRecurringExpenseOverview(
+            RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(
                 category.Expense_Group__c
             );
             Test.stopTest();
 
-            ExpenseController.RecurringExpenseRow endedRow;
-            for (ExpenseController.RecurringExpenseRow row : result.rows) {
+            RecurringExpenseRowDto endedRow;
+            for (RecurringExpenseRowDto row : result.rows) {
                 if (row.name == 'Ended Daily Groceries') {
                     endedRow = row;
                     break;
@@ -460,7 +445,7 @@ private class ExpenseControllerTest {
             Expense_Group__c food = [SELECT Id FROM Expense_Group__c WHERE Name = 'Food' LIMIT 1];
 
             Test.startTest();
-            ExpenseController.RecurringExpenseOverview result = ExpenseController.getRecurringExpenseOverview(
+            RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(
                 food.Id
             );
             Test.stopTest();
@@ -475,11 +460,11 @@ private class ExpenseControllerTest {
                 result.activeCount,
                 'Food group active count should match related templates'
             );
-            Map<String, ExpenseController.RecurringExpenseRow> rowsByName = new Map<String, ExpenseController.RecurringExpenseRow>();
-            for (ExpenseController.RecurringExpenseRow row : result.rows) {
+            Map<String, RecurringExpenseRowDto> rowsByName = new Map<String, RecurringExpenseRowDto>();
+            for (RecurringExpenseRowDto row : result.rows) {
                 rowsByName.put(row.name, row);
             }
-            ExpenseController.RecurringExpenseRow assignedRow = rowsByName.get('Monthly Groceries');
+            RecurringExpenseRowDto assignedRow = rowsByName.get('Monthly Groceries');
             System.assertEquals(
                 'BPI',
                 assignedRow.bank,
@@ -504,7 +489,7 @@ private class ExpenseControllerTest {
             ];
 
             Test.startTest();
-            ExpenseController.deactivateRecurringExpense(recurringExpense.Id);
+            RecurringExpenseController.deactivateRecurringExpense(recurringExpense.Id);
             Test.stopTest();
 
             recurringExpense = [
@@ -527,7 +512,7 @@ private class ExpenseControllerTest {
 
             try {
                 Test.startTest();
-                ExpenseController.deactivateRecurringExpense(null);
+                RecurringExpenseController.deactivateRecurringExpense(null);
                 Test.stopTest();
             } catch (Exception e) {
                 exceptionThrown = true;

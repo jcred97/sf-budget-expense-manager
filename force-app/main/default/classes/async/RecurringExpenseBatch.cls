@@ -74,7 +74,7 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
             return;
         }
 
-        RecurringExpenseService.GenerationResult result = RecurringExpenseService.generateDueExpenses(
+        RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
             recurringExpenses,
             runDate
         );

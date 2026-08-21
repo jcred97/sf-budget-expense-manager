@@ -1,6 +1,7 @@
 import { LightningElement, api } from 'lwc';
 
 import { formatMonthLabel, parseDateString } from 'c/expenseFormatters';
+import { getFocusableElements, trapTabFocus } from 'c/modalFocusUtils';
 
 export default class BudgetModal extends LightningElement {
     @api budgetMonth = '';
@@ -72,35 +73,16 @@ export default class BudgetModal extends LightningElement {
             return;
         }
 
-        if (event.key !== 'Tab') {
-            return;
-        }
-
         const focusableElements = this.getFocusableElements();
-        if (focusableElements.length === 0) {
-            event.preventDefault();
-            return;
-        }
-
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
         const activeElement = this.template.activeElement || document.activeElement;
-
-        if (event.shiftKey && activeElement === firstElement) {
-            event.preventDefault();
-            lastElement.focus();
-        } else if (!event.shiftKey && activeElement === lastElement) {
-            event.preventDefault();
-            firstElement.focus();
-        }
+        trapTabFocus(event, focusableElements, activeElement, { preventWhenEmpty: true });
     }
 
     getFocusableElements() {
-        return Array.from(
-            this.template.querySelectorAll(
-                'button, lightning-input, lightning-textarea, lightning-button'
-            )
-        ).filter(element => !element.disabled);
+        return getFocusableElements(
+            this.template,
+            'button, lightning-input, lightning-textarea, lightning-button'
+        );
     }
 
     handleSubmit(event) {

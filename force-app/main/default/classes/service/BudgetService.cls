@@ -28,10 +28,7 @@ public inherited sharing class BudgetService {
      * @return The persisted monthly budget.
      */
     public static BudgetDto saveMonthlyBudget(BudgetSaveRequest request) {
-        if (request == null) {
-            throw handledException('Budget details are required.');
-        }
-        Date normalizedBudgetMonth = request.validateAndNormalizeMonth();
+        Date normalizedBudgetMonth = validateAndNormalizeMonth(request);
         Budget__c existingBudget = findBudgetForSave(request, normalizedBudgetMonth);
 
         try {
@@ -84,6 +81,18 @@ public inherited sharing class BudgetService {
         return budgetMonth.toStartOfMonth();
     }
 
+    private static Date validateAndNormalizeMonth(BudgetSaveRequest request) {
+        if (request == null) {
+            throw handledException('Budget details are required.');
+        }
+        requireExpenseGroupId(request.expenseGroupId);
+        Date normalizedBudgetMonth = normalizeBudgetMonth(request.budgetMonth);
+        if (request.amount == null || request.amount <= 0) {
+            throw handledException('Budget amount must be greater than zero.');
+        }
+        return normalizedBudgetMonth;
+    }
+
     private static Budget__c findBudgetForSave(
         BudgetSaveRequest request,
         Date normalizedBudgetMonth
@@ -101,10 +110,15 @@ public inherited sharing class BudgetService {
             }
 
             Budget__c requestedBudget = requestedBudgets[0];
-            if (
-                requestedBudget.Expense_Group__c != request.expenseGroupId ||
-                requestedBudget.Budget_Month__c != normalizedBudgetMonth
-            ) {
+            String persistedContextKey =
+                String.valueOf(requestedBudget.Expense_Group__c) +
+                '-' +
+                String.valueOf(requestedBudget.Budget_Month__c);
+            String requestedContextKey =
+                String.valueOf(request.expenseGroupId) +
+                '-' +
+                String.valueOf(normalizedBudgetMonth);
+            if (persistedContextKey != requestedContextKey) {
                 throw handledException(
                     'Budget record does not match the requested expense group and month.'
                 );

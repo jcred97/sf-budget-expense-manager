@@ -41,17 +41,22 @@ All currency presentation is PHP-focused and centralized in `expenseFormatters`.
 
 ### Apex
 
-- `ExpenseController` — Lightning-facing query and command façade.
-- `BankController` and `BankService` — user-mode group-scoped Bank assignment selector.
-- `BudgetController` and `BudgetService` — user-mode lookup and mutation of optional monthly expense-group budgets.
+- `BankController`, `BudgetController`, `ExpenseController`, `RecurringExpenseController`, `RecurringExpenseAutomationController`, and `SettingsController` — the only Lightning-facing Apex entry points.
+- Top-level classes under `classes/dto` define stable LWC request and response contracts; DTOs contain data and mapping only, not validation or persistence logic.
+- `ExpenseGroupSelector` and `CategorySelector` — reusable user-mode workspace lookup queries.
+- `BankService` — user-mode group-scoped Bank assignment lookup and DTO mapping.
+- `BudgetService` — user-mode lookup, validation, and mutation of optional monthly expense-group budgets.
 - `ExpenseQueryService` and `ExpenseCommandService` — scoped user-mode queries and DML.
-- `RecurringExpenseCalculator`, `RecurringExpenseGenerator`, `RecurringExpenseService`, `RecurringExpenseBatch`, and `RecurringExpenseScheduler` — recurring-expense calculation, generation, batching, and scheduling.
+- `RecurringExpenseCalculator`, `RecurringExpenseGenerator`, and `RecurringExpenseService` — recurring-expense calculation and generation services; Batch and Schedulable entry points live under `classes/async`.
 - `BudgetExpenseSettingsService` — singleton settings and scheduler coordination.
 - Bank assignment, budget, recurring-expense, and settings trigger handlers keep generated keys and cross-object invariants outside thin triggers.
 
 ### Lightning Web Components
 
-- `budgetExpenseManager` — workspace shell, navigation, state, Apex orchestration, export, print, and modal ownership.
+- `budgetExpenseManager` — workspace shell, shared context/state, action orchestration, and modal ownership; memoized view models avoid rebuilding derived collections within the same render cycle.
+- `expenseWorkspaceData` — imperative workspace read gateway for expenses, dashboard trend data, and group-scoped Bank options.
+- `expenseWorkspaceViewModels` — per-manager memoization boundary around the pure Dashboard, Expenses, and Recurring view-model builders.
+- `expenseMonthNavigator` and `expensePrintReport` — reusable month navigation and isolated print/PDF presentation.
 - `expenseDashboard` and `expenseDashboardViewModel` — dashboard presentation and pure derived state.
 - `budgetPanel` and `budgetModal` — optional monthly budget status, creation, editing, and removal.
 - The Salesforce app navigation includes a standard **Budgets** tab for list-view and record-level administration.
@@ -61,7 +66,7 @@ All currency presentation is PHP-focused and centralized in `expenseFormatters`.
 - `expenseModal` — add, edit, and duplicate workflow.
 - `budgetExpenseSettings` — global recurring-automation controls.
 - `expenseBarChart`, `expenseTrendChart`, and `expenseSummaryCards` — reusable visualization components.
-- `expenseTransforms`, `recurringExpenseTransforms`, `expenseFormatters`, `expenseWorkspaceConfig`, and `expenseCsvExport` — focused mapping, formatting, workspace-configuration, and export modules.
+- `expenseTransforms`, `recurringExpenseTransforms`, `expenseFormatters`, `expenseWorkspaceConfig`, `expenseErrorUtils`, `modalFocusUtils`, and `expenseCsvExport` — focused mapping, formatting, workspace-configuration, error, modal-accessibility, and export modules.
 
 Public component properties, event contracts, Apex DTO fields, and the existing neutral business-object APIs were preserved during the API rebrand.
 
@@ -90,7 +95,7 @@ sf-budget-expense-manager/
 |- manifest/
 |- force-app/main/default/
 |  |- applications/
-|  |- classes/{controller,handler,service,test}/
+|  |- classes/{async,controller,dto,handler,selector,service,test}/
 |  |- contentassets/
 |  |- flexipages/
 |  |- layouts/

@@ -8,36 +8,48 @@
         <members>BankService</members>
         <members>BankTriggerHandler</members>
         <members>BankTriggerHandlerTest</members>
-        <members>BudgetExpenseSettingsService</members>
-        <members>BudgetExpenseSettingsServiceTest</members>
-        <members>BudgetExpenseSettingsTriggerHandler</members>
-        <members>BudgetExpenseSettingsTriggerHandlerTest</members>
         <members>BudgetController</members>
         <members>BudgetControllerTest</members>
         <members>BudgetDto</members>
+        <members>BudgetExpenseSettingsService</members>
+        <members>BudgetExpenseSettingsServiceTest</members>
+        <members>BudgetExpenseSettingsState</members>
+        <members>BudgetExpenseSettingsTriggerHandler</members>
+        <members>BudgetExpenseSettingsTriggerHandlerTest</members>
+        <members>BudgetExpenseSettingsUpdateRequest</members>
         <members>BudgetSaveRequest</members>
         <members>BudgetService</members>
         <members>BudgetTriggerHandler</members>
         <members>BudgetTriggerHandlerTest</members>
+        <members>CategorySelector</members>
         <members>ExpenseCommandService</members>
         <members>ExpenseController</members>
         <members>ExpenseControllerTest</members>
+        <members>ExpenseFilterRequest</members>
         <members>ExpenseGroupBankOptionDto</members>
         <members>ExpenseGroupBankTriggerHandler</members>
         <members>ExpenseGroupBankTriggerHandlerTest</members>
+        <members>ExpenseGroupSelector</members>
         <members>ExpenseQueryService</members>
         <members>ExpenseTriggerHandler</members>
+        <members>MonthlyExpenseTotalDto</members>
+        <members>RecurringExpenseAutomationController</members>
         <members>RecurringExpenseBatch</members>
         <members>RecurringExpenseBatchTest</members>
         <members>RecurringExpenseCalculator</members>
         <members>RecurringExpenseCalculatorTest</members>
+        <members>RecurringExpenseController</members>
+        <members>RecurringExpenseGenerationResult</members>
         <members>RecurringExpenseGenerator</members>
+        <members>RecurringExpenseOverviewDto</members>
+        <members>RecurringExpenseRowDto</members>
         <members>RecurringExpenseScheduler</members>
         <members>RecurringExpenseSchedulerTest</members>
         <members>RecurringExpenseService</members>
         <members>RecurringExpenseServiceTest</members>
         <members>RecurringExpenseTriggerHandler</members>
         <members>RecurringExpenseTriggerHandlerTest</members>
+        <members>SettingsController</members>
         <name>ApexClass</name>
     </types>
     <types>
@@ -150,14 +162,20 @@
         <members>expenseCsvExport</members>
         <members>expenseDashboard</members>
         <members>expenseDashboardViewModel</members>
+        <members>expenseErrorUtils</members>
         <members>expenseFormatters</members>
         <members>expenseList</members>
         <members>expenseListViewModel</members>
         <members>expenseModal</members>
+        <members>expenseMonthNavigator</members>
+        <members>expensePrintReport</members>
         <members>expenseSummaryCards</members>
         <members>expenseTransforms</members>
         <members>expenseTrendChart</members>
         <members>expenseWorkspaceConfig</members>
+        <members>expenseWorkspaceData</members>
+        <members>expenseWorkspaceViewModels</members>
+        <members>modalFocusUtils</members>
         <members>recurringExpenseModal</members>
         <members>recurringExpenses</members>
         <members>recurringExpenseTransforms</members>

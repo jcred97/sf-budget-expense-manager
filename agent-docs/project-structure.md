@@ -22,13 +22,27 @@ sf-budget-expense-manager/
     applications/
       Budget_Expense_Manager.app-meta.xml
     classes/
+      async/
+        RecurringExpenseBatch.cls
+        RecurringExpenseScheduler.cls
       controller/
         BankController.cls
-        ExpenseGroupBankOptionDto.cls
         BudgetController.cls
-        BudgetDto.cls
-        BudgetSaveRequest.cls
         ExpenseController.cls
+        RecurringExpenseAutomationController.cls
+        RecurringExpenseController.cls
+        SettingsController.cls
+      dto/
+        BudgetDto.cls
+        BudgetExpenseSettingsState.cls
+        BudgetExpenseSettingsUpdateRequest.cls
+        BudgetSaveRequest.cls
+        ExpenseFilterRequest.cls
+        ExpenseGroupBankOptionDto.cls
+        MonthlyExpenseTotalDto.cls
+        RecurringExpenseGenerationResult.cls
+        RecurringExpenseOverviewDto.cls
+        RecurringExpenseRowDto.cls
       handler/
         BankTriggerHandler.cls
         BudgetTriggerHandler.cls
@@ -36,18 +50,19 @@ sf-budget-expense-manager/
         ExpenseTriggerHandler.cls
         RecurringExpenseTriggerHandler.cls
         BudgetExpenseSettingsTriggerHandler.cls
+      selector/
+        CategorySelector.cls
+        ExpenseGroupSelector.cls
       service/
         BankAssignmentValidator.cls
         BankService.cls
+        BudgetExpenseSettingsService.cls
         BudgetService.cls
         ExpenseCommandService.cls
         ExpenseQueryService.cls
-        RecurringExpenseBatch.cls
         RecurringExpenseCalculator.cls
         RecurringExpenseGenerator.cls
-        RecurringExpenseScheduler.cls
         RecurringExpenseService.cls
-        BudgetExpenseSettingsService.cls
       test/
         BankAssignmentValidatorTest.cls
         BankControllerTest.cls
@@ -87,14 +102,20 @@ sf-budget-expense-manager/
       expenseCsvExport/
       expenseDashboard/
       expenseDashboardViewModel/
+      expenseErrorUtils/
       expenseFormatters/
       expenseList/
       expenseListViewModel/
       expenseModal/
+      expenseMonthNavigator/
+      expensePrintReport/
       expenseSummaryCards/
       expenseTransforms/
       expenseTrendChart/
       expenseWorkspaceConfig/
+      expenseWorkspaceData/
+      expenseWorkspaceViewModels/
+      modalFocusUtils/
       recurringExpenseModal/
       recurringExpenses/
       recurringExpenseTransforms/

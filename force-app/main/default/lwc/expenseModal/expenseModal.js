@@ -1,6 +1,14 @@
 import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
+import { getErrorMessage } from 'c/expenseErrorUtils';
+import {
+    captureModalEnvironment,
+    getFocusableElements,
+    restoreModalEnvironment,
+    trapTabFocus
+} from 'c/modalFocusUtils';
+
 const NO_BANK_VALUE = '__NO_BANK__';
 
 export default class ExpenseModal extends LightningElement {
@@ -19,8 +27,7 @@ export default class ExpenseModal extends LightningElement {
     _recordId = null;
     _duplicateData = null;
     _handleKeyDown;
-    _previouslyFocusedElement;
-    _previousBodyOverflow;
+    _modalEnvironment;
     _saveAndNew = false;
     categoryValue = '';
     bankAssignmentValue = '';
@@ -80,10 +87,7 @@ export default class ExpenseModal extends LightningElement {
         if (this.isOpen && !this.isRendered) {
             this.isRendered = true;
 
-            // Preserve the page state before applying modal behavior.
-            this._previousBodyOverflow = document.body.style.overflow;
-            document.body.style.overflow = 'hidden';
-            this._previouslyFocusedElement = document.activeElement;
+            this._modalEnvironment = captureModalEnvironment();
 
             this._handleKeyDown = this.handleKeyDown.bind(this);
             document.addEventListener('keydown', this._handleKeyDown);
@@ -128,23 +132,15 @@ export default class ExpenseModal extends LightningElement {
     }
 
     teardownModalEnvironment({ restoreFocus = false } = {}) {
-        if (this.isRendered) {
-            document.body.style.overflow = this._previousBodyOverflow || '';
-        }
+        restoreModalEnvironment(this._modalEnvironment, { restoreFocus });
 
         if (this._handleKeyDown) {
             document.removeEventListener('keydown', this._handleKeyDown);
         }
 
-        const previousFocus = this._previouslyFocusedElement;
         this._handleKeyDown = undefined;
-        this._previouslyFocusedElement = undefined;
-        this._previousBodyOverflow = undefined;
+        this._modalEnvironment = undefined;
         this.isRendered = false;
-
-        if (restoreFocus && previousFocus && typeof previousFocus.focus === 'function') {
-            previousFocus.focus();
-        }
     }
 
     handleKeyDown(event) {
@@ -154,32 +150,13 @@ export default class ExpenseModal extends LightningElement {
             return;
         }
 
-        // Keep keyboard focus inside the modal.
-        if (event.key === 'Tab') {
-            const focusable = this.getFocusableElements();
-
-            if (focusable.length === 0) {
-                return;
-            }
-
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            }
-        }
+        trapTabFocus(event, this.getFocusableElements(), document.activeElement);
     }
 
     getFocusableElements() {
-        return Array.from(
-            this.template.querySelectorAll(
-                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-            )
+        return getFocusableElements(
+            this.template,
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
         );
     }
 
@@ -275,7 +252,7 @@ export default class ExpenseModal extends LightningElement {
     }
 
     handleError(event) {
-        const message = event.detail?.detail || 'Failed to save expense.';
+        const message = getErrorMessage(event.detail, 'Failed to save expense.');
         this.dispatchEvent(
             new ShowToastEvent({
                 title: 'Error',

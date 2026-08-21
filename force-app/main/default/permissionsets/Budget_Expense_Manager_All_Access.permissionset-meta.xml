@@ -271,19 +271,15 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
-        <apexClass>RecurringExpenseService</apexClass>
+        <apexClass>RecurringExpenseController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
-        <apexClass>RecurringExpenseScheduler</apexClass>
+        <apexClass>RecurringExpenseAutomationController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
-        <apexClass>RecurringExpenseBatch</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
-    <classAccesses>
-        <apexClass>BudgetExpenseSettingsService</apexClass>
+        <apexClass>SettingsController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
 </PermissionSet>

@@ -85,30 +85,41 @@ submits `Next_Run_Date__c`; it displays the value as read-only guidance. The man
 the cacheable Category and recurring-overview wire results so opening/retrying the dialog and
 saving a template can use `refreshApex()`. Bank options use a non-cacheable imperative request
 with group and request-token guards so every modal open receives fresh assignments without a
-stale response replacing newer state.
+stale response replacing newer state. Imperative expense, Dashboard, trend, and Bank-option
+reads are grouped behind the non-visual `expenseWorkspaceData` boundary; the manager still
+owns request tokens and applies results only when their workspace context is current.
 `Budget_Expense_Manager_Setting__c` is a singleton app settings object. `BudgetExpenseSettingsTrigger`
 prevents more than one settings record. The settings service creates the default
 record when it is missing. Recurring automation currently uses these global
 settings; `Expense_Group__c` has no group-specific settings fields.
 
+Lightning calls enter Apex only through classes under `classes/controller`. Their request and
+response contracts are top-level, data-only classes under `classes/dto`; services own validation,
+query composition, mapping, and mutations. Reusable workspace lookups are isolated under
+`classes/selector` with sharing and user-mode SOQL. The UI keeps `"All"` as a combobox-only value
+and translates it to `null`, while Apex group/category contracts use `Id`. Batch and scheduled
+entry points live under `classes/async` without changing their Salesforce metadata names.
+
 ## Apex Methods
 
-- `getAllExpenseGroups()` - cacheable, returns all `Expense_Group__c` ordered by Name.
+- `ExpenseController.getAllExpenseGroups()` - cacheable façade over `ExpenseGroupSelector`, returning the bounded workspace list ordered by Name.
 - `BankController.getAvailableExpenseGroupBanks(expenseGroupId)` - non-cacheable, returns fresh active global Banks assigned to the requested accessible Expense Group; modal loads are request-guarded to ignore stale responses.
 - `BankService` - owns user-mode group-scoped Bank assignment lookup and option mapping.
 - `BudgetController.getMonthlyBudget(expenseGroupId, budgetMonth)` - cacheable, normalizes the month and returns the optional group budget or `null`.
 - `BudgetController.saveMonthlyBudget(request)` - creates or updates the single budget for a group/month using user-mode DML.
 - `BudgetController.deleteMonthlyBudget(budgetId)` - removes the accessible budget record without affecting expenses.
-- `BudgetService` - owns user-mode budget queries, mutations, lookup normalization, and Lightning-safe responses; `BudgetSaveRequest` validates and normalizes incoming save values.
-- `getCategoriesByExpenseGroup(expenseGroupId)` - cacheable, filters by expense group or returns all.
-- `getExpensesByFilters(expenseGroupId, categoryId, startDate, endDate)` - dynamic SOQL; filters by `Category__r.Expense_Group__c`, selects category and expense group names; ordered by `Expense_Date__c DESC`, then `Transaction_Time__c DESC`.
-- `deleteExpense(expenseId)` - non-cacheable, null-checks `expenseId`, deletes a single `Expense__c`, catches `DmlException`.
-- `RecurringExpenseService.generateDueExpenses()` - creates due recurring expenses up to a bulk-safe cap, updates recurrence tracking dates, and returns a generation summary.
-- `RecurringExpenseService.runDueExpensesBatch()` - starts the batch Apex recurring expense generator for manual UI runs and returns the batch job id.
+- `BudgetService` - owns user-mode budget queries, validation, mutations, lookup normalization, and Lightning-safe responses; `BudgetSaveRequest` is data-only.
+- `ExpenseController.getCategoriesByExpenseGroup(expenseGroupId)` - cacheable façade over `CategorySelector`; a null ID returns the bounded compatibility list.
+- `ExpenseController.getExpensesByFilters(filters)` - delegates dynamic user-mode querying to `ExpenseQueryService`; filter DTO group/category values are `Id` or null.
+- `ExpenseController.deleteExpense(expenseId)` - delegates the null check and scoped user-mode deletion to `ExpenseCommandService`.
+- `RecurringExpenseController.getRecurringExpenseOverview(expenseGroupId)` and `deactivateRecurringExpense(recurringExpenseId)` - normal-user recurring read/command entry points.
+- `RecurringExpenseAutomationController.generateDueExpenses()` - creates due recurring expenses up to a bulk-safe cap, updates recurrence tracking dates, and returns a top-level generation DTO.
+- `RecurringExpenseAutomationController.runDueExpensesBatch()` - Admin/All Access entry point that starts the Batch Apex generator and returns the batch job ID.
 - `RecurringExpenseCalculator` - owns recurrence due-date checks and next-run-date calculations for daily, weekly, monthly, and yearly frequencies.
 - `RecurringExpenseBatch` - Batch Apex processor for due recurring expenses. Each batch chunk creates expenses and advances `Next_Run_Date__c`.
 - `RecurringExpenseScheduler.execute(context)` - scheduled Apex wrapper that starts `RecurringExpenseBatch`.
-- `BudgetExpenseSettingsService` - creates/updates the singleton settings record and tracks recurring run status.
+- `SettingsController.getSettings()` and `saveSettings(request)` - Admin/All Access Lightning entry points for global settings.
+- `BudgetExpenseSettingsService` - creates/updates the singleton settings record and tracks recurring run status without exposing Lightning methods directly.
 
 ## Custom Application
 
@@ -116,9 +127,9 @@ settings; `Expense_Group__c` has no group-specific settings fields.
 
 ## Permission Sets
 
-- `Budget_Expense_Manager_User` - Day-to-day app access. Grants read-only access to the global Bank catalog and normal CRUD on group Bank assignments, budgets, expense groups, categories, expenses, and recurring expense templates without `viewAllRecords` or `modifyAllRecords`. The Banks tab is hidden from this permission set; assignments are managed from the Expense Group related list.
-- `Budget_Expense_Manager_Admin` - Operational admin access. Grants full access to global Banks and group assignments as well as budgets, settings fields and tab, and recurring-automation Apex controls.
-- `Budget_Expense_Manager_All_Access` - Development/admin convenience set. Grants broad CRUD plus `viewAllRecords` and `modifyAllRecords` on the app objects, including Banks, assignments, and budgets. Generated key fields stay hidden.
+- `Budget_Expense_Manager_User` - Day-to-day app access. Grants the Bank, Budget, Expense, and normal recurring-template controllers, read-only access to the global Bank catalog, and normal CRUD on group Bank assignments, budgets, expense groups, categories, expenses, and recurring expense templates without `viewAllRecords` or `modifyAllRecords`. The Banks tab is hidden from this permission set; assignments are managed from the Expense Group related list.
+- `Budget_Expense_Manager_Admin` - Operational admin access. Grants the four normal controllers plus `SettingsController` and `RecurringExpenseAutomationController`, full access to global Banks and group assignments, and access to budgets and settings.
+- `Budget_Expense_Manager_All_Access` - Development/admin convenience set. Uses the same controller-only Apex access boundary as Admin and grants broad CRUD plus `viewAllRecords` and `modifyAllRecords` on the app objects. Generated key fields stay hidden.
 
 ## Pages And Tabs
 

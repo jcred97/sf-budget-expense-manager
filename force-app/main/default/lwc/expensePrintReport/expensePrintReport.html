@@ -1,0 +1,55 @@
+<template>
+    <div class="print-report">
+        <div class="print-header">
+            <div class="print-title">Budget &amp; Expense Manager Report</div>
+            <div class="print-meta">{viewModel.printDateRange}</div>
+        </div>
+        <div class="print-summary">
+            <span><strong>Total Spent:</strong> {viewModel.formattedTotal}</span>
+            <span><strong>Expenses:</strong> {viewModel.expenseCount}</span>
+            <span><strong>Average:</strong> {viewModel.averageExpense}</span>
+            <span
+                ><strong>Top Category:</strong> {viewModel.topCategory.name}
+                ({viewModel.topCategory.amount})</span
+            >
+            <span
+                ><strong>Top Bank:</strong> {viewModel.topBank.name} ({viewModel.topBank.count}
+                expenses)</span
+            >
+        </div>
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Expense Name</th>
+                    <th>Category</th>
+                    <th>Expense Group</th>
+                    <th>Bank</th>
+                    <th>Type</th>
+                    <th class="print-amount-col">Amount (PHP)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template for:each={viewModel.printRows} for:item="row">
+                    <tr key={row.id}>
+                        <td>{row.expenseDateFormatted}</td>
+                        <td>{row.transactionTimeFormatted}</td>
+                        <td>{row.name}</td>
+                        <td>{row.category}</td>
+                        <td>{row.expenseGroup}</td>
+                        <td>{row.bank}</td>
+                        <td>{row.transactionType}</td>
+                        <td class="print-amount-col">{row.amountFormatted}</td>
+                    </tr>
+                </template>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="7" class="print-total-label">Total</td>
+                    <td class="print-amount-col print-total-value">{viewModel.formattedTotal}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</template>

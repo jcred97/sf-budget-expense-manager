@@ -7,32 +7,31 @@ import removeDateFormatStyle from '@salesforce/resourceUrl/RemoveDateFormatStyle
 
 import getAllExpenseGroups from '@salesforce/apex/ExpenseController.getAllExpenseGroups';
 import getCategoriesByExpenseGroup from '@salesforce/apex/ExpenseController.getCategoriesByExpenseGroup';
-import getExpensesByFilters from '@salesforce/apex/ExpenseController.getExpensesByFilters';
 import deleteExpense from '@salesforce/apex/ExpenseController.deleteExpense';
 import deleteExpenses from '@salesforce/apex/ExpenseController.deleteExpenses';
-import getMonthlyTrend from '@salesforce/apex/ExpenseController.getMonthlyTrend';
-import getRecurringExpenseOverview from '@salesforce/apex/ExpenseController.getRecurringExpenseOverview';
-import deactivateRecurringExpense from '@salesforce/apex/ExpenseController.deactivateRecurringExpense';
-import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseService.runDueExpensesBatch';
-import getAvailableExpenseGroupBanks from '@salesforce/apex/BankController.getAvailableExpenseGroupBanks';
+import getRecurringExpenseOverview from '@salesforce/apex/RecurringExpenseController.getRecurringExpenseOverview';
+import deactivateRecurringExpense from '@salesforce/apex/RecurringExpenseController.deactivateRecurringExpense';
+import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
 import {
-    formatDateISO,
     formatMonthLabel,
     formatPeriodRange,
     getMonthBounds,
     parseDateString
 } from 'c/expenseFormatters';
 import { downloadExpensesCsv } from 'c/expenseCsvExport';
-import { mapExpenseRow } from 'c/expenseTransforms';
+import { getErrorMessage } from 'c/expenseErrorUtils';
 import {
     WORKSPACE_VIEWS,
     buildWorkspaceNavItems,
     getWorkspaceViewConfig
 } from 'c/expenseWorkspaceConfig';
-import { buildDashboardViewModel } from 'c/expenseDashboardViewModel';
-import { buildExpensesViewModel } from 'c/expenseListViewModel';
+import { fetchBankOptions, fetchDashboardData, fetchExpenseRows } from 'c/expenseWorkspaceData';
 import { mapRecurringExpenseRow } from 'c/recurringExpenseTransforms';
-import { buildRecurringViewModel } from 'c/recurringExpenseViewModel';
+import {
+    getDashboardViewModel,
+    getExpensesViewModel,
+    getRecurringViewModel
+} from 'c/expenseWorkspaceViewModels';
 
 const PAGE_SIZE = 20;
 const LOAD_MORE_SIZE = 10;
@@ -184,7 +183,11 @@ export default class BudgetExpenseManager extends LightningElement {
                 this.setExpenseGroupContext(data[0].Id);
             }
         } else if (error) {
-            this.showToast('Error', 'Failed to load expense groups.', 'error');
+            this.showToast(
+                'Error',
+                getErrorMessage(error, 'Failed to load expense groups.'),
+                'error'
+            );
         }
     }
 
@@ -202,7 +205,7 @@ export default class BudgetExpenseManager extends LightningElement {
             this.isCategoriesLoading = false;
         } else if (error) {
             this.categoryOptions = [{ label: 'All Categories', value: 'All' }];
-            this.categoryOptionsError = this.getErrorMessage(
+            this.categoryOptionsError = getErrorMessage(
                 error,
                 'Failed to load categories for this expense group.'
             );
@@ -229,7 +232,7 @@ export default class BudgetExpenseManager extends LightningElement {
             this.isRecurringLoading = false;
             this.showToast(
                 'Error',
-                this.getErrorMessage(error, 'Failed to load recurring expenses.'),
+                getErrorMessage(error, 'Failed to load recurring expenses.'),
                 'error'
             );
         } else if (this.expenseGroupId) {
@@ -249,20 +252,18 @@ export default class BudgetExpenseManager extends LightningElement {
         this.selectedExpenseIds = [];
 
         try {
-            const data = await getExpensesByFilters({
-                filters: {
-                    expenseGroupId: this.expenseGroupId,
-                    categoryId: this.categoryId,
-                    startDate: this.startDate,
-                    endDate: this.endDate
-                }
+            const rows = await fetchExpenseRows({
+                expenseGroupId: this.expenseGroupId,
+                categoryId: this.categoryId,
+                startDate: this.startDate,
+                endDate: this.endDate
             });
 
             if (requestId !== this._latestExpenseLoadRequestId) {
                 return;
             }
 
-            this.expenseRows = data.map(mapExpenseRow);
+            this.expenseRows = rows;
             this.visibleExpenseCount = PAGE_SIZE;
         } catch {
             if (requestId !== this._latestExpenseLoadRequestId) {
@@ -287,38 +288,18 @@ export default class BudgetExpenseManager extends LightningElement {
         this.dashboardLoadError = '';
 
         try {
-            const trendEndDate = parseDateString(this.dashboardEndDate) || new Date();
-            const trendStartDate = new Date(
-                trendEndDate.getFullYear(),
-                trendEndDate.getMonth() - 5,
-                1
-            );
-
-            const [data, trendData] = await Promise.all([
-                getExpensesByFilters({
-                    filters: {
-                        expenseGroupId: this.expenseGroupId,
-                        categoryId: 'All',
-                        startDate: this.dashboardStartDate,
-                        endDate: this.dashboardEndDate
-                    }
-                }),
-                getMonthlyTrend({
-                    filters: {
-                        expenseGroupId: this.expenseGroupId,
-                        categoryId: 'All',
-                        startDate: formatDateISO(trendStartDate),
-                        endDate: this.dashboardEndDate
-                    }
-                })
-            ]);
+            const { rows, trend } = await fetchDashboardData({
+                expenseGroupId: this.expenseGroupId,
+                startDate: this.dashboardStartDate,
+                endDate: this.dashboardEndDate
+            });
 
             if (requestId !== this._latestDashboardLoadRequestId) {
                 return;
             }
 
-            this.dashboardRows = data.map(mapExpenseRow);
-            this.dashboardTrend = trendData || [];
+            this.dashboardRows = rows;
+            this.dashboardTrend = trend;
         } catch {
             if (requestId !== this._latestDashboardLoadRequestId) {
                 return;
@@ -378,7 +359,7 @@ export default class BudgetExpenseManager extends LightningElement {
         this.bankOptionsError = '';
 
         try {
-            const data = await getAvailableExpenseGroupBanks({ expenseGroupId });
+            const options = await fetchBankOptions(expenseGroupId);
             if (
                 requestId !== this._latestBankOptionsRequestId ||
                 expenseGroupId !== this.expenseGroupId
@@ -386,10 +367,7 @@ export default class BudgetExpenseManager extends LightningElement {
                 return;
             }
 
-            this.bankOptions = data.map(assignment => ({
-                label: assignment.bankName,
-                value: assignment.assignmentId
-            }));
+            this.bankOptions = options;
             this.reconcileDuplicateBankSelection();
         } catch (error) {
             if (
@@ -400,7 +378,7 @@ export default class BudgetExpenseManager extends LightningElement {
             }
 
             this.bankOptions = [];
-            this.bankOptionsError = this.getErrorMessage(
+            this.bankOptionsError = getErrorMessage(
                 error,
                 'Failed to load banks for this expense group.'
             );
@@ -445,7 +423,8 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     get expensesViewModel() {
-        return buildExpensesViewModel({
+        const isLoading = this.isExpensesView && this.isExpensesLoading;
+        return getExpensesViewModel(this, {
             rows: this.expenseRows,
             searchTerm: this.searchTerm,
             visibleCount: this.visibleExpenseCount,
@@ -455,13 +434,13 @@ export default class BudgetExpenseManager extends LightningElement {
             endDate: this.endDate,
             categoryOptions: this.categoryOptions,
             dateError: this.expenseDateError,
-            isLoading: this.isExpensesView && this.isExpensesLoading
+            isLoading
         });
     }
 
     get dashboardViewModel() {
         const isLoading = this.isDashboardView && this.isDashboardLoading;
-        return buildDashboardViewModel({
+        return getDashboardViewModel(this, {
             rows: this.dashboardRows,
             trend: this.dashboardTrend,
             endDate: this.dashboardEndDate,
@@ -477,7 +456,7 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     get recurringExpensesViewModel() {
-        return buildRecurringViewModel({
+        return getRecurringViewModel(this, {
             rows: this.recurringRows,
             overview: this.recurringOverview,
             expenseGroupName: this.selectedExpenseGroupName,
@@ -747,7 +726,7 @@ export default class BudgetExpenseManager extends LightningElement {
         } catch (error) {
             this.showToast(
                 'Error',
-                this.getErrorMessage(error, 'Failed to start recurring expense generation.'),
+                getErrorMessage(error, 'Failed to start recurring expense generation.'),
                 'error'
             );
         } finally {
@@ -772,7 +751,7 @@ export default class BudgetExpenseManager extends LightningElement {
         } catch (error) {
             this.showToast(
                 'Error',
-                this.getErrorMessage(error, 'Failed to deactivate recurring expense.'),
+                getErrorMessage(error, 'Failed to deactivate recurring expense.'),
                 'error'
             );
         }
@@ -825,7 +804,7 @@ export default class BudgetExpenseManager extends LightningElement {
                 return;
             }
 
-            this.categoryOptionsError = this.getErrorMessage(
+            this.categoryOptionsError = getErrorMessage(
                 error,
                 'Failed to load categories for this expense group.'
             );
@@ -908,7 +887,7 @@ export default class BudgetExpenseManager extends LightningElement {
                 removed,
                 ...this.expenseRows.slice(index)
             ];
-            this.showToast('Error', error?.body?.message || 'Failed to delete expense.', 'error');
+            this.showToast('Error', getErrorMessage(error, 'Failed to delete expense.'), 'error');
         }
     }
 
@@ -943,7 +922,7 @@ export default class BudgetExpenseManager extends LightningElement {
             });
             this.expenseRows = restored;
             this.selectedExpenseIds = idsToDelete;
-            this.showToast('Error', error?.body?.message || 'Failed to delete expenses.', 'error');
+            this.showToast('Error', getErrorMessage(error, 'Failed to delete expenses.'), 'error');
         }
     }
 
@@ -1023,9 +1002,5 @@ export default class BudgetExpenseManager extends LightningElement {
 
     showToast(title, message, variant) {
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
-    }
-
-    getErrorMessage(error, fallback) {
-        return error?.body?.message || fallback;
     }
 }

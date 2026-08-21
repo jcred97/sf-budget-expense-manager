@@ -250,31 +250,6 @@
     justify-content: flex-end;
 }
 
-.dashboard-month-controls {
-    align-items: center;
-    background: var(--slds-g-color-surface-1, #ffffff);
-    border: var(--slds-g-sizing-border-1, 1px) solid var(--slds-g-color-border-1, #c9c9c9);
-    border-radius: var(--slds-g-radius-border-pill, 9999px);
-    display: inline-flex;
-    gap: 0.375rem;
-    /* Compact pill padding has no exact SLDS spacing hook. */
-    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
-    padding: 0.1875rem;
-    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
-}
-
-.dashboard-month-controls span {
-    color: var(--slds-g-color-on-surface-2, #181818);
-    display: inline-block;
-    font-size: var(--slds-g-font-scale-1, 0.875rem);
-    font-weight: var(--slds-g-font-weight-6, 600);
-    /* The fixed label width prevents month-navigation layout shift. */
-    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
-    min-width: 7.75rem;
-    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
-    text-align: center;
-}
-
 /* Adapt page-level actions before the full mobile shell takes over. */
 @media (max-width: 1100px) {
     .view-header {
@@ -364,21 +339,9 @@
         flex-direction: column;
     }
 
-    .dashboard-month-controls span {
-        /* The responsive label width prevents month-navigation layout shift. */
-        /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
-        min-width: 7.5rem;
-        /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
-    }
-
     .workspace-view {
         padding: var(--slds-g-spacing-4, 1rem) var(--slds-g-spacing-3, 0.75rem);
     }
-}
-
-/* Print / PDF */
-.print-only {
-    display: none;
 }
 
 /* Print/PDF values intentionally use physical colors and dimensions independent of the active Salesforce theme. */
@@ -395,83 +358,6 @@
 
     .budget-expense-manager-page {
         display: none !important;
-    }
-
-    .print-only {
-        display: block !important;
-        font-family: Arial, sans-serif;
-        color: #000;
-        margin: 0;
-        padding: 1.5rem;
-    }
-
-    .print-header {
-        margin-bottom: 0.75rem;
-        border-bottom: 2px solid #000;
-        padding-bottom: 0.5rem;
-    }
-
-    .print-title {
-        font-size: 1.25rem;
-        font-weight: 700;
-    }
-
-    .print-meta {
-        font-size: 0.8125rem;
-        color: #444;
-        margin-top: 0.2rem;
-    }
-
-    .print-summary {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        font-size: 0.8125rem;
-        margin-bottom: 0.875rem;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #ccc;
-    }
-
-    .print-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.8rem;
-    }
-
-    .print-table th,
-    .print-table td {
-        border: 1px solid #bbb;
-        padding: 0.3rem 0.5rem;
-        text-align: left;
-    }
-
-    .print-table thead th {
-        background: #f0f0f0;
-        font-weight: 700;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-
-    .print-amount-col {
-        text-align: right;
-    }
-
-    .print-table tfoot td {
-        border-top: 2px solid #000;
-    }
-
-    .print-total-label {
-        font-weight: 700;
-        text-align: right;
-    }
-
-    .print-total-value {
-        font-weight: 700;
-    }
-
-    .print-table tbody tr:nth-child(even) {
-        background: #f9f9f9;
     }
 }
 /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */

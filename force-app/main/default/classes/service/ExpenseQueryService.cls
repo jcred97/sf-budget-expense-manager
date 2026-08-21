@@ -21,14 +21,10 @@ public with sharing class ExpenseQueryService {
      * @param filters Expense-group, category, and date filters; null uses default filters.
      * @return Monthly totals matching the supplied filters.
      */
-    public static List<ExpenseController.MonthlyTotal> getMonthlyTrend(
-        ExpenseController.ExpenseFilterRequest filters
-    ) {
-        ExpenseController.ExpenseFilterRequest safeFilters = getSafeFilters(filters);
+    public static List<MonthlyExpenseTotalDto> getMonthlyTrend(ExpenseFilterRequest filters) {
+        ExpenseFilterRequest safeFilters = getSafeFilters(filters);
         Date effectiveStartDate = safeFilters.startDate;
         Date effectiveEndDate = safeFilters.endDate;
-        Id expenseGroupRecordId = getFilterId(safeFilters.expenseGroupId);
-        Id categoryRecordId = getFilterId(safeFilters.categoryId);
         Map<String, Object> bindValues = new Map<String, Object>();
 
         if (effectiveStartDate == null && effectiveEndDate == null) {
@@ -42,7 +38,7 @@ public with sharing class ExpenseQueryService {
             'FROM Expense__c ' +
             'WHERE Expense_Date__c != null ';
         query += getDateFilters(effectiveStartDate, effectiveEndDate, bindValues);
-        query += getRecordFilters(expenseGroupRecordId, categoryRecordId, bindValues);
+        query += getRecordFilters(safeFilters.expenseGroupId, safeFilters.categoryId, bindValues);
         query +=
             'GROUP BY CALENDAR_YEAR(Expense_Date__c), CALENDAR_MONTH(Expense_Date__c) ' +
             'ORDER BY CALENDAR_YEAR(Expense_Date__c) ASC, CALENDAR_MONTH(Expense_Date__c) ASC';
@@ -56,12 +52,8 @@ public with sharing class ExpenseQueryService {
      * @param filters Expense-group, category, and date filters; null uses default filters.
      * @return Matching expenses ordered from newest to oldest.
      */
-    public static List<Expense__c> getExpensesByFilters(
-        ExpenseController.ExpenseFilterRequest filters
-    ) {
-        ExpenseController.ExpenseFilterRequest safeFilters = getSafeFilters(filters);
-        Id expenseGroupRecordId = getFilterId(safeFilters.expenseGroupId);
-        Id categoryRecordId = getFilterId(safeFilters.categoryId);
+    public static List<Expense__c> getExpensesByFilters(ExpenseFilterRequest filters) {
+        ExpenseFilterRequest safeFilters = getSafeFilters(filters);
         Map<String, Object> bindValues = new Map<String, Object>();
         String query =
             'SELECT Id, Name, Expense_Date__c, Transaction_Time__c, Description__c, ' +
@@ -71,7 +63,7 @@ public with sharing class ExpenseQueryService {
             'Bank_Assignment__r.Bank__c, Bank_Assignment__r.Bank__r.Name, ' +
             'Bank_Assignment__r.Bank__r.Active__c, Transaction_Type__c, Amount__c ' +
             'FROM Expense__c WHERE Id != null ';
-        query += getRecordFilters(expenseGroupRecordId, categoryRecordId, bindValues);
+        query += getRecordFilters(safeFilters.expenseGroupId, safeFilters.categoryId, bindValues);
         query += getDateFilters(safeFilters.startDate, safeFilters.endDate, bindValues);
         query += 'ORDER BY Expense_Date__c DESC, Transaction_Time__c DESC NULLS LAST, CreatedDate DESC';
 
@@ -81,20 +73,15 @@ public with sharing class ExpenseQueryService {
     /**
      * Builds recurring-template rows and summary totals for a workspace context.
      *
-     * @param expenseGroupId Expense-group record ID or the All sentinel.
+     * @param expenseGroupId Optional Expense Group record ID.
      * @return Recurring-template overview for the requested context.
      */
-    public static ExpenseController.RecurringExpenseOverview getRecurringExpenseOverview(
-        String expenseGroupId
-    ) {
-        ExpenseController.RecurringExpenseOverview overview = new ExpenseController.RecurringExpenseOverview();
+    public static RecurringExpenseOverviewDto getRecurringExpenseOverview(Id expenseGroupId) {
+        RecurringExpenseOverviewDto overview = new RecurringExpenseOverviewDto();
         Date today = Date.today();
 
         for (Recurring_Expense__c recurringExpense : queryRecurringExpenses(expenseGroupId)) {
-            ExpenseController.RecurringExpenseRow row = buildRecurringExpenseRow(
-                recurringExpense,
-                today
-            );
+            RecurringExpenseRowDto row = buildRecurringExpenseRow(recurringExpense, today);
             overview.rows.add(row);
             updateRecurringOverview(overview, row);
         }
@@ -102,10 +89,8 @@ public with sharing class ExpenseQueryService {
         return overview;
     }
 
-    private static ExpenseController.ExpenseFilterRequest getSafeFilters(
-        ExpenseController.ExpenseFilterRequest filters
-    ) {
-        return filters == null ? new ExpenseController.ExpenseFilterRequest() : filters;
+    private static ExpenseFilterRequest getSafeFilters(ExpenseFilterRequest filters) {
+        return filters == null ? new ExpenseFilterRequest() : filters;
     }
 
     private static String getDateFilters(
@@ -142,12 +127,10 @@ public with sharing class ExpenseQueryService {
         return filters;
     }
 
-    private static List<ExpenseController.MonthlyTotal> buildMonthlyTrend(
-        List<AggregateResult> results
-    ) {
-        List<ExpenseController.MonthlyTotal> trend = new List<ExpenseController.MonthlyTotal>();
+    private static List<MonthlyExpenseTotalDto> buildMonthlyTrend(List<AggregateResult> results) {
+        List<MonthlyExpenseTotalDto> trend = new List<MonthlyExpenseTotalDto>();
         for (AggregateResult aggregateRow : results) {
-            ExpenseController.MonthlyTotal monthlyTotal = new ExpenseController.MonthlyTotal();
+            MonthlyExpenseTotalDto monthlyTotal = new MonthlyExpenseTotalDto();
             monthlyTotal.year = (Integer) aggregateRow.get('yr');
             monthlyTotal.monthNum = (Integer) aggregateRow.get('mo');
             monthlyTotal.month = MONTH_NAMES[monthlyTotal.monthNum - 1];
@@ -157,8 +140,7 @@ public with sharing class ExpenseQueryService {
         return trend;
     }
 
-    private static List<Recurring_Expense__c> queryRecurringExpenses(String expenseGroupId) {
-        Id expenseGroupRecordId = getFilterId(expenseGroupId);
+    private static List<Recurring_Expense__c> queryRecurringExpenses(Id expenseGroupId) {
         Map<String, Object> bindValues = new Map<String, Object>();
         String query =
             'SELECT Id, Name, Active__c, Amount__c, Bank__c, Bank_Assignment__c, ' +
@@ -169,20 +151,20 @@ public with sharing class ExpenseQueryService {
             'Start_Date__c, Transaction_Type__c ' +
             'FROM Recurring_Expense__c WHERE Id != null ';
 
-        if (expenseGroupRecordId != null) {
-            query += 'AND Category__r.Expense_Group__c = :expenseGroupRecordId ';
-            bindValues.put('expenseGroupRecordId', expenseGroupRecordId);
+        if (expenseGroupId != null) {
+            query += 'AND Category__r.Expense_Group__c = :expenseGroupId ';
+            bindValues.put('expenseGroupId', expenseGroupId);
         }
         query += 'ORDER BY Active__c DESC, Next_Run_Date__c ASC NULLS LAST, Name ASC LIMIT 500';
 
         return Database.queryWithBinds(query, bindValues, AccessLevel.USER_MODE);
     }
 
-    private static ExpenseController.RecurringExpenseRow buildRecurringExpenseRow(
+    private static RecurringExpenseRowDto buildRecurringExpenseRow(
         Recurring_Expense__c recurringExpense,
         Date today
     ) {
-        ExpenseController.RecurringExpenseRow row = new ExpenseController.RecurringExpenseRow();
+        RecurringExpenseRowDto row = new RecurringExpenseRowDto();
         row.id = recurringExpense.Id;
         row.name = recurringExpense.Name;
         row.categoryId = recurringExpense.Category__c;
@@ -213,8 +195,8 @@ public with sharing class ExpenseQueryService {
     }
 
     private static void updateRecurringOverview(
-        ExpenseController.RecurringExpenseOverview overview,
-        ExpenseController.RecurringExpenseRow row
+        RecurringExpenseOverviewDto overview,
+        RecurringExpenseRowDto row
     ) {
         if (row.active == true) {
             overview.activeCount++;
@@ -223,10 +205,6 @@ public with sharing class ExpenseQueryService {
         if (row.dueToday == true) {
             overview.dueTodayCount++;
         }
-    }
-
-    private static Id getFilterId(String recordId) {
-        return String.isBlank(recordId) || recordId == 'All' ? null : Id.valueOf(recordId);
     }
 
     private static Decimal getMonthlyRecurringAmount(Decimal amount, String frequency) {

@@ -8,7 +8,7 @@ public with sharing class RecurringExpenseGenerator {
     }
 
     private class GenerationContext {
-        public RecurringExpenseService.GenerationResult result;
+        public RecurringExpenseGenerationResult result;
         public List<Expense__c> expensesToInsert;
         public List<Recurring_Expense__c> recurringExpensesToUpdate;
         public Date runDate;
@@ -23,7 +23,7 @@ public with sharing class RecurringExpenseGenerator {
          * @param generatedTransactionTime Transaction time assigned to generated expenses.
          */
         public GenerationContext(Date runDate, Integer maxExpenses, Time generatedTransactionTime) {
-            this.result = new RecurringExpenseService.GenerationResult(runDate);
+            this.result = new RecurringExpenseGenerationResult(runDate);
             this.expensesToInsert = new List<Expense__c>();
             this.recurringExpensesToUpdate = new List<Recurring_Expense__c>();
             this.runDate = runDate;
@@ -39,7 +39,7 @@ public with sharing class RecurringExpenseGenerator {
      * @param options Generation cutoff, cap, and transaction time.
      * @return Counts and limit status for the generation transaction.
      */
-    public static RecurringExpenseService.GenerationResult generate(
+    public static RecurringExpenseGenerationResult generate(
         List<Recurring_Expense__c> dueRecurringExpenses,
         GenerationOptions options
     ) {

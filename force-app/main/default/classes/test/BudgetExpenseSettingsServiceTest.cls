@@ -8,7 +8,7 @@ private class BudgetExpenseSettingsServiceTest {
             CronTrigger expectedSchedule = getRecurringSchedule();
 
             Test.startTest();
-            BudgetExpenseSettingsService.SettingsState settings = BudgetExpenseSettingsService.getSettings();
+            BudgetExpenseSettingsState settings = SettingsController.getSettings();
             Test.stopTest();
 
             System.assertNotEquals(
@@ -59,15 +59,13 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testSaveSettingsUpdatesExistingRecord() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            BudgetExpenseSettingsService.getSettings();
-            BudgetExpenseSettingsService.SettingsUpdateRequest request = new BudgetExpenseSettingsService.SettingsUpdateRequest();
+            SettingsController.getSettings();
+            BudgetExpenseSettingsUpdateRequest request = new BudgetExpenseSettingsUpdateRequest();
             request.recurringExpensesEnabled = 'false';
             request.globalRecurringRunTime = '08:00';
 
             Test.startTest();
-            BudgetExpenseSettingsService.SettingsState settings = BudgetExpenseSettingsService.saveSettings(
-                request
-            );
+            BudgetExpenseSettingsState settings = SettingsController.saveSettings(request);
             Test.stopTest();
 
             System.assertEquals(
@@ -91,14 +89,12 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testSaveSettingsUpdatesGlobalRunTimeAndSchedule() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            BudgetExpenseSettingsService.getSettings();
-            BudgetExpenseSettingsService.SettingsUpdateRequest request = new BudgetExpenseSettingsService.SettingsUpdateRequest();
+            SettingsController.getSettings();
+            BudgetExpenseSettingsUpdateRequest request = new BudgetExpenseSettingsUpdateRequest();
             request.recurringExpensesEnabled = 'true';
             request.globalRecurringRunTime = '10:30';
 
-            BudgetExpenseSettingsService.SettingsState settings = BudgetExpenseSettingsService.saveSettings(
-                request
-            );
+            BudgetExpenseSettingsState settings = SettingsController.saveSettings(request);
 
             System.assertEquals(
                 '10:30',

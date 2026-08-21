@@ -2,8 +2,13 @@
 
 ## Workspace Shell
 
-`budgetExpenseManager` owns an internal workspace shell driven by the view keys and
-configuration in `expenseWorkspaceConfig`.
+`budgetExpenseManager` owns the shared context and mutable state for an internal workspace
+shell driven by the view keys and configuration in `expenseWorkspaceConfig`. Imperative
+expense, Dashboard, trend, and Bank-option reads enter through `expenseWorkspaceData`, while
+cacheable Category and recurring-overview wires remain in the component because `refreshApex`
+depends on their wire results. Derived view models pass through
+`expenseWorkspaceViewModels`, which memoizes them per manager instance by input references and
+scalar values so repeated template access within one render cycle reuses the same model.
 Desktop uses a collapsible left sidebar so Budget & Expense Manager can have app-like
 navigation inside Salesforce, while smaller screens fall back to a horizontal
 view strip. The first available `Expense_Group__c` is selected automatically,
@@ -150,19 +155,26 @@ bulkified and avoid one-DML-per-row implementations.
 ## Export And Print
 
 The app can export filtered rows to CSV through `expenseCsvExport` and render a
-print-only expense report. Shared date-range labels come from `expenseFormatters`.
+print-only expense report through `expensePrintReport`. Dashboard and Expenses share
+`expenseMonthNavigator`; shared date-range labels come from `expenseFormatters`.
+
+Modal components share body scroll locking, focus restoration, focusable-element discovery,
+and Tab trapping through `modalFocusUtils`, while each modal retains its own close, save, and
+initial-focus policy. Components normalize Apex, LDS/UI API, record-form, network, and JavaScript
+error shapes through `expenseErrorUtils`, while retaining contextual fallback messages and display
+behavior at each call site.
 
 ## Recurring Expense Templates
 
 Recurring expense templates are represented by `Recurring_Expense__c`.
 `Expense__c.Recurring_Expense__c` links an expense back to the template that
 generated it. The custom Recurring workspace view loads templates through
-`ExpenseController.getRecurringExpenseOverview()`, scoped by the current
+`RecurringExpenseController.getRecurringExpenseOverview()`, scoped by the current
 `Expense_Group__c`, and displays active count, due-today count, and a normalized
-monthly estimate. Manual generation calls
-`RecurringExpenseService.runDueExpensesBatch()`, while deactivation uses
-a single-record Apex update. Generation automation uses Batch Apex so more than
-100 due templates can be processed without hitting per-transaction governor
+monthly estimate. Deactivation uses the same normal-user controller. Manual generation
+calls `RecurringExpenseAutomationController.runDueExpensesBatch()`, whose Apex class
+access remains limited to Admin and All Access. Generation automation uses Batch Apex so
+more than 100 due templates can be processed without hitting per-transaction governor
 limits.
 
 Generation catches up from `Next_Run_Date__c` through the run date and stops at
@@ -185,6 +197,7 @@ an intentional View path outside this workspace-only editor.
 
 `Budget_Expense_Manager_Setting__c` stores singleton app-level controls. `BudgetExpenseSettingsTrigger`
 prevents multiple settings records, while `BudgetExpenseSettingsService` creates the
-default record when missing. The `budgetExpenseSettings` LWC lets users enable or
-disable recurring expense generation, manually queue a recurring run, and view
-the most recent run status.
+default record when missing. The `budgetExpenseSettings` LWC enters Apex through
+`SettingsController` and `RecurringExpenseAutomationController`; service classes are not
+Lightning entry points. The page lets authorized users enable or disable recurring expense
+generation, manually queue a recurring run, and view the most recent run status.

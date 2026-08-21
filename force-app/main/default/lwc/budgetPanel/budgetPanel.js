@@ -7,6 +7,7 @@ import deleteMonthlyBudget from '@salesforce/apex/BudgetController.deleteMonthly
 import getMonthlyBudget from '@salesforce/apex/BudgetController.getMonthlyBudget';
 import saveMonthlyBudget from '@salesforce/apex/BudgetController.saveMonthlyBudget';
 
+import { getErrorMessage } from 'c/expenseErrorUtils';
 import { formatMonthLabel, formatPHP, parseDateString } from 'c/expenseFormatters';
 
 const PERCENT_FORMAT = new Intl.NumberFormat('en-PH', {
@@ -77,7 +78,7 @@ export default class BudgetPanel extends LightningElement {
             this.isLoading = false;
         } else if (error) {
             this.budget = undefined;
-            this.loadError = this.getErrorMessage(error, 'Failed to load the monthly budget.');
+            this.loadError = getErrorMessage(error, 'Failed to load the monthly budget.');
             this.isLoading = false;
         }
     }
@@ -138,7 +139,7 @@ export default class BudgetPanel extends LightningElement {
         } catch (error) {
             this.showToast(
                 'Unable to save budget',
-                this.getErrorMessage(error, 'Failed to save the monthly budget.'),
+                getErrorMessage(error, 'Failed to save the monthly budget.'),
                 'error'
             );
         } finally {
@@ -182,7 +183,7 @@ export default class BudgetPanel extends LightningElement {
             }
             this.showToast(
                 'Unable to remove budget',
-                this.getErrorMessage(error, 'Failed to remove the monthly budget.'),
+                getErrorMessage(error, 'Failed to remove the monthly budget.'),
                 'error'
             );
         } finally {
@@ -200,7 +201,7 @@ export default class BudgetPanel extends LightningElement {
         try {
             await this.refreshBudget();
         } catch (error) {
-            this.loadError = this.getErrorMessage(error, 'Failed to load the monthly budget.');
+            this.loadError = getErrorMessage(error, 'Failed to load the monthly budget.');
         } finally {
             this.isLoading = false;
         }
@@ -355,10 +356,6 @@ export default class BudgetPanel extends LightningElement {
     normalizeAmount(value) {
         const amount = Number(value);
         return Number.isFinite(amount) ? amount : 0;
-    }
-
-    getErrorMessage(error, fallback) {
-        return error?.body?.message || fallback;
     }
 
     showToast(title, message, variant) {

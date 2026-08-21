@@ -229,4 +229,8 @@
         <apexClass>ExpenseController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>RecurringExpenseController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
 </PermissionSet>

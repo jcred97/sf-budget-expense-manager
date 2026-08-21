@@ -1,9 +1,11 @@
 import { LightningElement } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
-import getSettings from '@salesforce/apex/BudgetExpenseSettingsService.getSettings';
-import saveSettings from '@salesforce/apex/BudgetExpenseSettingsService.saveSettings';
-import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseService.runDueExpensesBatch';
+import getSettings from '@salesforce/apex/SettingsController.getSettings';
+import saveSettings from '@salesforce/apex/SettingsController.saveSettings';
+import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
+
+import { getErrorMessage } from 'c/expenseErrorUtils';
 
 const DATE_TIME_FORMAT = new Intl.DateTimeFormat('en-PH', {
     year: 'numeric',
@@ -132,11 +134,7 @@ export default class BudgetExpenseSettings extends LightningElement {
         try {
             this.applySettings(await getSettings());
         } catch (error) {
-            this.showToast(
-                'Error',
-                this.getErrorMessage(error, 'Failed to load settings.'),
-                'error'
-            );
+            this.showToast('Error', getErrorMessage(error, 'Failed to load settings.'), 'error');
         } finally {
             this.isLoading = false;
         }
@@ -166,11 +164,7 @@ export default class BudgetExpenseSettings extends LightningElement {
             this.applySettings(settings);
             this.showToast('Saved', 'Settings saved.', 'success');
         } catch (error) {
-            this.showToast(
-                'Error',
-                this.getErrorMessage(error, 'Failed to save settings.'),
-                'error'
-            );
+            this.showToast('Error', getErrorMessage(error, 'Failed to save settings.'), 'error');
         } finally {
             this.isSaving = false;
         }
@@ -189,7 +183,7 @@ export default class BudgetExpenseSettings extends LightningElement {
         } catch (error) {
             this.showToast(
                 'Error',
-                this.getErrorMessage(error, 'Failed to start recurring expense generation.'),
+                getErrorMessage(error, 'Failed to start recurring expense generation.'),
                 'error'
             );
         } finally {
@@ -208,10 +202,6 @@ export default class BudgetExpenseSettings extends LightningElement {
         this.scheduleState = settings?.recurringScheduleState || 'Not scheduled';
         this.scheduleNextRunDateTime = settings?.recurringScheduleNextRunDateTime;
         this.scheduleTimeZone = settings?.recurringScheduleTimeZone || '-';
-    }
-
-    getErrorMessage(error, fallback) {
-        return error?.body?.message || fallback;
     }
 
     showToast(title, message, variant) {

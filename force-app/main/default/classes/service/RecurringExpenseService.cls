@@ -5,40 +5,12 @@ public with sharing class RecurringExpenseService {
     @TestVisible
     private static final Integer MAX_EXPENSES_PER_TRANSACTION = 9000;
 
-    /** Counts and limit status produced by a recurring-expense generation run. */
-    public class GenerationResult {
-        @AuraEnabled
-        public Date runDate;
-        @AuraEnabled
-        public Integer recurringExpensesProcessed;
-        @AuraEnabled
-        public Integer expensesCreated;
-        @AuraEnabled
-        public Integer recurringExpensesUpdated;
-        @AuraEnabled
-        public Boolean hitGenerationLimit;
-
-        /**
-         * Creates an empty result for a generation date.
-         *
-         * @param runDate Inclusive generation cutoff represented by this result.
-         */
-        public GenerationResult(Date runDate) {
-            this.runDate = runDate;
-            this.recurringExpensesProcessed = 0;
-            this.expensesCreated = 0;
-            this.recurringExpensesUpdated = 0;
-            this.hitGenerationLimit = false;
-        }
-    }
-
     /**
      * Generates due recurring expenses for today using the synchronous run cap.
      *
      * @return Generation counts and limit status.
      */
-    @AuraEnabled
-    public static GenerationResult generateDueExpenses() {
+    public static RecurringExpenseGenerationResult generateDueExpenses() {
         return generateDueExpenses(Date.today());
     }
 
@@ -47,7 +19,6 @@ public with sharing class RecurringExpenseService {
      *
      * @return Salesforce batch job ID.
      */
-    @AuraEnabled
     public static Id runDueExpensesBatch() {
         if (!BudgetExpenseSettingsService.areRecurringExpensesEnabled()) {
             throw handledException(
@@ -64,7 +35,7 @@ public with sharing class RecurringExpenseService {
     }
 
     @TestVisible
-    private static GenerationResult generateDueExpenses(Date runDate) {
+    private static RecurringExpenseGenerationResult generateDueExpenses(Date runDate) {
         if (runDate == null) {
             throw new AuraHandledException('Run date is required.');
         }
@@ -105,7 +76,7 @@ public with sharing class RecurringExpenseService {
         }
 
         return generatableRecurringExpenses.isEmpty()
-            ? new GenerationResult(runDate)
+            ? new RecurringExpenseGenerationResult(runDate)
             : generateDueExpenses(generatableRecurringExpenses, runDate);
     }
 
@@ -116,14 +87,14 @@ public with sharing class RecurringExpenseService {
      * @param runDate Inclusive generation cutoff.
      * @return Generation counts and limit status.
      */
-    public static GenerationResult generateDueExpenses(
+    public static RecurringExpenseGenerationResult generateDueExpenses(
         List<Recurring_Expense__c> dueRecurringExpenses,
         Date runDate
     ) {
         return generateDueExpenses(dueRecurringExpenses, runDate, MAX_EXPENSES_PER_TRANSACTION);
     }
 
-    private static GenerationResult generateDueExpenses(
+    private static RecurringExpenseGenerationResult generateDueExpenses(
         List<Recurring_Expense__c> dueRecurringExpenses,
         Date runDate,
         Integer maxExpenses
