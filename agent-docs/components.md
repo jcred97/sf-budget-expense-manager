@@ -12,6 +12,7 @@
 | `lwc/expenseList`                                  | Expenses presentation: filters, loading/empty states, grouped rows, selection, actions, pagination, and responsive styling                   |
 | `lwc/expenseListViewModel`                         | Non-exposed pure builder for filtered/grouped expense rows, totals, empty states, pagination, and print data                                 |
 | `lwc/recurringExpenses`                            | Recurring-expense presentation: summary cards, template list, due/inactive states, and row actions                                           |
+| `lwc/recurringExpenseModal`                        | Non-exposed LDS Add/Edit dialog with group-scoped Category/Bank selectors, legacy compatibility, scheduling guidance, and focus management   |
 | `lwc/recurringExpenseTransforms`                   | Non-exposed mapper for recurring-template display labels, formatted values, statuses, and active windows                                     |
 | `lwc/recurringExpenseViewModel`                    | Non-exposed pure builder for recurring summary cards, counts, totals, and row data                                                           |
 | `lwc/expenseBarChart`                              | Reusable horizontal bar chart                                                                                                                |
@@ -27,7 +28,7 @@
 | `classes/controller/BudgetDto.cls`                 | Top-level Lightning response DTO for one monthly budget                                                                                      |
 | `classes/controller/BudgetSaveRequest.cls`         | Top-level Lightning request DTO for monthly budget creation and updates                                                                      |
 | `classes/controller/ExpenseController.cls`         | Apex backend: expense group/category/expense queries, dashboard trend query, recurring template overview query, and scoped DML actions       |
-| `classes/handler/`                                 | Trigger handlers for Bank keys, group/Bank assignment keys, expense Bank validation, budget invariants, recurring defaults, and settings     |
+| `classes/handler/`                                 | Trigger handlers for Bank assignments, expense Bank checks, budget invariants, recurring defaults/date validation, and settings              |
 | `classes/service/BankService.cls`                  | User-mode active Bank assignment query and Lightning option mapping                                                                          |
 | `classes/service/BankAssignmentValidator.cls`      | Bulk cross-object validation and legacy compatibility for Expense and Recurring Expense Bank assignments                                     |
 | `classes/service/`                                 | Bank/budget/expense queries and commands plus recurring expense calculation, generation, batch, scheduling, and settings services            |

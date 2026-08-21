@@ -206,7 +206,9 @@ public with sharing class ExpenseQueryService {
         row.dueToday =
             recurringExpense.Active__c == true &&
             recurringExpense.Next_Run_Date__c != null &&
-            recurringExpense.Next_Run_Date__c <= today;
+            recurringExpense.Next_Run_Date__c <= today &&
+            (recurringExpense.End_Date__c == null ||
+            recurringExpense.Next_Run_Date__c <= recurringExpense.End_Date__c);
         return row;
     }
 

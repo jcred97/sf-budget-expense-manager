@@ -67,7 +67,25 @@ If the target day does not exist in a later month, the generator uses that
 month's last day without permanently shifting the anchor.
 `Next_Run_Date__c` is the system pointer. `RecurringExpenseTrigger` defaults it
 from `Start_Date__c` when a template is created and keeps it aligned with
-`Start_Date__c` until the pointer has advanced.
+`Start_Date__c` until the pointer has advanced. Generation remains catch-up based:
+each occurrence from the pointer through the run date is created, bounded by
+`End_Date__c`. If the transaction cap is reached, the first ungenerated occurrence
+is persisted so the next run resumes without replay. Templates whose pointer is
+after their End Date remain visible but are neither due nor processed, and the
+trigger rejects an End Date before the Start Date. Reactivation and frequency edits
+preserve an already-advanced pointer; changing that policy is a separate product decision.
+The synchronous selector first applies user-mode access and the batch retains its sharing
+boundary. Generation then inserts the system-managed recurring link and advances a sparse
+`Next_Run_Date__c` record in system mode because both fields are intentionally read-only in
+the app permission sets; trigger validation still runs for both DML operations.
+The workspace Add/Edit path is the non-exposed `recurringExpenseModal`. It uses
+`lightning-record-edit-form` for mutation, UI API for current record context, and the
+group-scoped Category and Bank selectors owned by `budgetExpenseManager`. The modal never
+submits `Next_Run_Date__c`; it displays the value as read-only guidance. The manager retains
+the cacheable Category and recurring-overview wire results so opening/retrying the dialog and
+saving a template can use `refreshApex()`. Bank options use a non-cacheable imperative request
+with group and request-token guards so every modal open receives fresh assignments without a
+stale response replacing newer state.
 `Budget_Expense_Manager_Setting__c` is a singleton app settings object. `BudgetExpenseSettingsTrigger`
 prevents more than one settings record. The settings service creates the default
 record when it is missing. Recurring automation currently uses these global
@@ -76,7 +94,7 @@ settings; `Expense_Group__c` has no group-specific settings fields.
 ## Apex Methods
 
 - `getAllExpenseGroups()` - cacheable, returns all `Expense_Group__c` ordered by Name.
-- `BankController.getAvailableExpenseGroupBanks(expenseGroupId)` - cacheable, returns active global Banks assigned to the requested accessible Expense Group.
+- `BankController.getAvailableExpenseGroupBanks(expenseGroupId)` - non-cacheable, returns fresh active global Banks assigned to the requested accessible Expense Group; modal loads are request-guarded to ignore stale responses.
 - `BankService` - owns user-mode group-scoped Bank assignment lookup and option mapping.
 - `BudgetController.getMonthlyBudget(expenseGroupId, budgetMonth)` - cacheable, normalizes the month and returns the optional group budget or `null`.
 - `BudgetController.saveMonthlyBudget(request)` - creates or updates the single budget for a group/month using user-mode DML.

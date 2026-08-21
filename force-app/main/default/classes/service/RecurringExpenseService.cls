@@ -91,7 +91,22 @@ public with sharing class RecurringExpenseService {
             LIMIT :MAX_EXPENSES_PER_RUN
         ];
 
-        return generateDueExpenses(dueRecurringExpenses, runDate);
+        List<Recurring_Expense__c> generatableRecurringExpenses = new List<Recurring_Expense__c>();
+        for (Recurring_Expense__c recurringExpense : dueRecurringExpenses) {
+            if (
+                RecurringExpenseCalculator.shouldGenerateForDate(
+                    recurringExpense,
+                    recurringExpense.Next_Run_Date__c,
+                    runDate
+                )
+            ) {
+                generatableRecurringExpenses.add(recurringExpense);
+            }
+        }
+
+        return generatableRecurringExpenses.isEmpty()
+            ? new GenerationResult(runDate)
+            : generateDueExpenses(generatableRecurringExpenses, runDate);
     }
 
     /**

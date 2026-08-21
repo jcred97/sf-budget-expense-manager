@@ -179,11 +179,19 @@
                             </div>
                             <div class="view-header-actions">
                                 <lightning-button
-                                    variant="brand"
+                                    variant="neutral"
                                     label={runRecurringLabel}
                                     icon-name="utility:play"
                                     onclick={handleRunRecurringExpenses}
                                     disabled={isRunRecurringDisabled}
+                                >
+                                </lightning-button>
+                                <lightning-button
+                                    variant="brand"
+                                    label="Add Recurring"
+                                    icon-name="utility:add"
+                                    onclick={openRecurringExpenseModal}
+                                    disabled={isAddRecurringDisabled}
                                 >
                                 </lightning-button>
                             </div>
@@ -273,4 +281,22 @@
         onretrybanks={handleRetryBankOptions}
     >
     </c-expense-modal>
+
+    <c-recurring-expense-modal
+        is-open={isRecurringExpenseModalOpen}
+        record-id={editingRecurringExpenseId}
+        category-options={modalCategoryOptions}
+        category-options-loading={isCategoriesLoading}
+        category-options-error={categoryOptionsError}
+        bank-options={bankOptions}
+        bank-options-loading={isBankOptionsLoading}
+        bank-options-error={bankOptionsError}
+        current-bank-label={currentRecurringBankLabel}
+        selected-expense-group-name={selectedExpenseGroupName}
+        onsuccess={handleRecurringExpenseSaveSuccess}
+        onclose={handleRecurringExpenseModalClose}
+        onretrybanks={handleRetryBankOptions}
+        onretrycategories={handleRetryCategoryOptions}
+    >
+    </c-recurring-expense-modal>
 </template>

@@ -97,6 +97,68 @@ private class RecurringExpenseBatchTest {
     }
 
     @IsTest
+    static void testBatchSkipsAlreadyEndedPointer() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Ended Group');
+            insert expenseGroup;
+            Category__c category = new Category__c(
+                Name = 'Ended Category',
+                Expense_Group__c = expenseGroup.Id
+            );
+            insert category;
+
+            Date endDate = Date.newInstance(2026, 5, 1);
+            Date endedPointer = Date.newInstance(2026, 5, 2);
+            Recurring_Expense__c recurringExpense = new Recurring_Expense__c(
+                Name = 'Ended Batch Template',
+                Active__c = true,
+                Amount__c = 750,
+                Category__c = category.Id,
+                End_Date__c = endDate,
+                Frequency__c = 'Daily',
+                Next_Run_Date__c = endedPointer,
+                Start_Date__c = endDate
+            );
+            insert recurringExpense;
+
+            Test.startTest();
+            Database.executeBatch(new RecurringExpenseBatch(Date.newInstance(2026, 5, 3)), 1);
+            Test.stopTest();
+
+            System.assertEquals(
+                0,
+                [SELECT COUNT() FROM Expense__c WHERE Recurring_Expense__c = :recurringExpense.Id],
+                'The batch should not generate from an already-ended pointer.'
+            );
+            System.assertEquals(
+                endedPointer,
+                [
+                    SELECT Next_Run_Date__c
+                    FROM Recurring_Expense__c
+                    WHERE Id = :recurringExpense.Id
+                ]
+                .Next_Run_Date__c,
+                'The batch should leave an already-ended pointer unchanged.'
+            );
+            Budget_Expense_Manager_Setting__c settings = [
+                SELECT Last_Recurring_Run_Status__c, Last_Recurring_Run_Message__c
+                FROM Budget_Expense_Manager_Setting__c
+                LIMIT 1
+            ];
+            System.assertEquals(
+                'Completed',
+                settings.Last_Recurring_Run_Status__c,
+                'A batch containing only ended pointers should still complete.'
+            );
+            System.assertEquals(
+                'No recurring expenses were due.',
+                settings.Last_Recurring_Run_Message__c,
+                'Ended pointers should not count as processed recurring templates.'
+            );
+        }
+    }
+
+    @IsTest
     static void testConstructorRejectsNullRunDate() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Boolean exceptionThrown = false;

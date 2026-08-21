@@ -16,9 +16,11 @@ public inherited sharing class RecurringExpenseTriggerHandler {
     ) {
         if (operation == System.TriggerOperation.BEFORE_INSERT) {
             beforeInsert(recurringExpenses);
+            validateDateWindows(recurringExpenses);
             BankAssignmentValidator.validateRecurringExpenses(recurringExpenses, null);
         } else if (operation == System.TriggerOperation.BEFORE_UPDATE) {
             beforeUpdate(recurringExpenses, oldRecurringExpenses);
+            validateDateWindows(recurringExpenses);
             BankAssignmentValidator.validateRecurringExpenses(
                 recurringExpenses,
                 oldRecurringExpenses
@@ -52,6 +54,18 @@ public inherited sharing class RecurringExpenseTriggerHandler {
 
             if (startDateChanged && !nextRunChanged && nextRunStillTracksStart) {
                 recurringExpense.Next_Run_Date__c = recurringExpense.Start_Date__c;
+            }
+        }
+    }
+
+    private static void validateDateWindows(List<Recurring_Expense__c> recurringExpenses) {
+        for (Recurring_Expense__c recurringExpense : recurringExpenses) {
+            if (
+                recurringExpense.Start_Date__c != null &&
+                recurringExpense.End_Date__c != null &&
+                recurringExpense.End_Date__c < recurringExpense.Start_Date__c
+            ) {
+                recurringExpense.End_Date__c.addError('End Date cannot be before Start Date.');
             }
         }
     }

@@ -121,7 +121,7 @@ The following `mainDevOrg` operations completed on 2026-08-15:
 - Ran a read-only smoke test through the LWC-facing Apex endpoints; it returned the complete dataset, five trend buckets, the migrated settings, and the active renamed schedule.
 - Corrected the SLDS 2 horizontal-bar radius regression and deployed `expenseBarChart` with deployment `0AfgK00000QReiNSAT` after successful dry run `0AfgK00000QRteCSAT`.
 - Completed the signed-in visual application smoke test, including the corrected category bars, before cleanup approval.
-- Exported the legacy settings row to the Git-ignored `scripts/migration/backups/legacy-spendly-2026-08-15/` rollback directory and recorded SHA-256 hashes and the source revision in its backup manifest.
+- Exported the legacy settings row to a Git-ignored rollback directory during cutover and recorded SHA-256 hashes and the source revision in its backup manifest. The one-off local scripts and backup artifacts were later removed from this app repository at the user's request.
 - Removed obsolete assignment `0PagK00000QDjTQSA1` only after confirming replacement assignment `0PagK00000aoXNRSA2` for `Budget_Expense_Manager_All_Access`.
 - The first cleanup validation `0AfgK00000QRnwxSAD` failed closed because the obsolete permission set was still assigned; no metadata was changed.
 - Validated the complete cleanup with check-only deployment `0AfgK00000QSD8ESAX`: 42/42 deletion actions and 52/52 specified tests passed.

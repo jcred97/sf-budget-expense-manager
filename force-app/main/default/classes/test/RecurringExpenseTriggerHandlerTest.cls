@@ -39,6 +39,71 @@ private class RecurringExpenseTriggerHandlerTest {
     }
 
     @IsTest
+    static void testTriggerRejectsEndDateBeforeStartOnInsert() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Category__c category = getFitnessCategory();
+            Date startDate = Date.newInstance(2026, 6, 1);
+            Recurring_Expense__c recurringExpense = createRecurringExpense(
+                'Invalid Gym',
+                category.Id,
+                startDate
+            );
+            recurringExpense.End_Date__c = startDate.addDays(-1);
+
+            Database.SaveResult result;
+            Test.startTest();
+            result = Database.insert(recurringExpense, false);
+            Test.stopTest();
+
+            System.assertEquals(false, result.isSuccess(), 'The invalid date window should fail.');
+            System.assertEquals(
+                'End Date cannot be before Start Date.',
+                result.getErrors()[0].getMessage(),
+                'The trigger should report the shared date-window message.'
+            );
+        }
+    }
+
+    @IsTest
+    static void testTriggerRejectsEndDateBeforeStartOnUpdate() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Category__c category = getFitnessCategory();
+            Date startDate = Date.newInstance(2026, 6, 1);
+            Date originalEndDate = Date.newInstance(2026, 6, 30);
+            Recurring_Expense__c recurringExpense = createRecurringExpense(
+                'Gym',
+                category.Id,
+                startDate
+            );
+            recurringExpense.End_Date__c = originalEndDate;
+            insert recurringExpense;
+            recurringExpense.End_Date__c = startDate.addDays(-1);
+
+            Database.SaveResult result;
+            Test.startTest();
+            result = Database.update(recurringExpense, false);
+            Test.stopTest();
+
+            System.assertEquals(false, result.isSuccess(), 'The invalid update should fail.');
+            System.assertEquals(
+                'End Date cannot be before Start Date.',
+                result.getErrors()[0].getMessage(),
+                'The update should use the same date-window message as insert.'
+            );
+            System.assertEquals(
+                originalEndDate,
+                [
+                    SELECT End_Date__c
+                    FROM Recurring_Expense__c
+                    WHERE Id = :recurringExpense.Id
+                ]
+                .End_Date__c,
+                'A rejected update must preserve the prior end date.'
+            );
+        }
+    }
+
+    @IsTest
     static void testBeforeInsertDefaultsBulkRecordsWithoutOverwritingExplicitValues() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Date firstStartDate = Date.newInstance(2026, 6, 1);
@@ -125,7 +190,7 @@ private class RecurringExpenseTriggerHandlerTest {
             insert recurringExpense;
 
             Recurring_Expense__c oldRecurringExpense = [
-                SELECT Id, Bank_Assignment__c, Start_Date__c, Next_Run_Date__c
+                SELECT Id, Bank_Assignment__c, End_Date__c, Start_Date__c, Next_Run_Date__c
                 FROM Recurring_Expense__c
                 WHERE Id = :recurringExpense.Id
             ];
@@ -171,7 +236,7 @@ private class RecurringExpenseTriggerHandlerTest {
             };
 
             List<Recurring_Expense__c> oldRecurringExpenses = [
-                SELECT Id, Name, Bank_Assignment__c, Start_Date__c, Next_Run_Date__c
+                SELECT Id, Name, Bank_Assignment__c, End_Date__c, Start_Date__c, Next_Run_Date__c
                 FROM Recurring_Expense__c
                 ORDER BY Name
             ];

@@ -85,7 +85,7 @@ public with sharing class RecurringExpenseGenerator {
         ) {
             if (context.expensesToInsert.size() >= context.maxExpenses) {
                 context.result.hitGenerationLimit = true;
-                return;
+                break;
             }
 
             context.expensesToInsert.add(
@@ -114,7 +114,8 @@ public with sharing class RecurringExpenseGenerator {
         if (context.expensesToInsert.isEmpty()) {
             return;
         }
-        Database.insert(context.expensesToInsert, AccessLevel.USER_MODE);
+        // Generated expenses include the system-managed recurring link, which users cannot edit.
+        Database.insert(context.expensesToInsert, AccessLevel.SYSTEM_MODE);
         context.result.expensesCreated = context.expensesToInsert.size();
     }
 
@@ -122,7 +123,19 @@ public with sharing class RecurringExpenseGenerator {
         if (context.recurringExpensesToUpdate.isEmpty()) {
             return;
         }
-        Database.update(context.recurringExpensesToUpdate, AccessLevel.USER_MODE);
+
+        List<Recurring_Expense__c> pointerUpdates = new List<Recurring_Expense__c>();
+        for (Recurring_Expense__c recurringExpense : context.recurringExpensesToUpdate) {
+            pointerUpdates.add(
+                new Recurring_Expense__c(
+                    Id = recurringExpense.Id,
+                    Next_Run_Date__c = recurringExpense.Next_Run_Date__c
+                )
+            );
+        }
+
+        // Next Run Date is intentionally read-only to users and is advanced only by automation.
+        Database.update(pointerUpdates, AccessLevel.SYSTEM_MODE);
         Integer updatedCount = context.recurringExpensesToUpdate.size();
         context.result.recurringExpensesProcessed = updatedCount;
         context.result.recurringExpensesUpdated = updatedCount;

@@ -1,0 +1,350 @@
+<template>
+    <template lwc:if={isOpen}>
+        <section
+            role="dialog"
+            tabindex="-1"
+            aria-modal="true"
+            aria-labelledby="recurring-expense-modal-heading"
+            aria-describedby="recurring-expense-modal-description"
+            class="slds-modal slds-fade-in-open slds-modal_large"
+            onkeydown={handleKeyDown}
+        >
+            <div class="slds-modal__container">
+                <button
+                    class="slds-button slds-button_icon slds-modal__close"
+                    type="button"
+                    title="Close"
+                    disabled={isSaving}
+                    onclick={handleClose}
+                >
+                    <lightning-icon
+                        icon-name="utility:close"
+                        size="small"
+                        alternative-text="Close"
+                    ></lightning-icon>
+                    <span class="slds-assistive-text">Close</span>
+                </button>
+
+                <header class="slds-modal__header">
+                    <h2
+                        id="recurring-expense-modal-heading"
+                        class="slds-modal__title slds-hyphenate"
+                    >
+                        {modalTitle}
+                    </h2>
+                </header>
+
+                <lightning-record-edit-form
+                    object-api-name={recurringExpenseObject}
+                    record-id={recordId}
+                    onload={handleFormLoad}
+                    onsubmit={handleSubmit}
+                    onsuccess={handleSuccess}
+                    onerror={handleError}
+                >
+                    <div class="slds-modal__content slds-var-p-around_medium">
+                        <p
+                            id="recurring-expense-modal-description"
+                            class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_medium"
+                        >
+                            {modalDescription} Next Run Date is maintained automatically from the
+                            schedule.
+                        </p>
+
+                        <lightning-messages></lightning-messages>
+
+                        <template lwc:if={formError}>
+                            <div
+                                class="slds-notify slds-notify_alert slds-alert_error slds-var-m-bottom_small"
+                                role="alert"
+                                tabindex="-1"
+                                data-form-error
+                            >
+                                <span class="slds-assistive-text">Error</span>
+                                <p>{formError}</p>
+                            </div>
+                        </template>
+
+                        <template lwc:if={recordContextError}>
+                            <div
+                                class="slds-notify slds-notify_alert slds-alert_error slds-var-m-bottom_small"
+                                role="alert"
+                                tabindex="-1"
+                                data-record-context-error
+                            >
+                                <span class="slds-assistive-text">Error</span>
+                                <div>
+                                    <p>{recordContextError}</p>
+                                    <lightning-button
+                                        class="slds-var-m-top_x-small"
+                                        variant="base"
+                                        label="Retry"
+                                        disabled={isSaving}
+                                        onclick={handleRetryRecordContext}
+                                    ></lightning-button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template lwc:if={isRecordContextLoading}>
+                            <div
+                                class="slds-is-relative slds-var-p-vertical_large"
+                                role="status"
+                                aria-live="polite"
+                            >
+                                <lightning-spinner
+                                    alternative-text="Loading recurring expense details"
+                                    size="small"
+                                ></lightning-spinner>
+                            </div>
+                        </template>
+
+                        <div class="slds-grid slds-wrap slds-gutters">
+                            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+                                <lightning-input-field
+                                    class="slds-var-m-bottom_small"
+                                    data-initial-focus
+                                    field-name="Name"
+                                    required
+                                    disabled={areRecordFieldsDisabled}
+                                ></lightning-input-field>
+
+                                <div class="slds-var-m-bottom_small">
+                                    <template lwc:if={categoryOptionsLoading}>
+                                        <div
+                                            class="slds-is-relative slds-var-p-vertical_medium"
+                                            role="status"
+                                            aria-live="polite"
+                                        >
+                                            <lightning-spinner
+                                                alternative-text="Loading categories"
+                                                size="small"
+                                            ></lightning-spinner>
+                                            <span class="slds-assistive-text"
+                                                >Loading categories</span
+                                            >
+                                        </div>
+                                    </template>
+                                    <template lwc:if={categoryOptionsError}>
+                                        <div
+                                            class="slds-notify slds-notify_alert slds-alert_error slds-var-m-bottom_x-small"
+                                            role="alert"
+                                            tabindex="-1"
+                                            data-category-options-error
+                                        >
+                                            <span class="slds-assistive-text">Error</span>
+                                            <div>
+                                                <p>{categoryOptionsError}</p>
+                                                <lightning-button
+                                                    class="slds-var-m-top_x-small"
+                                                    variant="base"
+                                                    label="Retry"
+                                                    disabled={isSaving}
+                                                    onclick={handleRetryCategories}
+                                                ></lightning-button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <lightning-combobox
+                                        data-field="category"
+                                        label="Category"
+                                        value={categoryValue}
+                                        options={categoryOptions}
+                                        placeholder={categoryPlaceholder}
+                                        required
+                                        disabled={isCategoryInputDisabled}
+                                        onchange={handleCategoryChange}
+                                    ></lightning-combobox>
+                                    <template lwc:if={hasNoCategories}>
+                                        <div
+                                            class="slds-notify slds-notify_alert slds-alert_warning slds-var-m-top_x-small"
+                                            role="alert"
+                                            tabindex="-1"
+                                            data-category-empty
+                                        >
+                                            <span class="slds-assistive-text">Category notice</span>
+                                            <p>{noCategoriesMessage}</p>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <lightning-input-field
+                                    class="slds-var-m-bottom_small"
+                                    field-name="Amount__c"
+                                    required
+                                    disabled={areRecordFieldsDisabled}
+                                ></lightning-input-field>
+
+                                <lightning-input-field
+                                    class="slds-var-m-bottom_small"
+                                    field-name="Description__c"
+                                    disabled={areRecordFieldsDisabled}
+                                ></lightning-input-field>
+
+                                <lightning-input-field
+                                    class="slds-var-m-bottom_small"
+                                    field-name="Transaction_Type__c"
+                                    disabled={areRecordFieldsDisabled}
+                                ></lightning-input-field>
+
+                                <div class="slds-var-m-bottom_small">
+                                    <template lwc:if={bankOptionsLoading}>
+                                        <div
+                                            class="slds-is-relative slds-var-p-vertical_medium"
+                                            role="status"
+                                            aria-live="polite"
+                                        >
+                                            <lightning-spinner
+                                                alternative-text="Loading banks"
+                                                size="small"
+                                            ></lightning-spinner>
+                                            <span class="slds-assistive-text">Loading banks</span>
+                                        </div>
+                                    </template>
+                                    <template lwc:if={bankOptionsError}>
+                                        <div
+                                            class="slds-notify slds-notify_alert slds-alert_error slds-var-m-bottom_x-small"
+                                            role="alert"
+                                            tabindex="-1"
+                                            data-bank-options-error
+                                        >
+                                            <span class="slds-assistive-text">Error</span>
+                                            <div>
+                                                <p>{bankOptionsError}</p>
+                                                <lightning-button
+                                                    class="slds-var-m-top_x-small"
+                                                    variant="base"
+                                                    label="Retry"
+                                                    disabled={isSaving}
+                                                    onclick={handleRetryBanks}
+                                                ></lightning-button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <lightning-combobox
+                                        data-field="bank"
+                                        label="Bank"
+                                        value={bankAssignmentValue}
+                                        options={bankComboboxOptions}
+                                        placeholder={bankPlaceholder}
+                                        disabled={isBankInputDisabled}
+                                        onchange={handleBankChange}
+                                    ></lightning-combobox>
+                                    <template lwc:if={hasNoAvailableBanks}>
+                                        <div
+                                            class="slds-notify slds-notify_alert slds-alert_warning slds-var-m-top_x-small"
+                                            role="status"
+                                            aria-live="polite"
+                                        >
+                                            <span class="slds-assistive-text">Bank notice</span>
+                                            <p>{noAvailableBanksMessage}</p>
+                                        </div>
+                                    </template>
+                                    <template lwc:if={bankContextNotice}>
+                                        <div
+                                            class="slds-notify slds-notify_alert slds-alert_warning slds-var-m-top_x-small"
+                                            role="status"
+                                            aria-live="polite"
+                                        >
+                                            <span class="slds-assistive-text">Bank notice</span>
+                                            <p>{bankContextNotice}</p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+                                <lightning-input-field
+                                    class="slds-var-m-bottom_small"
+                                    field-name="Frequency__c"
+                                    required
+                                    disabled={areRecordFieldsDisabled}
+                                ></lightning-input-field>
+
+                                <lightning-input-field
+                                    class="slds-var-m-bottom_small"
+                                    data-field="start-date"
+                                    field-name="Start_Date__c"
+                                    required
+                                    disabled={areRecordFieldsDisabled}
+                                    onchange={handleDateChange}
+                                ></lightning-input-field>
+
+                                <lightning-input-field
+                                    class="slds-var-m-bottom_small"
+                                    field-name="End_Date__c"
+                                    disabled={areRecordFieldsDisabled}
+                                    onchange={handleDateChange}
+                                ></lightning-input-field>
+
+                                <template lwc:if={dateError}>
+                                    <div
+                                        class="slds-notify slds-notify_alert slds-alert_error slds-var-m-bottom_small"
+                                        role="alert"
+                                        tabindex="-1"
+                                        data-date-error
+                                    >
+                                        <span class="slds-assistive-text">Date error</span>
+                                        <p>{dateError}</p>
+                                    </div>
+                                </template>
+
+                                <lightning-input-field
+                                    class="slds-var-m-bottom_small"
+                                    field-name="Active__c"
+                                    disabled={areRecordFieldsDisabled}
+                                ></lightning-input-field>
+
+                                <div class="slds-form-element slds-var-m-bottom_small">
+                                    <span class="slds-form-element__label">Next Run Date</span>
+                                    <div class="slds-form-element__control">
+                                        <div class="slds-form-element__static">
+                                            {nextRunDateDisplay}
+                                        </div>
+                                    </div>
+                                    <div class="slds-form-element__help">
+                                        System managed. Changing Start Date may realign it when it
+                                        still matches the previous start.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <template lwc:if={isSaving}>
+                            <div
+                                class="slds-is-relative slds-var-p-vertical_large"
+                                data-saving-status
+                                role="status"
+                                tabindex="-1"
+                                aria-busy="true"
+                                aria-label="Saving recurring expense"
+                            >
+                                <lightning-spinner
+                                    alternative-text="Saving recurring expense"
+                                    size="small"
+                                ></lightning-spinner>
+                            </div>
+                        </template>
+                    </div>
+
+                    <footer class="slds-modal__footer">
+                        <lightning-button
+                            variant="neutral"
+                            label="Cancel"
+                            disabled={isSaving}
+                            onclick={handleClose}
+                        ></lightning-button>
+                        <lightning-button
+                            class="slds-var-m-left_x-small"
+                            variant="brand"
+                            type="submit"
+                            label={saveButtonLabel}
+                            disabled={isSaveBlocked}
+                        ></lightning-button>
+                    </footer>
+                </lightning-record-edit-form>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

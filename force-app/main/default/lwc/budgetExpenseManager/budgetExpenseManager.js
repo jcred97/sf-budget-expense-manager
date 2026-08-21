@@ -1,4 +1,5 @@
 import { LightningElement, wire } from 'lwc';
+import { refreshApex } from '@salesforce/apex';
 import { loadStyle } from 'lightning/platformResourceLoader';
 import LightningConfirm from 'lightning/confirm';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
@@ -41,6 +42,8 @@ export default class BudgetExpenseManager extends LightningElement {
     _latestExpenseLoadRequestId = 0;
     _latestDashboardLoadRequestId = 0;
     _latestBankOptionsRequestId = 0;
+    _wiredCategoriesResult;
+    _wiredRecurringResult;
     _dateFormatStyleLoadPromise;
 
     // Workspace and filter state.
@@ -77,6 +80,8 @@ export default class BudgetExpenseManager extends LightningElement {
     dashboardLoadError = '';
     isRecurringLoading = false;
     isRunningRecurring = false;
+    isCategoriesLoading = false;
+    categoryOptionsError = '';
     isBankOptionsLoading = false;
     bankOptionsError = '';
     isExpenseModalOpen = false;
@@ -86,6 +91,9 @@ export default class BudgetExpenseManager extends LightningElement {
     currentExpenseBank = null;
     expenseBankNotice = '';
     expenseDateError = '';
+    isRecurringExpenseModalOpen = false;
+    editingRecurringExpenseId = null;
+    currentRecurringBankLabel = '';
 
     // Workspace presentation.
     get isDashboardView() {
@@ -181,14 +189,51 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     @wire(getCategoriesByExpenseGroup, { expenseGroupId: '$categoryExpenseGroupId' })
-    wiredCategories({ error, data }) {
+    wiredCategories(result) {
+        this._wiredCategoriesResult = result;
+        const { error, data } = result;
+
         if (data) {
             this.categoryOptions = [
                 { label: 'All Categories', value: 'All' },
                 ...data.map(category => ({ label: category.Name, value: category.Id }))
             ];
+            this.categoryOptionsError = '';
+            this.isCategoriesLoading = false;
         } else if (error) {
-            this.showToast('Error', 'Failed to load categories.', 'error');
+            this.categoryOptions = [{ label: 'All Categories', value: 'All' }];
+            this.categoryOptionsError = this.getErrorMessage(
+                error,
+                'Failed to load categories for this expense group.'
+            );
+            this.isCategoriesLoading = false;
+            this.showToast('Error', this.categoryOptionsError, 'error');
+        }
+    }
+
+    @wire(getRecurringExpenseOverview, { expenseGroupId: '$categoryExpenseGroupId' })
+    wiredRecurringExpenseOverview(result) {
+        this._wiredRecurringResult = result;
+        const { error, data } = result;
+
+        if (data) {
+            this.applyRecurringOverview(data);
+            this.isRecurringLoading = false;
+        } else if (error && this.expenseGroupId) {
+            this.recurringRows = [];
+            this.recurringOverview = {
+                activeCount: 0,
+                dueTodayCount: 0,
+                monthlyTotal: 0
+            };
+            this.isRecurringLoading = false;
+            this.showToast(
+                'Error',
+                this.getErrorMessage(error, 'Failed to load recurring expenses.'),
+                'error'
+            );
+        } else if (this.expenseGroupId) {
+            this.isRecurringLoading = true;
         }
     }
 
@@ -295,27 +340,30 @@ export default class BudgetExpenseManager extends LightningElement {
             return;
         }
 
+        const expenseGroupId = this.expenseGroupId;
         this.isRecurringLoading = true;
+        if (!this._wiredRecurringResult) {
+            return;
+        }
 
         try {
-            const overview = await getRecurringExpenseOverview({
-                expenseGroupId: this.expenseGroupId
-            });
-            this.recurringOverview = {
-                activeCount: overview?.activeCount || 0,
-                dueTodayCount: overview?.dueTodayCount || 0,
-                monthlyTotal: overview?.monthlyTotal || 0
-            };
-            this.recurringRows = (overview?.rows || []).map(mapRecurringExpenseRow);
-        } catch (error) {
-            this.showToast(
-                'Error',
-                this.getErrorMessage(error, 'Failed to load recurring expenses.'),
-                'error'
-            );
+            await refreshApex(this._wiredRecurringResult);
+        } catch {
+            // The wire handler owns recurring-load error presentation.
         } finally {
-            this.isRecurringLoading = false;
+            if (expenseGroupId === this.expenseGroupId) {
+                this.isRecurringLoading = false;
+            }
         }
+    }
+
+    applyRecurringOverview(overview) {
+        this.recurringOverview = {
+            activeCount: overview?.activeCount || 0,
+            dueTodayCount: overview?.dueTodayCount || 0,
+            monthlyTotal: overview?.monthlyTotal || 0
+        };
+        this.recurringRows = (overview?.rows || []).map(mapRecurringExpenseRow);
     }
 
     async loadBankOptions() {
@@ -330,7 +378,7 @@ export default class BudgetExpenseManager extends LightningElement {
         this.bankOptionsError = '';
 
         try {
-            const assignments = await getAvailableExpenseGroupBanks({ expenseGroupId });
+            const data = await getAvailableExpenseGroupBanks({ expenseGroupId });
             if (
                 requestId !== this._latestBankOptionsRequestId ||
                 expenseGroupId !== this.expenseGroupId
@@ -338,7 +386,7 @@ export default class BudgetExpenseManager extends LightningElement {
                 return;
             }
 
-            this.bankOptions = (assignments || []).map(assignment => ({
+            this.bankOptions = data.map(assignment => ({
                 label: assignment.bankName,
                 value: assignment.assignmentId
             }));
@@ -357,7 +405,10 @@ export default class BudgetExpenseManager extends LightningElement {
                 'Failed to load banks for this expense group.'
             );
         } finally {
-            if (requestId === this._latestBankOptionsRequestId) {
+            if (
+                requestId === this._latestBankOptionsRequestId &&
+                expenseGroupId === this.expenseGroupId
+            ) {
                 this.isBankOptionsLoading = false;
             }
         }
@@ -387,6 +438,10 @@ export default class BudgetExpenseManager extends LightningElement {
         }
 
         return options;
+    }
+
+    get isAddRecurringDisabled() {
+        return !this.expenseGroupId;
     }
 
     get expensesViewModel() {
@@ -552,21 +607,31 @@ export default class BudgetExpenseManager extends LightningElement {
             return;
         }
 
+        this.resetRecurringExpenseModal();
+        this._wiredCategoriesResult = undefined;
         this.expenseGroupId = expenseGroupId;
         this.clearBankOptions();
+        this.clearRecurringData();
         this.categoryId = 'All';
+        this.categoryOptions = [{ label: 'All Categories', value: 'All' }];
+        this.categoryOptionsError = '';
+        this.isCategoriesLoading = true;
         this.searchTerm = '';
         this.activeView = WORKSPACE_VIEWS.DASHBOARD;
         this.loadBankOptions();
         this.loadDashboard();
         this.loadExpenses();
-        this.loadRecurringExpenses();
+        this.isRecurringLoading = true;
     }
 
     clearWorkspaceContext() {
+        this.resetRecurringExpenseModal();
+        this._wiredCategoriesResult = undefined;
         this.expenseGroupId = '';
         this.categoryId = 'All';
         this.categoryOptions = [{ label: 'All Categories', value: 'All' }];
+        this.categoryOptionsError = '';
+        this.isCategoriesLoading = false;
         this.searchTerm = '';
         this.activeView = WORKSPACE_VIEWS.DASHBOARD;
         this.clearBankOptions();
@@ -592,6 +657,7 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     clearRecurringData() {
+        this._wiredRecurringResult = undefined;
         this.recurringRows = [];
         this.recurringOverview = {
             activeCount: 0,
@@ -646,7 +712,16 @@ export default class BudgetExpenseManager extends LightningElement {
         const { action, id } = event.detail;
 
         if (action === 'edit') {
-            window.open(`/${id}`, '_blank', 'noopener');
+            const row = this.recurringRows.find(item => item.id === id);
+            if (!row) {
+                return;
+            }
+
+            this.editingRecurringExpenseId = id;
+            this.currentRecurringBankLabel = row.bank || '';
+            this.refreshCategoryOptions();
+            this.loadBankOptions();
+            this.isRecurringExpenseModalOpen = true;
             return;
         }
 
@@ -700,6 +775,61 @@ export default class BudgetExpenseManager extends LightningElement {
                 this.getErrorMessage(error, 'Failed to deactivate recurring expense.'),
                 'error'
             );
+        }
+    }
+
+    openRecurringExpenseModal() {
+        if (!this.expenseGroupId) {
+            return;
+        }
+
+        this.editingRecurringExpenseId = null;
+        this.currentRecurringBankLabel = '';
+        this.refreshCategoryOptions();
+        this.loadBankOptions();
+        this.isRecurringExpenseModalOpen = true;
+    }
+
+    handleRecurringExpenseModalClose() {
+        this.resetRecurringExpenseModal();
+    }
+
+    resetRecurringExpenseModal() {
+        this.isRecurringExpenseModalOpen = false;
+        this.editingRecurringExpenseId = null;
+        this.currentRecurringBankLabel = '';
+    }
+
+    async handleRecurringExpenseSaveSuccess(event) {
+        const action = event.detail?.mode === 'edit' ? 'updated' : 'created';
+        this.showToast('Success', `Recurring expense ${action} successfully!`, 'success');
+        await this.loadRecurringExpenses();
+    }
+
+    handleRetryCategoryOptions() {
+        this.refreshCategoryOptions();
+    }
+
+    async refreshCategoryOptions() {
+        if (!this._wiredCategoriesResult) {
+            return;
+        }
+
+        const expenseGroupId = this.expenseGroupId;
+        this.isCategoriesLoading = true;
+        this.categoryOptionsError = '';
+        try {
+            await refreshApex(this._wiredCategoriesResult);
+        } catch (error) {
+            if (expenseGroupId !== this.expenseGroupId) {
+                return;
+            }
+
+            this.categoryOptionsError = this.getErrorMessage(
+                error,
+                'Failed to load categories for this expense group.'
+            );
+            this.isCategoriesLoading = false;
         }
     }
 

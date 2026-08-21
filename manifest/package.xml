@@ -158,6 +158,7 @@
         <members>expenseTransforms</members>
         <members>expenseTrendChart</members>
         <members>expenseWorkspaceConfig</members>
+        <members>recurringExpenseModal</members>
         <members>recurringExpenses</members>
         <members>recurringExpenseTransforms</members>
         <members>recurringExpenseViewModel</members>

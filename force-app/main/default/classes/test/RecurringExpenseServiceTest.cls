@@ -152,6 +152,175 @@ private class RecurringExpenseServiceTest {
     }
 
     @IsTest
+    static void testGenerationLimitPersistsPointerAndDoesNotReplayExpenses() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
+            Date firstDueDate = Date.newInstance(2026, 5, 1);
+            Date runDate = Date.newInstance(2026, 5, 3);
+            Recurring_Expense__c recurringExpense = new Recurring_Expense__c(
+                Name = 'Daily Vitamins',
+                Active__c = true,
+                Amount__c = 100,
+                Category__c = category.Id,
+                Frequency__c = 'Daily',
+                Next_Run_Date__c = firstDueDate,
+                Start_Date__c = firstDueDate
+            );
+            insert recurringExpense;
+
+            RecurringExpenseGenerator.GenerationOptions firstOptions = new RecurringExpenseGenerator.GenerationOptions();
+            firstOptions.runDate = runDate;
+            firstOptions.maxExpenses = 2;
+            firstOptions.generatedTransactionTime = Time.newInstance(8, 0, 0, 0);
+
+            Test.startTest();
+            RecurringExpenseService.GenerationResult firstResult = RecurringExpenseGenerator.generate(
+                new List<Recurring_Expense__c>{ recurringExpense },
+                firstOptions
+            );
+            Recurring_Expense__c persistedAfterLimit = [
+                SELECT
+                    Id,
+                    Name,
+                    Active__c,
+                    Amount__c,
+                    Bank__c,
+                    Bank_Assignment__c,
+                    Category__c,
+                    Description__c,
+                    End_Date__c,
+                    Frequency__c,
+                    Next_Run_Date__c,
+                    Start_Date__c,
+                    Transaction_Type__c
+                FROM Recurring_Expense__c
+                WHERE Id = :recurringExpense.Id
+            ];
+            Date pointerAfterLimit = persistedAfterLimit.Next_Run_Date__c;
+
+            RecurringExpenseGenerator.GenerationOptions secondOptions = new RecurringExpenseGenerator.GenerationOptions();
+            secondOptions.runDate = runDate;
+            secondOptions.maxExpenses = 2;
+            secondOptions.generatedTransactionTime = Time.newInstance(9, 0, 0, 0);
+            RecurringExpenseService.GenerationResult secondResult = RecurringExpenseGenerator.generate(
+                new List<Recurring_Expense__c>{ persistedAfterLimit },
+                secondOptions
+            );
+            Test.stopTest();
+
+            System.assertEquals(true, firstResult.hitGenerationLimit, 'The first run should cap.');
+            System.assertEquals(
+                Date.newInstance(2026, 5, 3),
+                pointerAfterLimit,
+                'The capped run must persist the first ungenerated due date.'
+            );
+            System.assertEquals(
+                false,
+                secondResult.hitGenerationLimit,
+                'The follow-up run should finish the remaining occurrence.'
+            );
+            List<Expense__c> generatedExpenses = [
+                SELECT Expense_Date__c
+                FROM Expense__c
+                WHERE Recurring_Expense__c = :recurringExpense.Id
+                ORDER BY Expense_Date__c
+            ];
+            System.assertEquals(
+                3,
+                generatedExpenses.size(),
+                'Each due date should be generated once.'
+            );
+            System.assertEquals(
+                new List<Date>{
+                    Date.newInstance(2026, 5, 1),
+                    Date.newInstance(2026, 5, 2),
+                    Date.newInstance(2026, 5, 3)
+                },
+                new List<Date>{
+                    generatedExpenses[0].Expense_Date__c,
+                    generatedExpenses[1].Expense_Date__c,
+                    generatedExpenses[2].Expense_Date__c
+                },
+                'The follow-up run must not replay the first two dates.'
+            );
+            System.assertEquals(
+                Date.newInstance(2026, 5, 4),
+                [
+                    SELECT Next_Run_Date__c
+                    FROM Recurring_Expense__c
+                    WHERE Id = :recurringExpense.Id
+                ]
+                .Next_Run_Date__c,
+                'The completed follow-up run should advance past the cutoff.'
+            );
+        }
+    }
+
+    @IsTest
+    static void testGenerationUpdatesSystemManagedFieldsForRestrictedUser() {
+        User automationUser = createRestrictedAutomationUser();
+
+        System.runAs(automationUser) {
+            System.assertEquals(
+                false,
+                Expense__c.Recurring_Expense__c.getDescribe().isCreateable(),
+                'The generated recurring link should remain read-only to the initiating user.'
+            );
+
+            Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Automation Group');
+            insert expenseGroup;
+            Category__c category = new Category__c(
+                Name = 'Automation Category',
+                Expense_Group__c = expenseGroup.Id
+            );
+            insert category;
+
+            Date dueDate = Date.newInstance(2026, 7, 1);
+            Recurring_Expense__c recurringExpense = new Recurring_Expense__c(
+                Name = 'Automation Subscription',
+                Active__c = true,
+                Amount__c = 450,
+                Category__c = category.Id,
+                Frequency__c = 'Monthly',
+                Next_Run_Date__c = dueDate,
+                Start_Date__c = dueDate
+            );
+            insert recurringExpense;
+
+            Test.startTest();
+            RecurringExpenseService.GenerationResult result = RecurringExpenseService.generateDueExpenses(
+                dueDate
+            );
+            Test.stopTest();
+
+            System.assertEquals(
+                1,
+                result.expensesCreated,
+                'Automation should create the due expense for a restricted user.'
+            );
+            System.assertEquals(
+                dueDate.addMonths(1),
+                [
+                    SELECT Next_Run_Date__c
+                    FROM Recurring_Expense__c
+                    WHERE Id = :recurringExpense.Id
+                ]
+                .Next_Run_Date__c,
+                'Automation should advance the system-managed pointer.'
+            );
+            System.assertEquals(
+                1,
+                [
+                    SELECT COUNT()
+                    FROM Expense__c
+                    WHERE Recurring_Expense__c = :recurringExpense.Id
+                ],
+                'Automation should populate the read-only recurring link.'
+            );
+        }
+    }
+
+    @IsTest
     static void testGenerateDueExpensesRespectsEndDate() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
@@ -190,6 +359,58 @@ private class RecurringExpenseServiceTest {
                 Date.newInstance(2026, 2, 1),
                 updatedRecurringExpense.Next_Run_Date__c,
                 'Generation should stop at the first occurrence after the end date.'
+            );
+        }
+    }
+
+    @IsTest
+    static void testGenerateDueExpensesSkipsAlreadyEndedPointer() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
+            Date endDate = Date.newInstance(2026, 5, 1);
+            Date endedPointer = Date.newInstance(2026, 5, 2);
+            Recurring_Expense__c recurringExpense = new Recurring_Expense__c(
+                Name = 'Ended Gym',
+                Active__c = true,
+                Amount__c = 1200,
+                Category__c = category.Id,
+                End_Date__c = endDate,
+                Frequency__c = 'Daily',
+                Next_Run_Date__c = endedPointer,
+                Start_Date__c = endDate
+            );
+            insert recurringExpense;
+
+            Test.startTest();
+            RecurringExpenseService.GenerationResult result = RecurringExpenseService.generateDueExpenses(
+                Date.newInstance(2026, 5, 3)
+            );
+            Test.stopTest();
+
+            System.assertEquals(
+                0,
+                result.recurringExpensesProcessed,
+                'An already-ended pointer should be filtered before generation.'
+            );
+            System.assertEquals(
+                0,
+                result.expensesCreated,
+                'An already-ended pointer must not create an expense.'
+            );
+            System.assertEquals(
+                0,
+                [SELECT COUNT() FROM Expense__c WHERE Recurring_Expense__c = :recurringExpense.Id],
+                'No generated expense should be linked to the ended template.'
+            );
+            System.assertEquals(
+                endedPointer,
+                [
+                    SELECT Next_Run_Date__c
+                    FROM Recurring_Expense__c
+                    WHERE Id = :recurringExpense.Id
+                ]
+                .Next_Run_Date__c,
+                'Skipping the ended pointer should leave its stored pointer unchanged.'
             );
         }
     }
@@ -491,5 +712,95 @@ private class RecurringExpenseServiceTest {
                 'A null run date should throw a handled exception'
             );
         }
+    }
+
+    private static User createRestrictedAutomationUser() {
+        Id restrictedProfileId = findRestrictedProfileId();
+        String uniqueSuffix =
+            UserInfo.getOrganizationId() + String.valueOf(DateTime.now().getTime());
+        User automationUser = new User(
+            Alias = 'recurusr',
+            CommunityNickname = 'recurring' + uniqueSuffix.right(8),
+            Email = 'recurring.runner@example.test',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US',
+            LastName = 'Automation Runner',
+            LocaleSidKey = 'en_US',
+            ProfileId = restrictedProfileId,
+            TimeZoneSidKey = 'Asia/Manila',
+            Username = 'recurring.runner.' + uniqueSuffix + '@example.test'
+        );
+        insert automationUser;
+
+        PermissionSet adminPermissionSet = [
+            SELECT Id, NamespacePrefix
+            FROM PermissionSet
+            WHERE
+                Name = 'Budget_Expense_Manager_Admin'
+                AND (NamespacePrefix = 'bemgr'
+                OR NamespacePrefix = NULL)
+            ORDER BY NamespacePrefix DESC NULLS LAST
+            LIMIT 1
+        ];
+        insert new PermissionSetAssignment(
+            AssigneeId = automationUser.Id,
+            PermissionSetId = adminPermissionSet.Id
+        );
+        return automationUser;
+    }
+
+    private static Id findRestrictedProfileId() {
+        Id runningUserLicenseId = [
+            SELECT Profile.UserLicenseId
+            FROM User
+            WHERE Id = :UserInfo.getUserId()
+        ]
+        .Profile.UserLicenseId;
+        List<Profile> candidateProfiles = [
+            SELECT Id
+            FROM Profile
+            WHERE
+                UserLicenseId = :runningUserLicenseId
+                AND UserType = 'Standard'
+                AND PermissionsModifyAllData = FALSE
+            ORDER BY Name
+        ];
+        Set<Id> candidateProfileIds = new Map<Id, Profile>(candidateProfiles).keySet();
+        Map<Id, Id> profileIdByPermissionSetId = new Map<Id, Id>();
+        Set<String> generatedLinkFields = new Set<String>{
+            'Expense__c.Recurring_Expense__c',
+            'bemgr__Expense__c.bemgr__Recurring_Expense__c'
+        };
+
+        for (PermissionSet profilePermissionSet : [
+            SELECT Id, ProfileId
+            FROM PermissionSet
+            WHERE IsOwnedByProfile = TRUE AND ProfileId IN :candidateProfileIds
+        ]) {
+            profileIdByPermissionSetId.put(profilePermissionSet.Id, profilePermissionSet.ProfileId);
+        }
+
+        Set<Id> profilesWithGeneratedLinkAccess = new Set<Id>();
+        for (FieldPermissions fieldPermission : [
+            SELECT ParentId
+            FROM FieldPermissions
+            WHERE
+                ParentId IN :profileIdByPermissionSetId.keySet()
+                AND Field IN :generatedLinkFields
+                AND PermissionsEdit = TRUE
+        ]) {
+            profilesWithGeneratedLinkAccess.add(
+                profileIdByPermissionSetId.get(fieldPermission.ParentId)
+            );
+        }
+
+        for (Profile candidateProfile : candidateProfiles) {
+            if (!profilesWithGeneratedLinkAccess.contains(candidateProfile.Id)) {
+                return candidateProfile.Id;
+            }
+        }
+
+        System.assert(false, 'A restricted standard profile is required for this test');
+        return null;
     }
 }

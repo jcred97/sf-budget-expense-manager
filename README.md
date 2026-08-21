@@ -19,7 +19,7 @@ The project is being prepared as a second-generation managed package with the re
 - Review total spending, averages, leading categories and banks, recent expenses, and monthly trends.
 - Optionally set a monthly budget for an expense group and track spent, remaining, or over-budget amounts.
 - Add, edit, duplicate, delete, and bulk-delete expenses.
-- Create recurring-expense templates and generate due expenses through Batch Apex.
+- Add and edit recurring-expense templates in the workspace, then generate due expenses through Batch Apex.
 - Configure global recurring automation.
 - Export filtered expenses to CSV and open a print/PDF-friendly report.
 - Use responsive, accessible modal and workspace interactions built with Lightning and SLDS patterns.
@@ -57,6 +57,7 @@ All currency presentation is PHP-focused and centralized in `expenseFormatters`.
 - The Salesforce app navigation includes a standard **Budgets** tab for list-view and record-level administration.
 - `expenseList` and `expenseListViewModel` — filtered, grouped expense list and pagination.
 - `recurringExpenses` and `recurringExpenseViewModel` — recurring-template presentation and summaries.
+- `recurringExpenseModal` — accessible Add/Edit workflow with group-scoped Category and Bank choices and a system-managed next-run pointer.
 - `expenseModal` — add, edit, and duplicate workflow.
 - `budgetExpenseSettings` — global recurring-automation controls.
 - `expenseBarChart`, `expenseTrendChart`, and `expenseSummaryCards` — reusable visualization components.
@@ -98,7 +99,6 @@ sf-budget-expense-manager/
 |  |- permissionsets/
 |  |- tabs/
 |  `- triggers/
-|- scripts/migration/
 |- package.json
 `- sfdx-project.json
 ```
@@ -136,4 +136,4 @@ Jest tooling is configured through `@salesforce/sfdx-lwc-jest`, but no LWC Jest 
 
 The unpackaged API rebrand and its approved legacy cleanup are deployed to `mainDevOrg`. The existing expense-group, category, expense, and recurring-template APIs were deliberately left unchanged, so their records and IDs remain in place. The settings record, all-access assignment, and recurring schedule were mapped to the rebranded identities and verified.
 
-No live Spendly-named metadata remains after cleanup deployment `0AfgK00000QSI4fSAH`. The old settings row was exported first, the legacy custom object was not purged, and post-cleanup reconciliation retained 3 expense groups, 18 categories, 11 recurring templates, 504 expenses, and 23 recurring links. See `agent-docs/api-rebrand.md`, `manifest/legacy-spendly-destructive.xml`, and `scripts/migration/` for the rename matrix, deployment evidence, rollback path, and verification tooling. The rebrand is committed and pushed as `50e1eeb`, and the GitHub repository and local checkout now use `sf-budget-expense-manager`; managed-package creation remains pending.
+No live Spendly-named metadata remains after cleanup deployment `0AfgK00000QSI4fSAH`. The old settings row was exported first, the legacy custom object was not purged, and post-cleanup reconciliation retained 3 expense groups, 18 categories, 11 recurring templates, 504 expenses, and 23 recurring links. See `agent-docs/api-rebrand.md` and `manifest/legacy-spendly-destructive.xml` for the rename matrix, deployment evidence, and cleanup boundary. The one-off migration scripts were removed after the verified cutovers. The rebrand is committed and pushed as `50e1eeb`, and the GitHub repository and local checkout now use `sf-budget-expense-manager`; managed-package creation remains pending.

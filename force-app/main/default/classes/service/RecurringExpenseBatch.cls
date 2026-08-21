@@ -58,7 +58,20 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
     public void execute(Database.BatchableContext context, List<SObject> scope) {
         List<Recurring_Expense__c> recurringExpenses = new List<Recurring_Expense__c>();
         for (SObject item : scope) {
-            recurringExpenses.add((Recurring_Expense__c) item);
+            Recurring_Expense__c recurringExpense = (Recurring_Expense__c) item;
+            if (
+                RecurringExpenseCalculator.shouldGenerateForDate(
+                    recurringExpense,
+                    recurringExpense.Next_Run_Date__c,
+                    runDate
+                )
+            ) {
+                recurringExpenses.add(recurringExpense);
+            }
+        }
+
+        if (recurringExpenses.isEmpty()) {
+            return;
         }
 
         RecurringExpenseService.GenerationResult result = RecurringExpenseService.generateDueExpenses(

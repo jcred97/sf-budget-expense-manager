@@ -29,6 +29,7 @@ Covered behavior includes:
 - recurring expense batch generation for more than the manual run cap, default construction, and null run-date validation
 - recurring expense next-run-date calculation for daily, weekly, monthly, and yearly frequencies
 - recurring expense generation, catch-up behavior, end dates, inactive records, future records, manual batch start, and null run-date validation
+- recurring generation under a restricted automation user while the generated link and next-run pointer remain read-only through FLS
 - scheduled recurring expense generation
 - Budget & Expense Manager Settings default creation, updates, singleton protection, and recurring run status tracking
 
@@ -38,7 +39,7 @@ LWC tests use `@salesforce/sfdx-lwc-jest`, but no LWC Jest tests are currently c
 
 ## Record-Based Bank Workstream
 
-The additive Bank work introduces `Bank__c`, `Expense_Group_Bank__c`, the optional `Bank_Assignment__c` lookups, `BankController`, `ExpenseGroupBankOptionDto`, `BankService`, `BankAssignmentValidator`, Bank/assignment/Expense trigger handlers and triggers, four focused Bank test classes, and migration scripts 6-7. The legacy `Bank__c` picklists and `Bank` global value set remain in source during the compatibility window.
+The additive Bank work introduces `Bank__c`, `Expense_Group_Bank__c`, the optional `Bank_Assignment__c` lookups, `BankController`, `ExpenseGroupBankOptionDto`, `BankService`, `BankAssignmentValidator`, Bank/assignment/Expense trigger handlers and triggers, and four focused Bank test classes. The legacy `Bank__c` picklists and `Bank` global value set remain in source during the compatibility window. The verified one-off migration scripts were removed from the app repository afterward.
 
 Local validation completed on 2026-08-19:
 
@@ -57,10 +58,26 @@ Org validation and deployment completed on 2026-08-19:
 - Deployment `0AfgK00000Qun3uSAB` released the same 51 components to `mainDevOrg` and passed the same 58 tests with zero errors or coverage warnings.
 - The recurring schedule was restored as job `08egK00000cGpiDQAS`, `WAITING`, with cron `0 0 8 * * ?`, timezone `Asia/Manila`, owner `005gK000034mODtQAM`, and next fire `2026-08-20T00:00:00.000+0000`.
 - The pre-migration baseline found 505 Expenses totaling PHP 1,667,469.07 and 11 Recurring Expenses totaling PHP 16,871.00. Of those, 483 Expenses and 8 Recurring Expenses retained legacy Bank values; no lookup was populated and both new Bank objects were empty.
-- The first script compile attempts stopped before DML. They exposed an invalid describe chain and then anonymous-Apex visibility of the intentionally hidden generated-key fields. Check-only deployment `0AfgK00000Qux87SAB` confirmed both fields already existed unchanged, so no corrective deployment was needed. Scripts 6-7 were corrected to identify records through normalized visible Bank names and Expense Group/Bank relationships while the deployed triggers remain the sole owners of hidden keys.
-- `06_migrate_banks.apex` completed successfully: 5 active Banks were inserted, 15 active assignments established the complete 3-group-by-5-Bank matrix, 483 Expenses were backfilled, and 8 Recurring Expenses were backfilled. Legacy picklists were unchanged.
-- Read-only `07_verify_bank_migration.apex` passed with 5 active Banks, 15 active assignments, and zero Expense or Recurring Expense mismatches. Post-migration counts and amount totals exactly matched the baseline; all 483 legacy-banked Expenses and all 8 legacy-banked Recurring Expenses now have assignments.
+- The first one-off tooling compile attempts stopped before DML. They exposed an invalid describe chain and then anonymous-Apex visibility of the intentionally hidden generated-key fields. Check-only deployment `0AfgK00000Qux87SAB` confirmed both fields already existed unchanged, so no corrective deployment was needed. The migration and verification tooling was corrected to identify records through normalized visible Bank names and Expense Group/Bank relationships while the deployed triggers remain the sole owners of hidden keys.
+- The one-off Bank migration completed successfully: 5 active Banks were inserted, 15 active assignments established the complete 3-group-by-5-Bank matrix, 483 Expenses were backfilled, and 8 Recurring Expenses were backfilled. Legacy picklists were unchanged.
+- Read-only post-migration verification passed with 5 active Banks, 15 active assignments, and zero Expense or Recurring Expense mismatches. Post-migration counts and amount totals exactly matched the baseline; all 483 legacy-banked Expenses and all 8 legacy-banked Recurring Expenses now have assignments.
 - The scheduler remains `WAITING` as job `08egK00000cGpiDQAS` with its original 08:00 Asia/Manila schedule. Signed-in smoke testing remains pending.
+
+## Custom Recurring Editor Workstream
+
+The follow-up adds the non-exposed `recurringExpenseModal`, replaces workspace Add/Edit navigation with an LDS form, refreshes group-scoped Category and Bank choices, and preserves legacy or inactive Bank history. It also enforces the recurring date window, prevents capped generation from replaying expenses, and keeps already-ended pointers out of due status and generation.
+
+Local validation completed on 2026-08-21:
+
+- Targeted Prettier, `npm run lint`, and `git diff --check`: passed.
+- Salesforce Code Analyzer `eslint:Recommended`, `pmd:Recommended`, and `sfge:Recommended`: 0 findings. The `eslint:Recommended --no-suppressions` audit retained exactly 145 established Low CSS exceptions across nine unchanged files, with no High or Moderate findings.
+- Changed XML parsing, exact manifest/source inventory with 20 LWC bundles, and Salesforce source-to-Metadata-API conversion: passed.
+- No LWC Jest tests were added or run, as requested.
+- Initial focused check-only deployment `0AfgK00000R9SOvSAN` compiled all 12 components and ran 51 tests. Three test-fixture failures exposed omitted direct-handler fields and an org-profile assumption; no metadata changed. The fixtures were corrected locally, reformatted, and rescanned with 0 PMD findings.
+- Final focused check-only deployment `0AfgK00000R8yNfSAJ` compiled all 12 components and passed all 51 specified tests with zero errors or coverage warnings.
+- Deployment `0AfgK00000R9RZKSA3` released the same 12 components and passed the same 51 tests with zero errors or coverage warnings.
+- The recurring schedule was restored as the only active job, `08egK00000cZuPiQAK`, in `WAITING` state with cron `0 0 8 * * ?`, timezone `Asia/Manila`, owner `005gK000034mODtQAM`, and next fire `2026-08-22T08:00:00+08:00`.
+- Signed-in smoke testing, commit, and push remain pending.
 
 The LWC readability refactor and lifecycle cleanup follow-up were validated on 2026-08-19 with:
 
@@ -141,7 +158,7 @@ Run the same command without `--dry-run` only after the validation succeeds. His
 
 The recurring expense generator uses `Next_Run_Date__c` as its continuation pointer.
 
-Same-org unpackaged migration and verification scripts live in `scripts/migration/`. They are intentionally separate from the future unpackaged-to-`bemgr` managed-package data migration.
+The completed same-org migration scripts were intentionally removed from this app repository after verification. A future unpackaged-to-`bemgr` managed-package data migration is a separate workstream and must use separately reviewed tooling and rollback artifacts.
 
 ## Currency
 

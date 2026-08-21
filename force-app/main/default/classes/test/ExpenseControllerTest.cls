@@ -407,6 +407,54 @@ private class ExpenseControllerTest {
     }
 
     @IsTest
+    static void testRecurringOverviewDoesNotMarkEndedScheduleDue() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Category__c category = [
+                SELECT Id, Expense_Group__c
+                FROM Category__c
+                WHERE Name = 'Groceries'
+                LIMIT 1
+            ];
+            Date startDate = Date.today().addDays(-2);
+            insert new Recurring_Expense__c(
+                Name = 'Ended Daily Groceries',
+                Active__c = true,
+                Amount__c = 25,
+                Category__c = category.Id,
+                End_Date__c = Date.today().addDays(-1),
+                Frequency__c = 'Daily',
+                Next_Run_Date__c = Date.today(),
+                Start_Date__c = startDate
+            );
+
+            Test.startTest();
+            ExpenseController.RecurringExpenseOverview result = ExpenseController.getRecurringExpenseOverview(
+                category.Expense_Group__c
+            );
+            Test.stopTest();
+
+            ExpenseController.RecurringExpenseRow endedRow;
+            for (ExpenseController.RecurringExpenseRow row : result.rows) {
+                if (row.name == 'Ended Daily Groceries') {
+                    endedRow = row;
+                    break;
+                }
+            }
+            System.assertNotEquals(null, endedRow, 'The ended template should remain visible.');
+            System.assertEquals(
+                false,
+                endedRow.dueToday,
+                'A next run after the End Date must not be reported as due.'
+            );
+            System.assertEquals(
+                1,
+                result.dueTodayCount,
+                'The ended template must not increase the existing due count.'
+            );
+        }
+    }
+
+    @IsTest
     static void testGetRecurringExpenseOverviewByExpenseGroup() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Expense_Group__c food = [SELECT Id FROM Expense_Group__c WHERE Name = 'Food' LIMIT 1];

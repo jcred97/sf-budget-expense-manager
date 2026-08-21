@@ -22,7 +22,7 @@ The repository-identity workstream is complete. The API rebrand and approved leg
 5. Renamed the checkout from `F:\Salesforce\Personal\sf-spendly` to `F:\Salesforce\Personal\sf-budget-expense-manager` and reopened the workspace there.
 6. Verified the repository root, active branch, upstream, remote URLs, clean post-rename worktree, and retained Git history.
 
-The Git-ignored settings rollback backup remains under `scripts/migration/backups/legacy-spendly-2026-08-15/`. Do not remove it until the user explicitly ends the rollback-retention period.
+The settings rollback backup and one-off migration scripts were intentionally removed from this app repository after the verified cutovers. Future migrations must create separately retained, Git-ignored rollback artifacts rather than restoring historical scripts here.
 
 ## Clarifications
 

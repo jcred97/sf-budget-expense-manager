@@ -6,7 +6,7 @@ public with sharing class BankController {
      * @param expenseGroupId Expense Group whose available Banks should be returned.
      * @return Available Bank options ordered by global Bank name.
      */
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled
     public static List<ExpenseGroupBankOptionDto> getAvailableExpenseGroupBanks(Id expenseGroupId) {
         return BankService.getAvailableExpenseGroupBanks(expenseGroupId);
     }

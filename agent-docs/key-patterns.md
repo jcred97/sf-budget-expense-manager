@@ -43,8 +43,10 @@ path so both views stay on the same selected month.
 
 ## Date Validation
 
-`validateDates()` prevents invalid date ranges by showing an inline error when
-`startDate` is later than `endDate`.
+`validateDates()` prevents invalid expense-filter ranges by showing an inline error when
+`startDate` is later than `endDate`. The recurring editor mirrors the same ordering check
+for template Start and End dates before its LDS submission; the recurring trigger remains
+the database-level authority for records saved through other entry points.
 
 ## Default Date Range
 
@@ -77,7 +79,7 @@ expense row display labels, such as `No bank` for blank bank values.
 
 The compatibility read order is assignment Bank name first, then the temporary legacy `Bank__c` picklist. Editing preserves an existing inactive assignment so historical data remains editable; Add and Duplicate do not offer inactive choices. Server validation, rather than the optional lookup filter, enforces that the assignment belongs to the Category's Expense Group and that newly chosen assignments are active. Assignment Bank identity is immutable after creation because changing it would relabel every historical record that references that junction row.
 
-Standard layouts show the new Bank lookup plus the legacy value read-only during migration. The assignment Name is an auto-number, so custom application selectors must present `Bank__r.Name`; complete removal of the legacy field from standard Recurring edit waits for a later custom recurring editor or equivalent signed-in UX verification.
+Standard layouts show the new Bank lookup plus the legacy value read-only during migration. The assignment Name is an auto-number, so the Expense and Recurring workspace dialogs present `Bank__r.Name` through group-scoped comboboxes. The standard Recurring record page remains available through the record-name link and object tab, so the legacy field cannot be destructively removed until that compatibility boundary is separately approved and verified.
 
 ## Charts
 
@@ -162,6 +164,22 @@ monthly estimate. Manual generation calls
 a single-record Apex update. Generation automation uses Batch Apex so more than
 100 due templates can be processed without hitting per-transaction governor
 limits.
+
+Generation catches up from `Next_Run_Date__c` through the run date and stops at
+`End_Date__c`. Reaching the transaction cap persists the first ungenerated date so a
+later run resumes without replay. A template whose pointer is already after its End
+Date remains visible but is not due or processed, and the recurring trigger rejects
+an End Date before the Start Date. Reactivation and frequency edits continue to
+preserve an already-advanced pointer.
+
+The Recurring header opens `recurringExpenseModal` for Add, and row-menu Edit opens the
+same dialog instead of a new browser tab. The dialog uses `lightning-record-edit-form`
+for CRUD/FLS-aware saves and UI API `getRecord` for the current Category, Bank assignment,
+legacy Bank, active state, and read-only Next Run Date. Category and Bank choices are
+refreshed from the current Expense Group whenever the dialog opens. An untouched legacy
+or inactive Bank remains available for historical edits; an explicit Bank/No bank change
+updates the assignment and clears the legacy field. The standard record-name link remains
+an intentional View path outside this workspace-only editor.
 
 ## Budget & Expense Manager Settings
 

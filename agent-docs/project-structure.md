@@ -18,17 +18,6 @@ sf-budget-expense-manager/
     legacy-spendly-destructive.xml
     package.xml
     rebrand-deploy.xml
-  scripts/
-    migration/
-      README.md
-      01_copy_settings.apex
-      02_cutover_scheduler.apex
-      03_verify_rebrand.apex
-      04_smoke_read_endpoints.apex
-      05_verify_post_cleanup.apex
-      06_migrate_banks.apex
-      07_verify_bank_migration.apex
-      backups/ (Git-ignored rollback exports)
   force-app/main/default/
     applications/
       Budget_Expense_Manager.app-meta.xml
@@ -106,6 +95,7 @@ sf-budget-expense-manager/
       expenseTransforms/
       expenseTrendChart/
       expenseWorkspaceConfig/
+      recurringExpenseModal/
       recurringExpenses/
       recurringExpenseTransforms/
       recurringExpenseViewModel/
