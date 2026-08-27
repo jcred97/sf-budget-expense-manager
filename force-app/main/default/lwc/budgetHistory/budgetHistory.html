@@ -1,0 +1,63 @@
+<template>
+    <section class="budget-history-panel slds-box slds-theme_default">
+        <div class="slds-media slds-media_center slds-var-m-bottom_small">
+            <div class="slds-media__figure">
+                <lightning-icon
+                    icon-name="utility:chart"
+                    size="small"
+                    alternative-text="Budget history"
+                ></lightning-icon>
+            </div>
+            <div class="slds-media__body">
+                <h3 class="slds-text-heading_small">Budget history</h3>
+            </div>
+        </div>
+        <p class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_small">
+            Budget versus spending for the last six months
+        </p>
+
+        <template lwc:if={hasRows}>
+            <div class="slds-scrollable_x">
+                <table class="slds-table slds-table_cell-buffer slds-table_bordered">
+                    <caption class="slds-assistive-text">
+                        Monthly budget, spending, variance, and percentage used
+                    </caption>
+                    <thead>
+                        <tr class="slds-line-height_reset">
+                            <th scope="col"><span>Month</span></th>
+                            <th scope="col"><span>Budget</span></th>
+                            <th scope="col"><span>Spent</span></th>
+                            <th scope="col"><span>Variance</span></th>
+                            <th scope="col"><span>Usage</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={historyData} for:item="month">
+                            <tr key={month.key}>
+                                <th scope="row">{month.monthLabel}</th>
+                                <td>{month.budgetDisplay}</td>
+                                <td>{month.spentDisplay}</td>
+                                <td class={month.varianceClass}>{month.varianceDisplay}</td>
+                                <td>
+                                    <template lwc:if={month.hasBudget}>
+                                        <lightning-progress-bar
+                                            value={month.progressValue}
+                                            size="small"
+                                            aria-label={month.percentageLabel}
+                                        ></lightning-progress-bar>
+                                    </template>
+                                    <span class="slds-text-body_small"
+                                        >{month.percentageLabel}</span
+                                    >
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+        <template lwc:else>
+            <p>No budget history is available.</p>
+        </template>
+    </section>
+</template>

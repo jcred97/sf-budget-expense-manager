@@ -95,6 +95,7 @@ sf-budget-expense-manager/
       Budget_Expense_Manager_Setting__c-Budget & Expense Manager Settings Layout.layout-meta.xml
     lwc/
       budgetExpenseManager/
+      budgetHistory/
       budgetModal/
       budgetPanel/
       budgetExpenseSettings/

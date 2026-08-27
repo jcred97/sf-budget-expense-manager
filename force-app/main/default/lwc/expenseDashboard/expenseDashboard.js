@@ -5,6 +5,7 @@ export default class ExpenseDashboard extends LightningElement {
         summaryCards: [],
         categoryChartData: [],
         monthlyTrendData: [],
+        budgetHistoryData: [],
         bankChartData: [],
         recentRows: [],
         insights: [],
@@ -26,5 +27,9 @@ export default class ExpenseDashboard extends LightningElement {
 
     handleRetryDashboard() {
         this.dispatchEvent(new CustomEvent('retrydashboard'));
+    }
+
+    handleBudgetChange() {
+        this.dispatchEvent(new CustomEvent('budgetchange'));
     }
 }

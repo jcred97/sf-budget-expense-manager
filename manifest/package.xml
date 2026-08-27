@@ -156,6 +156,7 @@
     <types>
         <members>budgetExpenseManager</members>
         <members>budgetExpenseSettings</members>
+        <members>budgetHistory</members>
         <members>budgetModal</members>
         <members>budgetPanel</members>
         <members>expenseBarChart</members>

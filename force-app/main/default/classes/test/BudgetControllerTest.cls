@@ -107,6 +107,60 @@ private class BudgetControllerTest {
     }
 
     @IsTest
+    static void testBudgetHistoryIsBoundedSortedAndGroupScoped() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Expense_Group__c household = getExpenseGroup('Household');
+            Expense_Group__c travel = getExpenseGroup('Travel');
+            BudgetController.saveMonthlyBudget(
+                buildRequest(household.Id, Date.newInstance(2026, 2, 12), 2000)
+            );
+            BudgetController.saveMonthlyBudget(
+                buildRequest(household.Id, Date.newInstance(2026, 8, 31), 8000)
+            );
+            BudgetController.saveMonthlyBudget(
+                buildRequest(household.Id, Date.newInstance(2026, 3, 15), 3000)
+            );
+            BudgetController.saveMonthlyBudget(
+                buildRequest(travel.Id, Date.newInstance(2026, 7, 10), 7000)
+            );
+
+            Test.startTest();
+            List<BudgetDto> history = BudgetController.getBudgetHistory(household.Id, AUGUST_DATE);
+            Test.stopTest();
+
+            System.assertEquals(
+                2,
+                history.size(),
+                'Only budgets from March through August qualify.'
+            );
+            System.assertEquals(
+                Date.newInstance(2026, 3, 1),
+                history[0].budgetMonth,
+                'History should be ordered from oldest to newest.'
+            );
+            System.assertEquals(
+                Date.newInstance(2026, 8, 1),
+                history[1].budgetMonth,
+                'The ending calendar month should be included.'
+            );
+            System.assertEquals(
+                household.Id,
+                history[0].expenseGroupId,
+                'Budgets from another expense group must not be returned.'
+            );
+        }
+    }
+
+    @IsTest
+    static void testBudgetHistoryValidation() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Expense_Group__c household = getExpenseGroup('Household');
+            assertHistoryFails(null, AUGUST_DATE, 'Expense Group Id is required.');
+            assertHistoryFails(household.Id, null, 'Budget month is required.');
+        }
+    }
+
+    @IsTest
     static void testSaveWithoutIdUsesMonthlyUpsertSemantics() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Expense_Group__c household = getExpenseGroup('Household');
@@ -294,6 +348,23 @@ private class BudgetControllerTest {
                 expectedMessage,
                 e.getMessage(),
                 'Unexpected delete validation error.'
+            );
+        }
+    }
+
+    private static void assertHistoryFails(
+        Id expenseGroupId,
+        Date endMonth,
+        String expectedMessage
+    ) {
+        try {
+            BudgetController.getBudgetHistory(expenseGroupId, endMonth);
+            System.assert(false, 'Expected the budget history request to fail.');
+        } catch (AuraHandledException e) {
+            System.assertEquals(
+                expectedMessage,
+                e.getMessage(),
+                'Unexpected budget history validation error.'
             );
         }
     }

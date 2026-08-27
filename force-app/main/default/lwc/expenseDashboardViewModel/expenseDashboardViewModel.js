@@ -27,6 +27,7 @@ const MONTH_NAMES = [
 export function buildDashboardViewModel({
     rows = [],
     trend = [],
+    budgets = [],
     endDate,
     expenseGroupId,
     budgetMonth,
@@ -75,6 +76,7 @@ export function buildDashboardViewModel({
         }),
         categoryChartData: buildCategoryChartData(rows),
         monthlyTrendData: buildMonthlyTrendData(trend, endDate),
+        budgetHistoryData: buildBudgetHistoryData(trend, budgets, endDate),
         bankChartData: buildBankChartData(rows),
         recentRows: rows.slice(0, 5).map(row => ({
             ...row,
@@ -167,10 +169,7 @@ function buildBankChartData(rows) {
 
 function buildMonthlyTrendData(trend, endDate) {
     const end = parseDateString(endDate) || new Date();
-    const last6Months = Array.from({ length: 6 }, (_, index) => {
-        const date = new Date(end.getFullYear(), end.getMonth() - (5 - index), 1);
-        return { year: date.getFullYear(), monthNum: date.getMonth() + 1 };
-    });
+    const last6Months = buildLast6Months(end);
     const totalsByMonth = Object.fromEntries(
         trend.map(month => [`${month.year}-${month.monthNum}`, month.total || 0])
     );
@@ -186,6 +185,74 @@ function buildMonthlyTrendData(trend, endDate) {
         barStyle: `--vbar-color:${CHART_COLORS[0]};--vbar-height:${totals[index] > 0 ? Math.max(10, Math.round((totals[index] / max) * 110)) : 2}px`,
         hasValue: totals[index] > 0
     }));
+}
+
+function buildBudgetHistoryData(trend, budgets, endDate) {
+    const end = parseDateString(endDate) || new Date();
+    const totalsByMonth = Object.fromEntries(
+        trend.map(month => [`${month.year}-${month.monthNum}`, Number(month.total) || 0])
+    );
+    const budgetsByMonth = Object.fromEntries(
+        budgets.map(budget => {
+            const month = parseDateString(budget.budgetMonth);
+            return [`${month.getFullYear()}-${month.getMonth() + 1}`, budget];
+        })
+    );
+
+    return buildLast6Months(end)
+        .reverse()
+        .map(month => {
+            const monthKey = `${month.year}-${month.monthNum}`;
+            const budget = budgetsByMonth[monthKey];
+            const hasBudget = Boolean(budget);
+            const budgetAmount = Number(budget?.amount) || 0;
+            const spentAmount = totalsByMonth[monthKey] || 0;
+            const varianceAmount = budgetAmount - spentAmount;
+            const isOverBudget = hasBudget && varianceAmount < 0;
+            const percentageUsed = budgetAmount > 0 ? (spentAmount / budgetAmount) * 100 : 0;
+
+            return {
+                key: `budget-history-${monthKey}`,
+                monthLabel: `${MONTH_NAMES[month.monthNum - 1]} ${month.year}`,
+                hasBudget,
+                budgetDisplay: hasBudget ? formatPHP(budgetAmount) : 'No budget',
+                spentDisplay: formatPHP(spentAmount),
+                varianceDisplay: getVarianceDisplay(hasBudget, varianceAmount),
+                varianceClass: isOverBudget
+                    ? 'slds-text-color_error'
+                    : hasBudget
+                      ? 'slds-text-color_success'
+                      : 'slds-text-color_weak',
+                percentageLabel: hasBudget
+                    ? `${formatPercentage(percentageUsed)}% used`
+                    : 'Not set',
+                progressValue: Math.min(100, Math.max(0, percentageUsed))
+            };
+        });
+}
+
+function buildLast6Months(end) {
+    return Array.from({ length: 6 }, (_, index) => {
+        const date = new Date(end.getFullYear(), end.getMonth() - (5 - index), 1);
+        return { year: date.getFullYear(), monthNum: date.getMonth() + 1 };
+    });
+}
+
+function getVarianceDisplay(hasBudget, varianceAmount) {
+    if (!hasBudget) {
+        return 'Not applicable';
+    }
+    if (varianceAmount < 0) {
+        return `${formatPHP(Math.abs(varianceAmount))} over`;
+    }
+    if (varianceAmount === 0) {
+        return 'On budget';
+    }
+    return `${formatPHP(varianceAmount)} remaining`;
+}
+
+function formatPercentage(value) {
+    return new Intl.NumberFormat('en-PH', { maximumFractionDigits: 2 }).format(value);
 }
 
 function getLargestExpense(rows) {

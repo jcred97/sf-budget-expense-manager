@@ -78,6 +78,8 @@ expense row display labels, such as `No bank` for blank bank values.
 
 `budgetPanel` owns the budget wire, mutation state, retry handling, confirmation, and toasts. It receives the selected expense group, the Dashboard month, and that month's total spending from `expenseDashboard`. It displays budget, spent, remaining or over-budget amount, percentage used, and a capped visual progress value while retaining the exact uncapped percentage label. `budgetModal` owns positive PHP amount validation, the optional description, initial focus, Escape handling, and local Tab focus trapping.
 
+The Dashboard also requests a bounded six-month budget history alongside its existing monthly expense trend. `expenseDashboardViewModel` joins both sources by calendar month, and `budgetHistory` renders Budget, Spent, Variance, and Usage without treating an absent budget as zero. Successful budget mutations emit an explicit change event so the comparison refreshes immediately.
+
 ## Record-Based Banks
 
 `Bank__c` is the global catalog; `Expense_Group_Bank__c` assigns reusable Banks to Expense Groups. New selectors query only active assignments whose global Bank is also active. Expense and recurring records store `Bank_Assignment__c`, while row transformation keeps one canonical `bank` display value so search, charts, summaries, print, and CSV do not need separate migration logic.

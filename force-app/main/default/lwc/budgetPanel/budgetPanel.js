@@ -136,6 +136,7 @@ export default class BudgetPanel extends LightningElement {
                 `Budget set for ${mutationContext.monthLabel}.`,
                 'success'
             );
+            this.notifyBudgetChange(mutationContext);
         } catch (error) {
             this.showToast(
                 'Unable to save budget',
@@ -177,6 +178,7 @@ export default class BudgetPanel extends LightningElement {
                 `Budget removed for ${mutationContext.monthLabel}.`,
                 'success'
             );
+            this.notifyBudgetChange(mutationContext);
         } catch (error) {
             if (this.isCurrentMutationContext(mutationContext)) {
                 restoreFocusSelector = '[data-budget-remove]';
@@ -356,6 +358,12 @@ export default class BudgetPanel extends LightningElement {
     normalizeAmount(value) {
         const amount = Number(value);
         return Number.isFinite(amount) ? amount : 0;
+    }
+
+    notifyBudgetChange(mutationContext) {
+        if (this.isCurrentMutationContext(mutationContext)) {
+            this.dispatchEvent(new CustomEvent('budgetchange'));
+        }
     }
 
     showToast(title, message, variant) {

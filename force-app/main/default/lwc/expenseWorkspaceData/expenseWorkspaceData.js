@@ -1,4 +1,5 @@
 import getAvailableExpenseGroupBanks from '@salesforce/apex/BankController.getAvailableExpenseGroupBanks';
+import getBudgetHistory from '@salesforce/apex/BudgetController.getBudgetHistory';
 import getExpensesByFilters from '@salesforce/apex/ExpenseController.getExpensesByFilters';
 import getMonthlyTrend from '@salesforce/apex/ExpenseController.getMonthlyTrend';
 
@@ -30,14 +31,16 @@ export async function fetchDashboardData({ expenseGroupId, startDate, endDate })
         ...filters,
         startDate: formatDateISO(trendStartDate)
     };
-    const [rows, trend] = await Promise.all([
+    const [rows, trend, budgets] = await Promise.all([
         getExpensesByFilters({ filters }),
-        getMonthlyTrend({ filters: trendFilters })
+        getMonthlyTrend({ filters: trendFilters }),
+        getBudgetHistory({ expenseGroupId, endMonth: endDate })
     ]);
 
     return {
         rows: rows.map(mapExpenseRow),
-        trend: trend || []
+        trend: trend || [],
+        budgets: budgets || []
     };
 }
 

@@ -106,6 +106,7 @@ entry points live under `classes/async` without changing their Salesforce metada
 - `BankController.getAvailableExpenseGroupBanks(expenseGroupId)` - non-cacheable, returns fresh active global Banks assigned to the requested accessible Expense Group; modal loads are request-guarded to ignore stale responses.
 - `BankService` - owns user-mode group-scoped Bank assignment lookup and option mapping.
 - `BudgetController.getMonthlyBudget(expenseGroupId, budgetMonth)` - cacheable, normalizes the month and returns the optional group budget or `null`.
+- `BudgetController.getBudgetHistory(expenseGroupId, endMonth)` - cacheable, returns the accessible budgets in the bounded six-month window ending in the requested month.
 - `BudgetController.saveMonthlyBudget(request)` - creates or updates the single budget for a group/month using user-mode DML.
 - `BudgetController.deleteMonthlyBudget(budgetId)` - removes the accessible budget record without affecting expenses.
 - `BudgetService` - owns user-mode budget queries, validation, mutations, lookup normalization, and Lightning-safe responses; `BudgetSaveRequest` is data-only.

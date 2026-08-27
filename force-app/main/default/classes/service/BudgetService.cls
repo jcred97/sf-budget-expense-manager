@@ -22,6 +22,35 @@ public inherited sharing class BudgetService {
     }
 
     /**
+     * Returns the optional budgets in a bounded six-month reporting window.
+     *
+     * @param expenseGroupId Expense group that owns the budgets.
+     * @param endMonth Any date in the final calendar month of the window.
+     * @return Accessible budgets ordered from oldest to newest month.
+     */
+    public static List<BudgetDto> getBudgetHistory(Id expenseGroupId, Date endMonth) {
+        requireExpenseGroupId(expenseGroupId);
+        Date normalizedEndMonth = normalizeBudgetMonth(endMonth);
+        Date startMonth = normalizedEndMonth.addMonths(-5);
+        List<BudgetDto> history = new List<BudgetDto>();
+
+        for (Budget__c budget : [
+            SELECT Id, Expense_Group__c, Budget_Month__c, Amount__c, Description__c
+            FROM Budget__c
+            WHERE
+                Expense_Group__c = :expenseGroupId
+                AND Budget_Month__c >= :startMonth
+                AND Budget_Month__c <= :normalizedEndMonth
+            WITH USER_MODE
+            ORDER BY Budget_Month__c ASC
+            LIMIT 6
+        ]) {
+            history.add(new BudgetDto(budget));
+        }
+        return history;
+    }
+
+    /**
      * Creates or updates a monthly budget after validating its owning context.
      *
      * @param request Budget values to persist.

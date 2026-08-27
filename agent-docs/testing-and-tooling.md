@@ -55,6 +55,21 @@ Local validation completed on 2026-08-21:
 - LWC-only check-only deployment `0AfgK00000RBEBOSA5` compiled all 12 affected bundles and 51 files successfully with `NoTestRun`.
 - Deployment `0AfgK00000RBLRNSA5` released the same 12 bundles and 51 files to `mainDevOrg` with zero component errors. Signed-in smoke testing, commit, and push remain pending; no Jest tests were added or run.
 
+## Budget History Workstream
+
+The Dashboard now joins the existing six-month spending trend with optional monthly budget records and presents Budget, Spent, Variance, and Usage without treating an absent budget as zero.
+
+Validation and deployment completed on 2026-08-22:
+
+- Targeted Prettier, `npm run lint`, manifest parsing, `git diff --check`, and Salesforce Code Analyzer `eslint:Recommended`, `pmd:Recommended`, and `sfge:Recommended`: passed with no findings.
+- Check-only deployment `0AfgK00000REwNxSAL` compiled all 9 components and passed all 8 `BudgetControllerTest` methods with zero component, test, or coverage warnings.
+- Deployment `0AfgK00000REtJeSAL` released the same 9 components to `mainDevOrg` and passed the same 8 tests. `BudgetController` reported 100% coverage and `BudgetService` reported 94.74% coverage.
+- The visual follow-up replaced the two Lightning cards with the Dashboard's standard bordered SLDS boxes, restored explicit spacing above history, and orders history newest-first. LWC-only validation `0AfgK00000RFBYHSA5` and deployment `0AfgK00000RFBgLSAX` each compiled all 4 affected bundles successfully with `NoTestRun`.
+- The final radius alignment uses the same `--slds-g-radius-border-1` token as the summary and chart panels. Code Analyzer reported zero findings; validation `0AfgK00000RF7T4SAL` and deployment `0AfgK00000RFDF7SAP` each compiled both budget bundles successfully with `NoTestRun`.
+- The final spacing follow-up removed the Monthly Budget panel's redundant bottom margin so the summary row supplies the single standard Dashboard gap. Validation `0AfgK00000RignBSAR` and deployment `0AfgK00000Rih05SAB` each compiled `budgetPanel` successfully with `NoTestRun`.
+- The recurring schedule was restored as the only active job, `08egK00000ciBzlQAE`, in `WAITING` state with cron `0 0 8 * * ?`, timezone `Asia/Manila`, owner `005gK000034mODtQAM`, and next fire `2026-08-23T08:00:00+08:00`.
+- No LWC Jest tests were added or run. Signed-in smoke testing, commit, and push remain pending.
+
 ## Apex Boundary Architecture Workstream
 
 The local follow-up after commit `0a8f201` makes controllers the only Lightning-facing Apex entry points, extracts every LWC contract into a top-level DTO, moves budget validation into `BudgetService`, isolates reusable Expense Group and Category lookups in user-mode selectors, and places Batch/Schedulable classes under `classes/async`. UI-only `"All"` Category values are translated to null before Apex; server group/category contracts use `Id`.

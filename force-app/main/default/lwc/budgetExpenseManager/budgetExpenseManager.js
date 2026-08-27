@@ -63,6 +63,7 @@ export default class BudgetExpenseManager extends LightningElement {
 
     expenseRows = [];
     dashboardRows = [];
+    dashboardBudgets = [];
     selectedExpenseIds = [];
     dashboardTrend = [];
     recurringRows = [];
@@ -288,7 +289,7 @@ export default class BudgetExpenseManager extends LightningElement {
         this.dashboardLoadError = '';
 
         try {
-            const { rows, trend } = await fetchDashboardData({
+            const { rows, trend, budgets } = await fetchDashboardData({
                 expenseGroupId: this.expenseGroupId,
                 startDate: this.dashboardStartDate,
                 endDate: this.dashboardEndDate
@@ -300,12 +301,14 @@ export default class BudgetExpenseManager extends LightningElement {
 
             this.dashboardRows = rows;
             this.dashboardTrend = trend;
+            this.dashboardBudgets = budgets;
         } catch {
             if (requestId !== this._latestDashboardLoadRequestId) {
                 return;
             }
             this.dashboardRows = [];
             this.dashboardTrend = [];
+            this.dashboardBudgets = [];
             this.dashboardLoadError = 'Failed to load the dashboard.';
             this.showToast('Error', 'Failed to load dashboard.', 'error');
         } finally {
@@ -443,6 +446,7 @@ export default class BudgetExpenseManager extends LightningElement {
         return getDashboardViewModel(this, {
             rows: this.dashboardRows,
             trend: this.dashboardTrend,
+            budgets: this.dashboardBudgets,
             endDate: this.dashboardEndDate,
             expenseGroupId: this.expenseGroupId,
             budgetMonth: this.dashboardStartDate,
@@ -631,6 +635,7 @@ export default class BudgetExpenseManager extends LightningElement {
         this._latestDashboardLoadRequestId += 1;
         this.dashboardRows = [];
         this.dashboardTrend = [];
+        this.dashboardBudgets = [];
         this.dashboardLoadError = '';
         this.isDashboardLoading = false;
     }

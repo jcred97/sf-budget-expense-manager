@@ -4,7 +4,7 @@
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `lwc/budgetExpenseManager`                                    | Main workspace shell and coordinator: owns Expense Group context, mutable state, action/modal orchestration, and memoized view models        |
 | `lwc/expenseWorkspaceConfig`                                  | Non-exposed workspace view keys, labels, navigation items, and active-view configuration                                                     |
-| `lwc/expenseWorkspaceData`                                    | Non-exposed imperative read gateway for expense rows, Dashboard rows/trend, and group-scoped Bank options                                    |
+| `lwc/expenseWorkspaceData`                                    | Non-exposed imperative read gateway for expense rows, Dashboard trend/budget history, and group-scoped Bank options                          |
 | `lwc/expenseWorkspaceViewModels`                              | Non-exposed per-manager memoization façade over the three pure workspace view-model builders                                                 |
 | `lwc/expenseCsvExport`                                        | Non-exposed CSV construction and browser download boundary for filtered expense rows                                                         |
 | `lwc/expenseErrorUtils`                                       | Non-exposed shared normalization of Apex, LDS/UI API, record-form, network, and JavaScript error messages                                    |
@@ -12,9 +12,10 @@
 | `lwc/expenseMonthNavigator`                                   | Non-exposed reusable previous/current/next month control used by Dashboard and Expenses                                                      |
 | `lwc/expensePrintReport`                                      | Non-exposed print-only expense summary and detail table                                                                                      |
 | `lwc/expenseDashboard`                                        | Dashboard presentation: hero, loading/empty states, summary cards, charts, latest expenses, insights, responsive styling, and View All event |
-| `lwc/expenseDashboardViewModel`                               | Non-exposed pure builder for dashboard totals, summaries, charts, trends, recent rows, and insight data                                      |
+| `lwc/expenseDashboardViewModel`                               | Non-exposed pure builder for dashboard totals, summaries, charts, trends, budget variance history, recent rows, and insight data             |
 | `lwc/budgetPanel`                                             | Non-exposed optional monthly budget card: load, opt-in state, spent/remaining/over status, edit, remove, retry, and toasts                   |
 | `lwc/budgetModal`                                             | Non-exposed accessible create/edit dialog for a positive PHP budget amount and optional description                                          |
+| `lwc/budgetHistory`                                           | Non-exposed SLDS table comparing six months of optional budgets, spending, variance, and percentage used                                     |
 | `lwc/expenseList`                                             | Expenses presentation: filters, loading/empty states, grouped rows, selection, actions, pagination, and responsive styling                   |
 | `lwc/expenseListViewModel`                                    | Non-exposed pure builder for filtered/grouped expense rows, totals, empty states, pagination, and print data                                 |
 | `lwc/recurringExpenses`                                       | Recurring-expense presentation: summary cards, template list, due/inactive states, and row actions                                           |
@@ -29,7 +30,7 @@
 | `lwc/expenseModal`                                            | Add/Edit Expense modal: form, animations, focus management, and document-level lifecycle cleanup                                             |
 | `lwc/budgetExpenseSettings`                                   | Settings page for recurring automation controls, global run time, and last-run status                                                        |
 | `classes/controller/BankController.cls`                       | Lightning-facing group-scoped active Bank-assignment façade                                                                                  |
-| `classes/controller/BudgetController.cls`                     | Lightning-facing monthly budget query/save/delete façade                                                                                     |
+| `classes/controller/BudgetController.cls`                     | Lightning-facing current-month and bounded six-month budget query/save/delete façade                                                         |
 | `classes/controller/ExpenseController.cls`                    | Lightning-facing Expense query/delete façade; contains no SOQL or DTO definitions                                                            |
 | `classes/controller/RecurringExpenseController.cls`           | Lightning-facing recurring-template overview/deactivate façade available to normal app users                                                 |
 | `classes/controller/RecurringExpenseAutomationController.cls` | Admin-only Lightning façade for synchronous or Batch Apex recurring generation                                                               |

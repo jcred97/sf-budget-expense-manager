@@ -47,6 +47,7 @@
             expense-group-name={viewModel.budgetContext.expenseGroupName}
             budget-month={viewModel.budgetContext.budgetMonth}
             spent-amount={viewModel.budgetContext.spentAmount}
+            onbudgetchange={handleBudgetChange}
         >
         </c-budget-panel>
 
@@ -87,6 +88,10 @@
                 empty-message="No bank spending in this period"
             >
             </c-expense-bar-chart>
+        </div>
+
+        <div class="slds-var-m-top_medium">
+            <c-budget-history history-data={viewModel.budgetHistoryData}></c-budget-history>
         </div>
 
         <div class="dashboard-detail-grid">

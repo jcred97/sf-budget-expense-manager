@@ -17,7 +17,7 @@ The project is being prepared as a second-generation managed package with the re
 - Reuse global Bank records while each expense group controls which Banks are available.
 - Filter and search expenses by group, category, date, name, bank, and transaction type.
 - Review total spending, averages, leading categories and banks, recent expenses, and monthly trends.
-- Optionally set a monthly budget for an expense group and track spent, remaining, or over-budget amounts.
+- Optionally set monthly budgets for an expense group, track spent/remaining/over amounts, and compare the last six months on the Dashboard.
 - Add, edit, duplicate, delete, and bulk-delete expenses.
 - Add and edit recurring-expense templates in the workspace, then generate due expenses through Batch Apex.
 - Configure global recurring automation.
@@ -54,11 +54,11 @@ All currency presentation is PHP-focused and centralized in `expenseFormatters`.
 ### Lightning Web Components
 
 - `budgetExpenseManager` — workspace shell, shared context/state, action orchestration, and modal ownership; memoized view models avoid rebuilding derived collections within the same render cycle.
-- `expenseWorkspaceData` — imperative workspace read gateway for expenses, dashboard trend data, and group-scoped Bank options.
+- `expenseWorkspaceData` — imperative workspace read gateway for expenses, dashboard trend and budget-history data, and group-scoped Bank options.
 - `expenseWorkspaceViewModels` — per-manager memoization boundary around the pure Dashboard, Expenses, and Recurring view-model builders.
 - `expenseMonthNavigator` and `expensePrintReport` — reusable month navigation and isolated print/PDF presentation.
 - `expenseDashboard` and `expenseDashboardViewModel` — dashboard presentation and pure derived state.
-- `budgetPanel` and `budgetModal` — optional monthly budget status, creation, editing, and removal.
+- `budgetPanel`, `budgetModal`, and `budgetHistory` — optional monthly budget status and mutations plus a six-month budget-versus-spending comparison.
 - The Salesforce app navigation includes a standard **Budgets** tab for list-view and record-level administration.
 - `expenseList` and `expenseListViewModel` — filtered, grouped expense list and pagination.
 - `recurringExpenses` and `recurringExpenseViewModel` — recurring-template presentation and summaries.
