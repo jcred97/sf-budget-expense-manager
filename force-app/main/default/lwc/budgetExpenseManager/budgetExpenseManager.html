@@ -192,6 +192,8 @@
         record-id={editingExpenseId}
         duplicate-data={duplicateExpenseFields}
         category-options={modalCategoryOptions}
+        category-options-loading={isCategoriesLoading}
+        category-options-error={categoryOptionsError}
         bank-options={modalBankOptions}
         bank-options-loading={isBankOptionsLoading}
         bank-options-error={bankOptionsError}
@@ -201,6 +203,7 @@
         onsuccess={handleExpenseSaveSuccess}
         onclose={handleExpenseModalClose}
         onretrybanks={handleRetryBankOptions}
+        onretrycategories={handleRetryCategoryOptions}
     >
     </c-expense-modal>
 

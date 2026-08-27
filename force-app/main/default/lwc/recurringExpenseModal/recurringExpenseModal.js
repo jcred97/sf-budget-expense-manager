@@ -47,6 +47,7 @@ export default class RecurringExpenseModal extends LightningElement {
     recordContextError = '';
     isSaving = false;
     formError = '';
+    formLoadError = '';
     dateError = '';
     isFormLoaded = false;
 
@@ -141,6 +142,10 @@ export default class RecurringExpenseModal extends LightningElement {
         }
 
         this._hasFocusedSavingStatus = false;
+        if (this.isModalContentLoading) {
+            this._hasFocusedInitialField = false;
+            return;
+        }
         if (this._pendingFocusSelector) {
             const pendingFocusTarget = this.template.querySelector(this._pendingFocusSelector);
             this._pendingFocusSelector = undefined;
@@ -151,7 +156,7 @@ export default class RecurringExpenseModal extends LightningElement {
         }
 
         if (!this._hasFocusedInitialField && !this.isRecordContextLoading && this.isFormLoaded) {
-            const initialField = this.template.querySelector('[data-initial-focus]');
+            const initialField = this.template.querySelector(this.initialFocusSelector);
             initialField?.focus();
             if (this.template.activeElement !== initialField) {
                 this.template.querySelector('.slds-modal')?.focus();
@@ -169,6 +174,7 @@ export default class RecurringExpenseModal extends LightningElement {
         this.isRecordContextLoading = this.isEditMode;
         this.isSaving = false;
         this.formError = '';
+        this.formLoadError = '';
         this.dateError = '';
         this.isFormLoaded = false;
         this._hasFocusedInitialField = false;
@@ -226,6 +232,12 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     getFocusableElements() {
+        if (this.isFormUnavailable) {
+            return getFocusableElements(
+                this.template,
+                '[data-modal-close], [data-form-load-close]'
+            );
+        }
         return getFocusableElements(
             this.template,
             'button, lightning-button, lightning-input-field, lightning-combobox, [tabindex="0"]'
@@ -233,6 +245,7 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     handleFormLoad() {
+        this.formLoadError = '';
         this.isFormLoaded = true;
         if (this.isEditMode || this._hasInitializedAddDefaults) {
             return;
@@ -318,6 +331,15 @@ export default class RecurringExpenseModal extends LightningElement {
 
     handleError(event) {
         this.isSaving = false;
+        if (!this.isFormLoaded) {
+            this.formLoadError = getErrorMessage(
+                event.detail,
+                'Failed to load the recurring expense form. Close this dialog and try again.'
+            );
+            this.focusAfterRender('[data-form-load-error]');
+            return;
+        }
+
         this.formError = getErrorMessage(event.detail, 'Failed to save recurring expense.');
         this.focusAfterRender('[data-form-error]');
     }
@@ -389,13 +411,15 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     focusFirstBlockingMessage() {
-        const selector = this.recordContextError
-            ? '[data-record-context-error]'
-            : this.categoryOptionsError
-              ? '[data-category-options-error]'
-              : this.bankOptionsError
-                ? '[data-bank-options-error]'
-                : '[data-category-empty]';
+        const selector = this.formLoadError
+            ? '[data-form-load-error]'
+            : this.recordContextError
+              ? '[data-record-context-error]'
+              : this.categoryOptionsError
+                ? '[data-category-options-error]'
+                : this.bankOptionsError
+                  ? '[data-bank-options-error]'
+                  : '[data-category-empty]';
         this.template.querySelector(selector)?.focus();
     }
 
@@ -521,6 +545,7 @@ export default class RecurringExpenseModal extends LightningElement {
     get isCategoryInputDisabled() {
         return (
             this.isSaving ||
+            Boolean(this.formLoadError) ||
             this.isRecordContextLoading ||
             Boolean(this.recordContextError) ||
             this.categoryOptionsLoading ||
@@ -532,6 +557,7 @@ export default class RecurringExpenseModal extends LightningElement {
     get isBankInputDisabled() {
         return (
             this.isSaving ||
+            Boolean(this.formLoadError) ||
             this.isRecordContextLoading ||
             Boolean(this.recordContextError) ||
             this.bankOptionsLoading ||
@@ -540,12 +566,18 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     get areRecordFieldsDisabled() {
-        return this.isSaving || this.isRecordContextLoading || Boolean(this.recordContextError);
+        return (
+            this.isSaving ||
+            Boolean(this.formLoadError) ||
+            this.isRecordContextLoading ||
+            Boolean(this.recordContextError)
+        );
     }
 
     get isSaveBlocked() {
         return (
             this.isSaving ||
+            Boolean(this.formLoadError) ||
             this.isRecordContextLoading ||
             Boolean(this.recordContextError) ||
             this.categoryOptionsLoading ||
@@ -554,6 +586,49 @@ export default class RecurringExpenseModal extends LightningElement {
             this.bankOptionsLoading ||
             Boolean(this.bankOptionsError)
         );
+    }
+
+    get isModalContentLoading() {
+        if (this.formLoadError) {
+            return false;
+        }
+        return (
+            !this.isFormLoaded ||
+            this.isRecordContextLoading ||
+            this.categoryOptionsLoading ||
+            this.bankOptionsLoading
+        );
+    }
+
+    get isFormUnavailable() {
+        return this.isModalContentLoading || Boolean(this.formLoadError);
+    }
+
+    get formContentClass() {
+        return `slds-modal__content slds-var-p-around_medium ${this.isFormUnavailable ? 'slds-hide' : ''}`;
+    }
+
+    get formFooterClass() {
+        return `slds-modal__footer ${this.isFormUnavailable ? 'slds-hide' : ''}`;
+    }
+
+    get initialFocusSelector() {
+        if (this.formLoadError) {
+            return '[data-form-load-error]';
+        }
+        if (this.recordContextError) {
+            return '[data-record-context-error]';
+        }
+        if (this.categoryOptionsError) {
+            return '[data-category-options-error]';
+        }
+        if (this.bankOptionsError) {
+            return '[data-bank-options-error]';
+        }
+        if (this.hasNoCategories) {
+            return '[data-category-empty]';
+        }
+        return '[data-initial-focus]';
     }
 
     get saveButtonLabel() {

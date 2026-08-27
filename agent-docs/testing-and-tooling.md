@@ -37,6 +37,35 @@ Covered behavior includes:
 
 LWC tests use `@salesforce/sfdx-lwc-jest`, but no LWC Jest tests are currently checked in. A Jest run with `--passWithNoTests` validates the test harness only and does not provide behavioral coverage.
 
+## Modal Readiness Workstream
+
+The Expense and Recurring Expense dialogs now reveal their controls atomically after LDS form
+metadata/record data and the group-scoped Category and Bank sources have settled. Their loading
+state keeps fields mounted for LDS initialization, limits keyboard focus to visible recovery
+controls, and exposes source-specific errors once loading ends. Category and Bank errors remain
+retryable; an LDS form-load error keeps partial fields blocked and gives close/reopen guidance.
+Expense Group context changes also close the Expense dialog through its full cleanup path so body
+scroll, animation state, and document listeners cannot leak.
+
+Local validation completed on 2026-08-27:
+
+- Targeted Prettier, `npm run lint`, `git diff --check`, and local LWC compilation of all six
+  changed JavaScript/template sources: passed.
+- Targeted Salesforce Code Analyzer `eslint:Recommended`: 0 findings; 17 established inline
+  suppressions were recognized.
+- Focused check-only deployment `0AfgK00000RkPS7SAN` compiled all 3 LWC bundles and 16 files in
+  `mainDevOrg` with zero component errors and `NoTestRun`.
+- Deployment `0AfgK00000Rl1vaSAB` released the same 3 bundles and 16 files to `mainDevOrg` with
+  zero component errors and `NoTestRun`.
+- Runtime verification exposed a shared Category loader that could remain active when
+  `refreshApex()` resolved without re-emitting unchanged wire data. The manager follow-up gives
+  the latest group-scoped refresh sole ownership of settling that flag, clears it in a guarded
+  `finally`, and invalidates in-flight refreshes when workspace context changes. Targeted
+  Prettier, ESLint, local LWC compilation, `git diff --check`, and Code Analyzer passed with zero
+  findings. Check-only deployment `0AfgK00000Rl8ozSAB` and deployment `0AfgK00000Rl9EnSAJ`
+  each compiled and released the manager bundle successfully with `NoTestRun`.
+- No LWC Jest tests were added or run. Signed-in smoke testing, commit, and push remain pending.
+
 ## LWC Boundary Refactor Workstream
 
 The local follow-up after the Apex boundary deployment keeps Salesforce's required flat LWC

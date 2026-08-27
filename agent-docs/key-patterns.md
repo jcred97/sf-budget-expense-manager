@@ -119,6 +119,14 @@ than custom decorative treatments.
 - On Save & New, clears fields and stays open.
 - On regular Save, closes after success.
 - Uses `lightning-record-edit-form`.
+- Expense and recurring-expense dialogs keep their LDS fields mounted but hidden until the
+  record form, Category options, Bank options, and any edit-only record context have all settled.
+  A single modal-level spinner is shown during that readiness window so controls never appear in
+  stages.
+- Category and Bank loading failures count as settled states, so the modal reveals their retry
+  controls instead of leaving an indefinite spinner. An LDS form-load failure keeps the fields
+  and footer hidden and presents close/reopen recovery guidance. While loading or blocked, only
+  visible recovery controls participate in the modal focus cycle.
 - Category selection is a required `lightning-combobox` populated from the
   current workspace `Expense_Group__c`; the selected category is injected into
   the record form on submit.

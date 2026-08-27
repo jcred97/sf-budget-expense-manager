@@ -19,7 +19,7 @@
 | `lwc/expenseList`                                             | Expenses presentation: filters, loading/empty states, grouped rows, selection, actions, pagination, and responsive styling                   |
 | `lwc/expenseListViewModel`                                    | Non-exposed pure builder for filtered/grouped expense rows, totals, empty states, pagination, and print data                                 |
 | `lwc/recurringExpenses`                                       | Recurring-expense presentation: summary cards, template list, due/inactive states, and row actions                                           |
-| `lwc/recurringExpenseModal`                                   | Non-exposed LDS Add/Edit dialog with group-scoped Category/Bank selectors, legacy compatibility, scheduling guidance, and focus management   |
+| `lwc/recurringExpenseModal`                                   | Non-exposed LDS Add/Edit dialog with atomic loading, group-scoped Category/Bank selectors, legacy handling, and focus management             |
 | `lwc/recurringExpenseTransforms`                              | Non-exposed mapper for recurring-template display labels, formatted values, statuses, and active windows                                     |
 | `lwc/recurringExpenseViewModel`                               | Non-exposed pure builder for recurring summary cards, counts, totals, and row data                                                           |
 | `lwc/expenseBarChart`                                         | Reusable horizontal bar chart                                                                                                                |
@@ -27,7 +27,7 @@
 | `lwc/expenseSummaryCards`                                     | Reusable data-driven summary metric cards; accepts one card configuration collection                                                         |
 | `lwc/expenseFormatters`                                       | Non-exposed pure utilities for PHP currency, compact currency, date/time and ranges, ISO dates, month labels/bounds, and date parsing        |
 | `lwc/expenseTransforms`                                       | Non-exposed pure utilities for expense mapping, grouping, summaries, chart construction, chart colors, totals, and count labels              |
-| `lwc/expenseModal`                                            | Add/Edit Expense modal: form, animations, focus management, and document-level lifecycle cleanup                                             |
+| `lwc/expenseModal`                                            | Add/Edit Expense modal: atomic loading, animations, focus management, and document-level lifecycle cleanup                                   |
 | `lwc/budgetExpenseSettings`                                   | Settings page for recurring automation controls, global run time, and last-run status                                                        |
 | `classes/controller/BankController.cls`                       | Lightning-facing group-scoped active Bank-assignment façade                                                                                  |
 | `classes/controller/BudgetController.cls`                     | Lightning-facing current-month and bounded six-month budget query/save/delete façade                                                         |

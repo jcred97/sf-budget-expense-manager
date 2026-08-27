@@ -10,6 +10,7 @@
             <div class="slds-modal__container">
                 <button
                     class="slds-button slds-button_icon slds-modal__close"
+                    data-modal-close
                     title="Close"
                     onclick={handleClose}
                 >
@@ -32,10 +33,51 @@
                     onsuccess={handleSuccess}
                     onerror={handleError}
                 >
-                    <lightning-messages></lightning-messages>
-                    <div class="slds-modal__content slds-p-around_medium">
-                        <div class="slds-form slds-form_stacked">
+                    <div
+                        class="slds-modal__content slds-p-around_medium"
+                        aria-busy={isModalContentLoading}
+                    >
+                        <template lwc:if={isModalContentLoading}>
+                            <div
+                                class="slds-is-relative slds-var-p-vertical_xx-large"
+                                role="status"
+                                aria-live="polite"
+                            >
+                                <lightning-spinner
+                                    alternative-text="Loading expense form"
+                                    size="small"
+                                ></lightning-spinner>
+                            </div>
+                        </template>
+
+                        <template lwc:if={formLoadError}>
+                            <div
+                                class="slds-notify slds-notify_alert slds-alert_error"
+                                role="alert"
+                                tabindex="-1"
+                                data-form-load-error
+                            >
+                                <span class="slds-assistive-text">Error</span>
+                                <div>
+                                    <p>{formLoadError}</p>
+                                    <p class="slds-var-m-top_x-small">
+                                        Close and reopen this dialog to try again.
+                                    </p>
+                                    <lightning-button
+                                        class="slds-var-m-top_small"
+                                        data-form-load-close
+                                        variant="inverse"
+                                        label="Close"
+                                        onclick={handleClose}
+                                    ></lightning-button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div class={formFieldsClass} aria-hidden={isFormUnavailable}>
+                            <lightning-messages></lightning-messages>
                             <lightning-input-field
+                                data-initial-focus
                                 field-name="Name"
                                 value={fieldValue.Name}
                             ></lightning-input-field>
@@ -52,9 +94,43 @@
                                 options={categoryOptions}
                                 placeholder={categoryPlaceholder}
                                 required
+                                disabled={isCategoryInputDisabled}
                                 onchange={handleCategoryChange}
                             >
                             </lightning-combobox>
+
+                            <template lwc:if={categoryOptionsError}>
+                                <div
+                                    class="slds-notify slds-notify_alert slds-alert_error slds-m-bottom_small"
+                                    role="alert"
+                                    tabindex="-1"
+                                    data-category-options-error
+                                >
+                                    <span class="slds-assistive-text">Error</span>
+                                    <div
+                                        class="slds-grid slds-grid_vertical-align-center slds-wrap slds-grow"
+                                    >
+                                        <p class="slds-grow">{categoryOptionsError}</p>
+                                        <lightning-button
+                                            class="slds-var-m-left_small"
+                                            variant="inverse"
+                                            label="Retry"
+                                            onclick={handleRetryCategories}
+                                        ></lightning-button>
+                                    </div>
+                                </div>
+                            </template>
+                            <template lwc:elseif={hasNoCategories}>
+                                <p
+                                    class="slds-text-color_weak slds-m-bottom_small"
+                                    data-category-empty
+                                    role="status"
+                                    tabindex="-1"
+                                    aria-live="polite"
+                                >
+                                    {noCategoriesMessage}
+                                </p>
+                            </template>
                             <lightning-input-field
                                 class="date-format-hide"
                                 field-name="Expense_Date__c"
@@ -144,7 +220,7 @@
                         </div>
                     </div>
 
-                    <footer class="slds-modal__footer">
+                    <footer class={formFooterClass} aria-hidden={isFormUnavailable}>
                         <lightning-button variant="neutral" label="Cancel" onclick={handleClose}>
                         </lightning-button>
                         <template lwc:if={isAddMode}>
@@ -154,7 +230,7 @@
                                 type="submit"
                                 label="Save &amp; New"
                                 onclick={handleSaveAndNew}
-                                disabled={isBankSaveBlocked}
+                                disabled={isSaveBlocked}
                             >
                             </lightning-button>
                         </template>
@@ -164,7 +240,7 @@
                             type="submit"
                             label="Save"
                             onclick={handleSave}
-                            disabled={isBankSaveBlocked}
+                            disabled={isSaveBlocked}
                         >
                         </lightning-button>
                     </footer>

@@ -41,6 +41,8 @@ export default class BudgetExpenseManager extends LightningElement {
     _latestExpenseLoadRequestId = 0;
     _latestDashboardLoadRequestId = 0;
     _latestBankOptionsRequestId = 0;
+    _latestCategoryRefreshRequestId = 0;
+    _activeCategoryRefreshRequestId = 0;
     _wiredCategoriesResult;
     _wiredRecurringResult;
     _dateFormatStyleLoadPromise;
@@ -203,14 +205,18 @@ export default class BudgetExpenseManager extends LightningElement {
                 ...data.map(category => ({ label: category.Name, value: category.Id }))
             ];
             this.categoryOptionsError = '';
-            this.isCategoriesLoading = false;
+            if (!this._activeCategoryRefreshRequestId) {
+                this.isCategoriesLoading = false;
+            }
         } else if (error) {
             this.categoryOptions = [{ label: 'All Categories', value: 'All' }];
             this.categoryOptionsError = getErrorMessage(
                 error,
                 'Failed to load categories for this expense group.'
             );
-            this.isCategoriesLoading = false;
+            if (!this._activeCategoryRefreshRequestId) {
+                this.isCategoriesLoading = false;
+            }
             this.showToast('Error', this.categoryOptionsError, 'error');
         }
     }
@@ -590,7 +596,9 @@ export default class BudgetExpenseManager extends LightningElement {
             return;
         }
 
+        this.handleExpenseModalClose();
         this.resetRecurringExpenseModal();
+        this.invalidateCategoryRefresh();
         this._wiredCategoriesResult = undefined;
         this.expenseGroupId = expenseGroupId;
         this.clearBankOptions();
@@ -608,7 +616,9 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     clearWorkspaceContext() {
+        this.handleExpenseModalClose();
         this.resetRecurringExpenseModal();
+        this.invalidateCategoryRefresh();
         this._wiredCategoriesResult = undefined;
         this.expenseGroupId = '';
         this.categoryId = 'All';
@@ -800,12 +810,14 @@ export default class BudgetExpenseManager extends LightningElement {
         }
 
         const expenseGroupId = this.expenseGroupId;
+        const requestId = ++this._latestCategoryRefreshRequestId;
+        this._activeCategoryRefreshRequestId = requestId;
         this.isCategoriesLoading = true;
         this.categoryOptionsError = '';
         try {
             await refreshApex(this._wiredCategoriesResult);
         } catch (error) {
-            if (expenseGroupId !== this.expenseGroupId) {
+            if (!this.isCurrentCategoryRefresh(requestId, expenseGroupId)) {
                 return;
             }
 
@@ -813,8 +825,24 @@ export default class BudgetExpenseManager extends LightningElement {
                 error,
                 'Failed to load categories for this expense group.'
             );
-            this.isCategoriesLoading = false;
+        } finally {
+            if (this.isCurrentCategoryRefresh(requestId, expenseGroupId)) {
+                this._activeCategoryRefreshRequestId = 0;
+                this.isCategoriesLoading = false;
+            }
         }
+    }
+
+    isCurrentCategoryRefresh(requestId, expenseGroupId) {
+        return (
+            requestId === this._latestCategoryRefreshRequestId &&
+            expenseGroupId === this.expenseGroupId
+        );
+    }
+
+    invalidateCategoryRefresh() {
+        this._latestCategoryRefreshRequestId += 1;
+        this._activeCategoryRefreshRequestId = 0;
     }
 
     // Expense modal and mutation workflows.

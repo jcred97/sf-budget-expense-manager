@@ -13,6 +13,8 @@ const NO_BANK_VALUE = '__NO_BANK__';
 
 export default class ExpenseModal extends LightningElement {
     @api categoryOptions = [];
+    @api categoryOptionsLoading = false;
+    @api categoryOptionsError = '';
     @api bankOptions = [];
     @api bankOptionsLoading = false;
     @api bankOptionsError = '';
@@ -22,6 +24,8 @@ export default class ExpenseModal extends LightningElement {
 
     @track isClosing = false;
     @track isRendered = false;
+    isFormLoaded = false;
+    formLoadError = '';
 
     _isOpen = false;
     _recordId = null;
@@ -29,6 +33,7 @@ export default class ExpenseModal extends LightningElement {
     _handleKeyDown;
     _modalEnvironment;
     _saveAndNew = false;
+    _hasFocusedInitialField = false;
     categoryValue = '';
     bankAssignmentValue = '';
     bankSelectionTouched = false;
@@ -40,14 +45,23 @@ export default class ExpenseModal extends LightningElement {
     }
 
     set isOpen(value) {
-        const isOpening = value && !this._isOpen;
-        this._isOpen = value;
+        const nextValue = Boolean(value);
+        const isOpening = nextValue && !this._isOpen;
+        const isClosingExternally = !nextValue && this._isOpen;
+        this._isOpen = nextValue;
 
         if (isOpening && !this._recordId && !this._duplicateData) {
             this.categoryValue = '';
             this.bankAssignmentValue = '';
             this.bankSelectionTouched = false;
             this.transactionTimeValue = '';
+        }
+        if (isOpening) {
+            this.isFormLoaded = false;
+            this.formLoadError = '';
+            this._hasFocusedInitialField = false;
+        } else if (isClosingExternally) {
+            this.teardownModalEnvironment({ restoreFocus: true });
         }
     }
 
@@ -92,10 +106,25 @@ export default class ExpenseModal extends LightningElement {
             this._handleKeyDown = this.handleKeyDown.bind(this);
             document.addEventListener('keydown', this._handleKeyDown);
 
-            const focusable = this.getFocusableElements();
-            if (focusable.length > 0) {
-                focusable[0].focus();
+            this.template.querySelector('.slds-modal')?.focus();
+        }
+
+        if (!this.isOpen) {
+            return;
+        }
+
+        if (this.isModalContentLoading) {
+            this._hasFocusedInitialField = false;
+            return;
+        }
+
+        if (!this._hasFocusedInitialField) {
+            const initialField = this.template.querySelector(this.initialFocusSelector);
+            initialField?.focus();
+            if (this.template.activeElement !== initialField) {
+                this.template.querySelector('.slds-modal')?.focus();
             }
+            this._hasFocusedInitialField = true;
         }
     }
 
@@ -140,7 +169,11 @@ export default class ExpenseModal extends LightningElement {
 
         this._handleKeyDown = undefined;
         this._modalEnvironment = undefined;
+        this.isClosing = false;
         this.isRendered = false;
+        this.isFormLoaded = false;
+        this.formLoadError = '';
+        this._hasFocusedInitialField = false;
     }
 
     handleKeyDown(event) {
@@ -150,14 +183,21 @@ export default class ExpenseModal extends LightningElement {
             return;
         }
 
-        trapTabFocus(event, this.getFocusableElements(), document.activeElement);
+        const activeElement = this.template.activeElement || document.activeElement;
+        trapTabFocus(event, this.getFocusableElements(), activeElement, {
+            preventWhenEmpty: true,
+            recoverExternalFocus: true
+        });
     }
 
     getFocusableElements() {
-        return getFocusableElements(
-            this.template,
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
+        if (this.isFormUnavailable) {
+            return getFocusableElements(
+                this.template,
+                '[data-modal-close], [data-form-load-close]'
+            );
+        }
+        return getFocusableElements(this.template);
     }
 
     handleSaveAndNew() {
@@ -169,25 +209,32 @@ export default class ExpenseModal extends LightningElement {
     }
 
     handleLoad(event) {
-        if (!this.isEditMode) {
-            return;
+        this.formLoadError = '';
+        if (this.isEditMode) {
+            const record = event.detail.records?.[this.recordId];
+            this.categoryValue = record?.fields?.Category__c?.value || '';
+            this.bankAssignmentValue =
+                record?.fields?.Bank_Assignment__c?.value || this.currentBank?.assignmentId || '';
+            this.bankSelectionTouched = false;
+            this.transactionTimeValue = this.normalizeTimeForInput(
+                record?.fields?.Transaction_Time__c?.value
+            );
         }
-
-        const record = event.detail.records?.[this.recordId];
-        this.categoryValue = record?.fields?.Category__c?.value || '';
-        this.bankAssignmentValue =
-            record?.fields?.Bank_Assignment__c?.value || this.currentBank?.assignmentId || '';
-        this.bankSelectionTouched = false;
-        this.transactionTimeValue = this.normalizeTimeForInput(
-            record?.fields?.Transaction_Time__c?.value
-        );
+        this.isFormLoaded = true;
     }
 
     handleSubmit(event) {
         event.preventDefault();
 
-        if (this.isBankSaveBlocked) {
-            this.template.querySelector('[data-bank-options-error]')?.focus();
+        if (this.isSaveBlocked) {
+            const selector = this.formLoadError
+                ? '[data-form-load-error]'
+                : this.categoryOptionsError
+                  ? '[data-category-options-error]'
+                  : this.hasNoCategories
+                    ? '[data-category-empty]'
+                    : '[data-bank-options-error]';
+            this.template.querySelector(selector)?.focus();
             return;
         }
 
@@ -232,6 +279,10 @@ export default class ExpenseModal extends LightningElement {
         this.dispatchEvent(new CustomEvent('retrybanks'));
     }
 
+    handleRetryCategories() {
+        this.dispatchEvent(new CustomEvent('retrycategories'));
+    }
+
     handleSuccess() {
         this.dispatchEvent(new CustomEvent('success'));
 
@@ -252,6 +303,15 @@ export default class ExpenseModal extends LightningElement {
     }
 
     handleError(event) {
+        if (!this.isFormLoaded) {
+            this.formLoadError = getErrorMessage(
+                event.detail,
+                'Failed to load the expense form. Close this dialog and try again.'
+            );
+            this._hasFocusedInitialField = false;
+            return;
+        }
+
         const message = getErrorMessage(event.detail, 'Failed to save expense.');
         this.dispatchEvent(
             new ShowToastEvent({
@@ -305,12 +365,37 @@ export default class ExpenseModal extends LightningElement {
         );
     }
 
-    get isBankInputDisabled() {
-        return this.bankOptionsLoading || Boolean(this.bankOptionsError);
+    get hasNoCategories() {
+        return (
+            !this.categoryOptionsLoading &&
+            !this.categoryOptionsError &&
+            this.categoryOptions.length === 0
+        );
     }
 
-    get isBankSaveBlocked() {
-        return this.bankOptionsLoading || Boolean(this.bankOptionsError);
+    get isCategoryInputDisabled() {
+        return (
+            Boolean(this.formLoadError) ||
+            this.categoryOptionsLoading ||
+            Boolean(this.categoryOptionsError) ||
+            this.hasNoCategories
+        );
+    }
+
+    get isBankInputDisabled() {
+        return (
+            Boolean(this.formLoadError) || this.bankOptionsLoading || Boolean(this.bankOptionsError)
+        );
+    }
+
+    get isSaveBlocked() {
+        return (
+            Boolean(this.formLoadError) ||
+            this.isModalContentLoading ||
+            Boolean(this.categoryOptionsError) ||
+            this.hasNoCategories ||
+            Boolean(this.bankOptionsError)
+        );
     }
 
     get bankContextNotice() {
@@ -346,6 +431,46 @@ export default class ExpenseModal extends LightningElement {
     get noAvailableBanksMessage() {
         const groupName = this.selectedExpenseGroupName || 'this expense group';
         return `No active banks are assigned to ${groupName}. You can save this expense without a bank.`;
+    }
+
+    get noCategoriesMessage() {
+        const groupName = this.selectedExpenseGroupName || 'this expense group';
+        return `Create a category for ${groupName} before adding an expense.`;
+    }
+
+    get isModalContentLoading() {
+        if (this.formLoadError) {
+            return false;
+        }
+        return !this.isFormLoaded || this.categoryOptionsLoading || this.bankOptionsLoading;
+    }
+
+    get isFormUnavailable() {
+        return this.isModalContentLoading || Boolean(this.formLoadError);
+    }
+
+    get formFieldsClass() {
+        return `slds-form slds-form_stacked ${this.isFormUnavailable ? 'slds-hide' : ''}`;
+    }
+
+    get formFooterClass() {
+        return `slds-modal__footer ${this.isFormUnavailable ? 'slds-hide' : ''}`;
+    }
+
+    get initialFocusSelector() {
+        if (this.formLoadError) {
+            return '[data-form-load-error]';
+        }
+        if (this.categoryOptionsError) {
+            return '[data-category-options-error]';
+        }
+        if (this.bankOptionsError) {
+            return '[data-bank-options-error]';
+        }
+        if (this.hasNoCategories) {
+            return '[data-category-empty]';
+        }
+        return '[data-initial-focus]';
     }
 
     normalizeTimeForInput(value) {

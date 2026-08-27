@@ -12,6 +12,7 @@
             <div class="slds-modal__container">
                 <button
                     class="slds-button slds-button_icon slds-modal__close"
+                    data-modal-close
                     type="button"
                     title="Close"
                     disabled={isSaving}
@@ -42,7 +43,48 @@
                     onsuccess={handleSuccess}
                     onerror={handleError}
                 >
-                    <div class="slds-modal__content slds-var-p-around_medium">
+                    <template lwc:if={isModalContentLoading}>
+                        <div class="slds-modal__content slds-var-p-around_medium" aria-busy="true">
+                            <div
+                                class="slds-is-relative slds-var-p-vertical_xx-large"
+                                role="status"
+                                aria-live="polite"
+                            >
+                                <lightning-spinner
+                                    alternative-text="Loading recurring expense form"
+                                    size="small"
+                                ></lightning-spinner>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template lwc:if={formLoadError}>
+                        <div class="slds-modal__content slds-var-p-around_medium">
+                            <div
+                                class="slds-notify slds-notify_alert slds-alert_error"
+                                role="alert"
+                                tabindex="-1"
+                                data-form-load-error
+                            >
+                                <span class="slds-assistive-text">Error</span>
+                                <div>
+                                    <p>{formLoadError}</p>
+                                    <p class="slds-var-m-top_x-small">
+                                        Close and reopen this dialog to try again.
+                                    </p>
+                                    <lightning-button
+                                        class="slds-var-m-top_small"
+                                        data-form-load-close
+                                        variant="inverse"
+                                        label="Close"
+                                        onclick={handleClose}
+                                    ></lightning-button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class={formContentClass} aria-hidden={isFormUnavailable}>
                         <p
                             id="recurring-expense-modal-description"
                             class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_medium"
@@ -327,7 +369,7 @@
                         </template>
                     </div>
 
-                    <footer class="slds-modal__footer">
+                    <footer class={formFooterClass} aria-hidden={isFormUnavailable}>
                         <lightning-button
                             variant="neutral"
                             label="Cancel"
