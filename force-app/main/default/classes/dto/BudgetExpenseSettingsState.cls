@@ -3,6 +3,8 @@ public class BudgetExpenseSettingsState {
     @AuraEnabled
     public Id settingsId;
     @AuraEnabled
+    public String baseCurrencyCode;
+    @AuraEnabled
     public Boolean recurringExpensesEnabled;
     @AuraEnabled
     public String globalRecurringRunTime;

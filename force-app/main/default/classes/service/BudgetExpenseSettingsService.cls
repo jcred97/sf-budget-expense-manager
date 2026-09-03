@@ -11,7 +11,9 @@ public with sharing class BudgetExpenseSettingsService {
      * @return Settings state for the current user.
      */
     public static BudgetExpenseSettingsState getSettings() {
-        return buildSettingsState(getOrCreateSettings());
+        Budget_Expense_Manager_Setting__c settings = getOrCreateSettings();
+        initializeBaseCurrency(settings);
+        return buildSettingsState(settings);
     }
 
     /**
@@ -24,6 +26,7 @@ public with sharing class BudgetExpenseSettingsService {
         BudgetExpenseSettingsUpdateRequest request
     ) {
         Budget_Expense_Manager_Setting__c settings = getOrCreateSettings();
+        initializeBaseCurrency(settings);
         BudgetExpenseSettingsUpdateRequest safeRequest = getSafeSettingsUpdate(request, settings);
         Time originalRunTime = getEffectiveRunTime(settings.Global_Recurring_Run_Time__c);
         Time requestedRunTime = parseRunTime(safeRequest.globalRecurringRunTime);
@@ -138,6 +141,44 @@ public with sharing class BudgetExpenseSettingsService {
         return inserts[0];
     }
 
+    private static void initializeBaseCurrency(Budget_Expense_Manager_Setting__c settings) {
+        List<Budget_Expense_Manager_Setting__c> currencySettings = [
+            SELECT Base_Currency_Code__c
+            FROM Budget_Expense_Manager_Setting__c
+            WHERE Id = :settings.Id
+            WITH USER_MODE
+            LIMIT 1
+            FOR UPDATE
+        ];
+        if (currencySettings.isEmpty()) {
+            throw new CurrencyContextService.CurrencyContextException(
+                'The app base currency settings record is not accessible.'
+            );
+        }
+
+        String baseCurrencyCode = currencySettings[0].Base_Currency_Code__c;
+        if (String.isBlank(baseCurrencyCode)) {
+            baseCurrencyCode = CurrencyContextService.resolveOrganizationCurrencyCode();
+            Budget_Expense_Manager_Setting__c settingsUpdate = new Budget_Expense_Manager_Setting__c(
+                Id = settings.Id,
+                Base_Currency_Code__c = baseCurrencyCode
+            );
+            List<Budget_Expense_Manager_Setting__c> updates = (List<Budget_Expense_Manager_Setting__c>) Security.stripInaccessible(
+                    AccessType.UPDATABLE,
+                    new List<Budget_Expense_Manager_Setting__c>{ settingsUpdate }
+                )
+                .getRecords();
+            if (updates[0].Base_Currency_Code__c == null) {
+                throw new CurrencyContextService.CurrencyContextException(
+                    'You do not have permission to initialize the app base currency.'
+                );
+            }
+            Database.update(updates, AccessLevel.USER_MODE);
+        }
+
+        settings.Base_Currency_Code__c = baseCurrencyCode;
+    }
+
     private static Time getEffectiveRunTime(Time runTime) {
         return runTime == null ? DEFAULT_RECURRING_RUN_TIME : runTime;
     }
@@ -164,6 +205,7 @@ public with sharing class BudgetExpenseSettingsService {
     ) {
         BudgetExpenseSettingsState state = new BudgetExpenseSettingsState();
         state.settingsId = settings.Id;
+        state.baseCurrencyCode = settings.Base_Currency_Code__c;
         state.recurringExpensesEnabled = settings.Recurring_Expenses_Enabled__c;
         state.globalRecurringRunTime = formatRunTime(
             getEffectiveRunTime(settings.Global_Recurring_Run_Time__c)

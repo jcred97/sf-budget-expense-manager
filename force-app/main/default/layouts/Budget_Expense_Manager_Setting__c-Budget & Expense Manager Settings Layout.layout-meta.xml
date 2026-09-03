@@ -18,6 +18,10 @@
                 <behavior>Edit</behavior>
                 <field>Global_Recurring_Run_Time__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>Base_Currency_Code__c</field>
+            </layoutItems>
         </layoutColumns>
         <layoutColumns>
             <layoutItems>

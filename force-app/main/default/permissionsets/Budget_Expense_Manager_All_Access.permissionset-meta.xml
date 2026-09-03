@@ -201,6 +201,11 @@
     <!-- Budget_Expense_Manager_Setting__c Field Permissions -->
     <fieldPermissions>
         <editable>true</editable>
+        <field>Budget_Expense_Manager_Setting__c.Base_Currency_Code__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>Budget_Expense_Manager_Setting__c.Global_Recurring_Run_Time__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -258,6 +263,10 @@
         <visibility>Visible</visibility>
     </tabSettings>
     <!-- Apex Class Access -->
+    <classAccesses>
+        <apexClass>CurrencyContextController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <classAccesses>
         <apexClass>BankController</apexClass>
         <enabled>true</enabled>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Base_Currency_Code_Must_Be_ISO</fullName>
+    <active>true</active>
+    <description
+    >Requires a configured app base currency to use a normalized three-letter ISO code.</description>
+    <errorConditionFormula>AND(
+    NOT(ISBLANK(Base_Currency_Code__c)),
+    NOT(REGEX(Base_Currency_Code__c, &quot;^[A-Z]{3}$&quot;))
+)</errorConditionFormula>
+    <errorDisplayField>Base_Currency_Code__c</errorDisplayField>
+    <errorMessage
+    >Base Currency Code must be a three-letter uppercase ISO currency code.</errorMessage>
+</ValidationRule>

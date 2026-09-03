@@ -218,6 +218,10 @@
 
     <!-- Apex Class Access -->
     <classAccesses>
+        <apexClass>CurrencyContextController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>BankController</apexClass>
         <enabled>true</enabled>
     </classAccesses>

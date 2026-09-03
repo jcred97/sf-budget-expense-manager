@@ -1,11 +1,38 @@
 @IsTest
 private class BudgetExpenseSettingsServiceTest {
     private static final String RECURRING_SCHEDULE_NAME = 'Budget Expense Manager Recurring Daily';
+    private static final String INITIAL_BASE_CURRENCY = 'CAD';
+    private static final String BACKFILLED_BASE_CURRENCY = 'EUR';
+    private static final String PINNED_BASE_CURRENCY = 'JPY';
+
+    private class StubOrganizationCurrencyProvider implements OrganizationCurrencyProvider {
+        private String currencyCode;
+        /** Tracks provider calls so tests can verify one-time initialization. */
+        public Integer invocationCount { get; private set; }
+
+        StubOrganizationCurrencyProvider(String currencyCode) {
+            this.currencyCode = currencyCode;
+            this.invocationCount = 0;
+        }
+
+        /**
+         * Returns the configured organization currency code.
+         *
+         * @return Configured organization currency code.
+         */
+        public String getCurrencyCode() {
+            invocationCount++;
+            return currencyCode;
+        }
+    }
 
     @IsTest
     static void testGetSettingsCreatesDefaultRecord() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             CronTrigger expectedSchedule = getRecurringSchedule();
+            CurrencyContextService.currencyProvider = new StubOrganizationCurrencyProvider(
+                INITIAL_BASE_CURRENCY
+            );
 
             Test.startTest();
             BudgetExpenseSettingsState settings = SettingsController.getSettings();
@@ -25,6 +52,11 @@ private class BudgetExpenseSettingsServiceTest {
                 '08:00',
                 settings.globalRecurringRunTime,
                 'The default recurring run time should be 08:00.'
+            );
+            System.assertEquals(
+                INITIAL_BASE_CURRENCY,
+                settings.baseCurrencyCode,
+                'Creating settings should initialize the app base currency.'
             );
             System.assertEquals(
                 expectedSchedule != null && expectedSchedule.NextFireTime != null,
@@ -52,6 +84,102 @@ private class BudgetExpenseSettingsServiceTest {
                 1,
                 [SELECT COUNT() FROM Budget_Expense_Manager_Setting__c],
                 'Only the default settings record should exist.'
+            );
+            System.assertEquals(
+                INITIAL_BASE_CURRENCY,
+                [
+                    SELECT Base_Currency_Code__c
+                    FROM Budget_Expense_Manager_Setting__c
+                    LIMIT 1
+                ]
+                .Base_Currency_Code__c,
+                'The initialized base currency should be persisted on the singleton record.'
+            );
+        }
+    }
+
+    @IsTest
+    static void testGetSettingsBackfillsMissingBaseCurrency() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            insert new Budget_Expense_Manager_Setting__c(
+                Name = 'Existing',
+                Recurring_Expenses_Enabled__c = true,
+                Global_Recurring_Run_Time__c = Time.newInstance(8, 0, 0, 0)
+            );
+            StubOrganizationCurrencyProvider provider = new StubOrganizationCurrencyProvider(
+                BACKFILLED_BASE_CURRENCY
+            );
+            CurrencyContextService.currencyProvider = provider;
+
+            Test.startTest();
+            BudgetExpenseSettingsState settings = BudgetExpenseSettingsService.getSettings();
+            Test.stopTest();
+
+            Budget_Expense_Manager_Setting__c persistedSettings = [
+                SELECT Base_Currency_Code__c
+                FROM Budget_Expense_Manager_Setting__c
+                LIMIT 1
+            ];
+            System.assertEquals(
+                BACKFILLED_BASE_CURRENCY,
+                settings.baseCurrencyCode,
+                'Existing settings should expose the initialized base currency.'
+            );
+            System.assertEquals(
+                BACKFILLED_BASE_CURRENCY,
+                persistedSettings.Base_Currency_Code__c,
+                'A missing base currency should be backfilled on the existing singleton.'
+            );
+            System.assertEquals(
+                1,
+                provider.invocationCount,
+                'Backfilling should resolve the organization currency once.'
+            );
+        }
+    }
+
+    @IsTest
+    static void testSaveSettingsKeepsPinnedBaseCurrencyStable() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            insert new Budget_Expense_Manager_Setting__c(
+                Name = 'Existing',
+                Recurring_Expenses_Enabled__c = true,
+                Global_Recurring_Run_Time__c = Time.newInstance(8, 0, 0, 0),
+                Base_Currency_Code__c = PINNED_BASE_CURRENCY
+            );
+            StubOrganizationCurrencyProvider changedOrganizationProvider = new StubOrganizationCurrencyProvider(
+                'USD'
+            );
+            CurrencyContextService.currencyProvider = changedOrganizationProvider;
+            BudgetExpenseSettingsUpdateRequest request = new BudgetExpenseSettingsUpdateRequest();
+            request.recurringExpensesEnabled = 'true';
+            request.globalRecurringRunTime = '08:00';
+
+            Test.startTest();
+            BudgetExpenseSettingsState settings = BudgetExpenseSettingsService.saveSettings(
+                request
+            );
+            Test.stopTest();
+
+            System.assertEquals(
+                PINNED_BASE_CURRENCY,
+                settings.baseCurrencyCode,
+                'The persisted app base currency should remain authoritative.'
+            );
+            System.assertEquals(
+                PINNED_BASE_CURRENCY,
+                [
+                    SELECT Base_Currency_Code__c
+                    FROM Budget_Expense_Manager_Setting__c
+                    LIMIT 1
+                ]
+                .Base_Currency_Code__c,
+                'Reading settings should not replace a previously initialized currency.'
+            );
+            System.assertEquals(
+                0,
+                changedOrganizationProvider.invocationCount,
+                'A pinned base currency should not be re-resolved from the organization.'
             );
         }
     }
