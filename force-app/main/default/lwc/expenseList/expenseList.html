@@ -177,7 +177,12 @@
                                                     </div>
 
                                                     <div class="expense-amount">
-                                                        {row.amountFormatted}
+                                                        <span>{row.amountFormatted}</span>
+                                                        <template lwc:if={row.hasForeignCurrency}>
+                                                            <span class="expense-original-amount">
+                                                                {row.foreignCurrencySummary}
+                                                            </span>
+                                                        </template>
                                                     </div>
 
                                                     <div

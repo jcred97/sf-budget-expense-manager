@@ -68,6 +68,12 @@
         text-align: right;
     }
 
+    .print-original-amount {
+        color: #444;
+        font-size: 0.7rem;
+        margin-top: 0.15rem;
+    }
+
     .print-table tfoot td {
         border-top: 2px solid #000;
     }

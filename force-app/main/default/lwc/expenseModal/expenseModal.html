@@ -12,6 +12,7 @@
                     class="slds-button slds-button_icon slds-modal__close"
                     data-modal-close
                     title="Close"
+                    disabled={isSubmitting}
                     onclick={handleClose}
                 >
                     <lightning-icon icon-name="utility:close" size="small" alternative-text="Close">
@@ -80,12 +81,182 @@
                                 data-initial-focus
                                 field-name="Name"
                                 value={fieldValue.Name}
+                                disabled={isSubmitting}
                             ></lightning-input-field>
-                            <lightning-input-field
-                                field-name="Amount__c"
-                                value={fieldValue.Amount__c}
+                            <lightning-input
+                                class="slds-m-bottom_x-small"
+                                type="toggle"
+                                label="Paid in another currency"
+                                message-toggle-active="Foreign currency"
+                                message-toggle-inactive="PHP"
+                                checked={isForeignCurrency}
+                                disabled={isSubmitting}
+                                onchange={handleForeignCurrencyToggle}
                             >
-                            </lightning-input-field>
+                            </lightning-input>
+
+                            <div class={phpAmountClass}>
+                                <lightning-input-field
+                                    data-field="phpAmount"
+                                    field-name="Amount__c"
+                                    value={fieldValue.Amount__c}
+                                    disabled={isPhpAmountDisabled}
+                                >
+                                </lightning-input-field>
+                            </div>
+
+                            <fieldset
+                                class={foreignCurrencyFieldsClass}
+                                aria-hidden={areForeignCurrencyFieldsHidden}
+                            >
+                                <legend class="slds-text-title_bold slds-m-bottom_small">
+                                    Foreign currency details
+                                </legend>
+                                <div class="slds-grid slds-wrap slds-gutters_small">
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                        <lightning-input
+                                            data-fx-input
+                                            data-field="originalCurrency"
+                                            type="text"
+                                            label="Currency code"
+                                            value={originalCurrencyCode}
+                                            placeholder="e.g. USD"
+                                            pattern="[A-Za-z]{3}"
+                                            message-when-pattern-mismatch="Enter a 3-letter ISO currency code."
+                                            max-length="3"
+                                            required
+                                            disabled={areForeignCurrencyInputsDisabled}
+                                            onchange={handleCurrencyCodeChange}
+                                        >
+                                        </lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                        <lightning-input
+                                            data-fx-input
+                                            data-field="originalAmount"
+                                            type="number"
+                                            label="Original amount"
+                                            value={originalAmountValue}
+                                            min="0.0001"
+                                            step="0.0001"
+                                            message-when-range-underflow="Enter an amount greater than zero."
+                                            required
+                                            disabled={areForeignCurrencyInputsDisabled}
+                                            onchange={handleOriginalAmountChange}
+                                        >
+                                        </lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-3">
+                                        <lightning-input
+                                            data-fx-input
+                                            data-field="exchangeRate"
+                                            type="number"
+                                            label="Exchange rate to PHP"
+                                            field-level-help="The PHP value of one unit of the original currency."
+                                            value={exchangeRateValue}
+                                            min="0.00000001"
+                                            step="0.00000001"
+                                            message-when-range-underflow="Enter a rate greater than zero."
+                                            required
+                                            disabled={areForeignCurrencyInputsDisabled}
+                                            onchange={handleExchangeRateChange}
+                                        >
+                                        </lightning-input>
+                                    </div>
+                                    <div
+                                        class="fx-rate-action slds-col slds-size_1-of-1 slds-medium-size_1-of-3"
+                                    >
+                                        <lightning-button
+                                            type="button"
+                                            variant="neutral"
+                                            label="Get reference rate"
+                                            icon-name="utility:refresh"
+                                            disabled={isExchangeRateActionDisabled}
+                                            onclick={handleFetchExchangeRate}
+                                        >
+                                        </lightning-button>
+                                    </div>
+                                </div>
+
+                                <template lwc:if={isExchangeRateLoading}>
+                                    <div
+                                        class="fx-rate-loading"
+                                        role="status"
+                                        aria-live="polite"
+                                        tabindex="-1"
+                                        data-exchange-rate-status
+                                    >
+                                        <lightning-spinner
+                                            alternative-text="Loading reference exchange rate"
+                                            size="small"
+                                        ></lightning-spinner>
+                                    </div>
+                                </template>
+
+                                <template lwc:if={exchangeRateError}>
+                                    <div
+                                        class="slds-notify slds-notify_alert slds-alert_error slds-m-top_small"
+                                        role="alert"
+                                    >
+                                        <span class="slds-assistive-text">Exchange rate error</span>
+                                        <p>{exchangeRateError}</p>
+                                    </div>
+                                </template>
+
+                                <template lwc:if={hasConversionPreview}>
+                                    <div
+                                        class="fx-preview slds-m-top_small"
+                                        role="status"
+                                        aria-live="polite"
+                                    >
+                                        <p>
+                                            <strong>{formattedOriginalAmount}</strong> ×
+                                            {formattedExchangeRate}
+                                            PHP/{normalizedOriginalCurrencyCode} =
+                                            <strong>{formattedPhpAmount}</strong>
+                                        </p>
+                                        <p class="slds-text-body_small slds-text-color_weak">
+                                            Budgets and reports use {formattedPhpAmount}.
+                                            {exchangeRateContext}
+                                        </p>
+                                    </div>
+                                </template>
+
+                                <p
+                                    class="slds-text-body_small slds-text-color_weak slds-m-top_small"
+                                >
+                                    Reference rates are estimates. Use the settled rate from your
+                                    bank or card statement when it is available.
+                                </p>
+                            </fieldset>
+
+                            <div class="slds-hide" aria-hidden="true">
+                                <lightning-input-field
+                                    field-name="Original_Amount__c"
+                                    value={fieldValue.Original_Amount__c}
+                                    disabled={isSubmitting}
+                                ></lightning-input-field>
+                                <lightning-input-field
+                                    field-name="Original_Currency_Code__c"
+                                    value={fieldValue.Original_Currency_Code__c}
+                                    disabled={isSubmitting}
+                                ></lightning-input-field>
+                                <lightning-input-field
+                                    field-name="Exchange_Rate_To_PHP__c"
+                                    value={fieldValue.Exchange_Rate_To_PHP__c}
+                                    disabled={isSubmitting}
+                                ></lightning-input-field>
+                                <lightning-input-field
+                                    field-name="Exchange_Rate_Date__c"
+                                    value={fieldValue.Exchange_Rate_Date__c}
+                                    disabled={isSubmitting}
+                                ></lightning-input-field>
+                                <lightning-input-field
+                                    field-name="Exchange_Rate_Source__c"
+                                    value={fieldValue.Exchange_Rate_Source__c}
+                                    disabled={isSubmitting}
+                                ></lightning-input-field>
+                            </div>
                             <lightning-combobox
                                 class="slds-m-bottom_x-small"
                                 data-field="category"
@@ -135,6 +306,8 @@
                                 class="date-format-hide"
                                 field-name="Expense_Date__c"
                                 value={fieldValue.Expense_Date__c}
+                                disabled={isSubmitting}
+                                onchange={handleExpenseDateChange}
                             >
                             </lightning-input-field>
                             <lightning-input
@@ -142,12 +315,14 @@
                                 type="time"
                                 label="Transaction Time"
                                 value={transactionTimeValue}
+                                disabled={isSubmitting}
                                 onchange={handleTransactionTimeChange}
                             >
                             </lightning-input>
                             <lightning-input-field
                                 field-name="Transaction_Type__c"
                                 value={fieldValue.Transaction_Type__c}
+                                disabled={isSubmitting}
                             >
                             </lightning-input-field>
                             <lightning-combobox
@@ -221,7 +396,12 @@
                     </div>
 
                     <footer class={formFooterClass} aria-hidden={isFormUnavailable}>
-                        <lightning-button variant="neutral" label="Cancel" onclick={handleClose}>
+                        <lightning-button
+                            variant="neutral"
+                            label="Cancel"
+                            disabled={isSubmitting}
+                            onclick={handleClose}
+                        >
                         </lightning-button>
                         <template lwc:if={isAddMode}>
                             <lightning-button

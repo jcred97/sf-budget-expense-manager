@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Amount__c</fullName>
+    <fullName>Exchange_Rate_Source__c</fullName>
     <externalId>false</externalId>
-    <label>Amount (PHP)</label>
-    <precision>18</precision>
+    <label>Exchange Rate Source</label>
+    <length>80</length>
     <required>false</required>
-    <scale>2</scale>
     <trackTrending>false</trackTrending>
-    <type>Currency</type>
+    <type>Text</type>
+    <unique>false</unique>
 </CustomField>

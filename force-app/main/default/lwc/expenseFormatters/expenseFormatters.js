@@ -18,6 +18,7 @@ const MONTH_LABEL_FORMAT = new Intl.DateTimeFormat('en-PH', {
     year: 'numeric',
     month: 'long'
 });
+const CURRENCY_FORMATTERS = new Map();
 
 export function formatPHP(value) {
     return PHP_CURRENCY.format(value);
@@ -26,6 +27,34 @@ export function formatPHP(value) {
 export function formatCompactPHP(value) {
     const amount = value || 0;
     return Math.abs(amount) < 1000 ? formatPHP(amount) : PHP_COMPACT_CURRENCY.format(amount);
+}
+
+export function formatCurrency(value, currencyCode) {
+    const normalizedCode = String(currencyCode || '').toUpperCase();
+    const amount = Number(value);
+
+    if (!normalizedCode || !Number.isFinite(amount)) {
+        return '-';
+    }
+
+    try {
+        if (!CURRENCY_FORMATTERS.has(normalizedCode)) {
+            CURRENCY_FORMATTERS.set(
+                normalizedCode,
+                new Intl.NumberFormat('en-PH', {
+                    style: 'currency',
+                    currency: normalizedCode,
+                    currencyDisplay: 'code',
+                    maximumFractionDigits: 4
+                })
+            );
+        }
+        return CURRENCY_FORMATTERS.get(normalizedCode).format(amount);
+    } catch {
+        return `${normalizedCode} ${amount.toLocaleString('en-PH', {
+            maximumFractionDigits: 4
+        })}`;
+    }
 }
 
 export function formatDate(isoDate) {

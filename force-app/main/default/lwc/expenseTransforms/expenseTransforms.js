@@ -1,4 +1,4 @@
-import { formatDate, formatPHP, formatTime } from 'c/expenseFormatters';
+import { formatCurrency, formatDate, formatPHP, formatTime } from 'c/expenseFormatters';
 
 export const CHART_COLORS = ['#0070D2', '#04844B', '#FFB75D', '#E4A201', '#9E5BB5', '#E16032'];
 
@@ -60,6 +60,21 @@ export function mapExpenseRow(row) {
     const bankAssignmentActive = Boolean(
         row.Bank_Assignment__c && bankAssignment?.Active__c && bankAssignment?.Bank__r?.Active__c
     );
+    const originalAmount = row.Original_Amount__c;
+    const originalCurrencyCode = row.Original_Currency_Code__c || '';
+    const exchangeRateToPhp = row.Exchange_Rate_To_PHP__c;
+    const hasForeignCurrency = Boolean(
+        originalCurrencyCode && originalAmount != null && exchangeRateToPhp != null
+    );
+    const originalAmountFormatted = hasForeignCurrency
+        ? formatCurrency(originalAmount, originalCurrencyCode)
+        : '';
+    const exchangeRateFormatted = hasForeignCurrency
+        ? Number(exchangeRateToPhp).toLocaleString('en-PH', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 8
+          })
+        : '';
 
     return {
         id: row.Id,
@@ -82,6 +97,17 @@ export function mapExpenseRow(row) {
         transactionType: row.Transaction_Type__c,
         transactionTypeDisplay: row.Transaction_Type__c || 'No type',
         amount: row.Amount__c,
-        amountFormatted: formatPHP(row.Amount__c || 0)
+        amountFormatted: formatPHP(row.Amount__c || 0),
+        originalAmount,
+        originalCurrencyCode,
+        exchangeRateToPhp,
+        exchangeRateDate: row.Exchange_Rate_Date__c,
+        exchangeRateSource: row.Exchange_Rate_Source__c || '',
+        hasForeignCurrency,
+        originalAmountFormatted,
+        exchangeRateFormatted,
+        foreignCurrencySummary: hasForeignCurrency
+            ? `${originalAmountFormatted} · ${exchangeRateFormatted} PHP/${originalCurrencyCode}`
+            : ''
     };
 }

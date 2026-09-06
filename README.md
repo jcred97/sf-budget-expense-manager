@@ -1,6 +1,6 @@
 # Budget & Expense Manager
 
-Budget & Expense Manager is a Salesforce Lightning Web Components application for organizing expenses, optional monthly budgets, recurring entries, and spending insights in Salesforce.
+Budget & Expense Manager is a Salesforce Lightning Web Components application for organizing expenses, optional monthly budgets, recurring entries, foreign-currency purchases, and spending insights in Salesforce.
 
 ```text
 Expense_Group__c
@@ -14,6 +14,7 @@ The project is being prepared as a second-generation managed package with the re
 ## Features
 
 - Manage expenses under expense groups and categories.
+- Optionally record a foreign-currency purchase with its original amount, historical PHP rate, effective date, and source while keeping reporting in PHP.
 - Reuse global Bank records while each expense group controls which Banks are available.
 - Filter and search expenses by group, category, date, name, bank, and transaction type.
 - Review total spending, averages, leading categories and banks, recent expenses, and monthly trends.
@@ -24,7 +25,7 @@ The project is being prepared as a second-generation managed package with the re
 - Export filtered expenses to CSV and open a print/PDF-friendly report.
 - Use responsive, accessible modal and workspace interactions built with Lightning and SLDS patterns.
 
-All currency presentation is PHP-focused and centralized in `expenseFormatters`.
+Reporting remains PHP-focused and is centralized in `expenseFormatters`. Foreign-currency details are optional audit data on an expense; `Expense__c.Amount__c` remains the converted PHP amount used by budgets, totals, charts, CSV, and print output.
 
 ## Data Model
 
@@ -33,22 +34,24 @@ All currency presentation is PHP-focused and centralized in `expenseFormatters`.
 - `Expense_Group_Bank__c` — active/inactive assignment of one global Bank to one expense group.
 - `Budget__c` — optional monthly spending target for an expense group; absence of a record means budgeting is off for that month.
 - `Category__c` — master-detail child of an expense group.
-- `Expense__c` — dated expense linked to a category and optionally to its recurring template.
+- `Expense__c` — dated expense linked to a category and optionally to its recurring template; it can also retain an original amount/currency and the historical rate used to calculate its canonical PHP amount.
 - `Recurring_Expense__c` — recurring template with frequency, active state, and next-run pointer.
-- `Budget_Expense_Manager_Setting__c` — singleton global automation settings and last-run state.
+- `Budget_Expense_Manager_Setting__c` — singleton global automation settings, stable base-currency code, and last-run state.
 
 ## Architecture
 
 ### Apex
 
-- `BankController`, `BudgetController`, `ExpenseController`, `RecurringExpenseController`, `RecurringExpenseAutomationController`, and `SettingsController` — the only Lightning-facing Apex entry points.
+- `BankController`, `BudgetController`, `CurrencyContextController`, `ExchangeRateController`, `ExpenseController`, `RecurringExpenseController`, `RecurringExpenseAutomationController`, and `SettingsController` — the only Lightning-facing Apex entry points.
 - Top-level classes under `classes/dto` define stable LWC request and response contracts; DTOs contain data and mapping only, not validation or persistence logic.
 - `ExpenseGroupSelector` and `CategorySelector` — reusable user-mode workspace lookup queries.
 - `BankService` — user-mode group-scoped Bank assignment lookup and DTO mapping.
 - `BudgetService` — user-mode lookup, validation, and mutation of optional monthly expense-group budgets.
 - `ExpenseQueryService` and `ExpenseCommandService` — scoped user-mode queries and DML.
+- `ExchangeRateService`, `FrankfurterExchangeRateProvider`, and `ExpenseCurrencyService` — validated ECB reference-rate lookup plus bulk-safe foreign-currency snapshot validation and PHP calculation.
+- `CurrencyContextService` and `SalesforceOrganizationCurrencyProvider` — read-only access to the pinned app reporting currency plus Salesforce single-/multi-currency initialization.
 - `RecurringExpenseCalculator`, `RecurringExpenseGenerator`, and `RecurringExpenseService` — recurring-expense calculation and generation services; Batch and Schedulable entry points live under `classes/async`.
-- `BudgetExpenseSettingsService` — singleton settings and scheduler coordination.
+- `BudgetExpenseSettingsService` — singleton settings, one-time base-currency initialization, pinned-code validation rules, and scheduler coordination.
 - Bank assignment, budget, recurring-expense, and settings trigger handlers keep generated keys and cross-object invariants outside thin triggers.
 
 ### Lightning Web Components
@@ -64,6 +67,7 @@ All currency presentation is PHP-focused and centralized in `expenseFormatters`.
 - `recurringExpenses` and `recurringExpenseViewModel` — recurring-template presentation and summaries.
 - `recurringExpenseModal` — accessible Add/Edit workflow with group-scoped Category and Bank choices and a system-managed next-run pointer.
 - `expenseModal` — add, edit, and duplicate workflow.
+- `expenseCurrencyMath` and `expenseExchangeRateData` — exact decimal HALF_UP conversion plus the imperative, nonvisual gateway from the expense modal to the exchange-rate controller.
 - `budgetExpenseSettings` — global recurring-automation controls.
 - `expenseBarChart`, `expenseTrendChart`, and `expenseSummaryCards` — reusable visualization components.
 - `expenseTransforms`, `recurringExpenseTransforms`, `expenseFormatters`, `expenseWorkspaceConfig`, `expenseErrorUtils`, `modalFocusUtils`, and `expenseCsvExport` — focused mapping, formatting, workspace-configuration, error, modal-accessibility, and export modules.
@@ -133,7 +137,7 @@ The repository-wide `prettier:verify` command currently reports legacy formattin
 
 ## Testing
 
-Fourteen Apex test classes cover global Bank assignments, expense queries and commands, optional monthly budgets, recurring calculation and generation, batch and scheduler behavior, trigger handlers, singleton settings, and run-status tracking.
+Sixteen Apex test classes cover global Bank assignments, expense queries and commands, optional monthly budgets, exchange-rate callouts, foreign-currency integrity, recurring calculation and generation, batch and scheduler behavior, trigger handlers, singleton settings, and run-status tracking.
 
 Jest tooling is configured through `@salesforce/sfdx-lwc-jest`, but no LWC Jest tests are currently checked in. A no-tests Jest result is therefore not behavioral coverage.
 

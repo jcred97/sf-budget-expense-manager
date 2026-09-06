@@ -80,7 +80,8 @@ function filterRows(rows, searchTerm) {
             (row.category || '').toLowerCase().includes(term) ||
             (row.expenseGroup || '').toLowerCase().includes(term) ||
             (row.bank || '').toLowerCase().includes(term) ||
-            (row.transactionType || '').toLowerCase().includes(term)
+            (row.transactionType || '').toLowerCase().includes(term) ||
+            (row.originalCurrencyCode || '').toLowerCase().includes(term)
     );
 }
 
@@ -118,6 +119,7 @@ function buildPrintRows(rows) {
         ...row,
         expenseDateFormatted: formatDate(row.expenseDate),
         transactionTimeFormatted: row.transactionTimeDisplay,
-        amountFormatted: row.amount != null ? formatPHP(row.amount) : '-'
+        amountFormatted: row.amount != null ? formatPHP(row.amount) : '-',
+        foreignCurrencySummary: row.hasForeignCurrency ? row.foreignCurrencySummary : ''
     }));
 }

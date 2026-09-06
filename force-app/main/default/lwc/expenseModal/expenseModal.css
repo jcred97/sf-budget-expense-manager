@@ -27,3 +27,26 @@
 .fade-out {
     animation: modalFadeOut 0.25s ease-in forwards;
 }
+
+.fx-rate-action {
+    align-items: flex-end;
+    display: flex;
+    padding-bottom: var(--slds-g-spacing-2, 0.5rem);
+}
+
+.fx-rate-loading {
+    min-height: var(--slds-g-sizing-8, 2rem);
+    position: relative;
+}
+
+.fx-preview {
+    background: var(--slds-g-color-surface-container-1, #ffffff);
+    border-radius: var(--slds-g-radius-border-1, 0.25rem);
+    padding: var(--slds-g-spacing-3, 0.75rem);
+}
+
+@media (max-width: 48rem) {
+    .fx-rate-action {
+        padding-top: var(--slds-g-spacing-2, 0.5rem);
+    }
+}

@@ -198,6 +198,66 @@ private class ExpenseControllerTest {
     }
 
     @IsTest
+    static void testGetExpensesReturnsForeignCurrencySnapshot() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Category__c groceries = [SELECT Id FROM Category__c WHERE Name = 'Groceries' LIMIT 1];
+            Date expenseDate = Date.today().addDays(-30);
+            Expense__c foreignExpense = new Expense__c(
+                Name = 'Foreign Groceries',
+                Category__c = groceries.Id,
+                Expense_Date__c = expenseDate,
+                Amount__c = 1,
+                Original_Amount__c = 10,
+                Original_Currency_Code__c = 'USD',
+                Exchange_Rate_To_PHP__c = 56.75,
+                Exchange_Rate_Date__c = expenseDate,
+                Exchange_Rate_Source__c = 'ECB via Frankfurter'
+            );
+            insert foreignExpense;
+            ExpenseFilterRequest filters = new ExpenseFilterRequest();
+            filters.categoryId = groceries.Id;
+            filters.startDate = expenseDate;
+            filters.endDate = expenseDate;
+
+            Test.startTest();
+            List<Expense__c> result = ExpenseController.getExpensesByFilters(filters);
+            Test.stopTest();
+
+            System.assertEquals(1, result.size(), 'The exact-date filter should return the row.');
+            System.assertEquals(
+                567.5,
+                result[0].Amount__c,
+                'The query should return canonical PHP.'
+            );
+            System.assertEquals(
+                10,
+                result[0].Original_Amount__c,
+                'The query should return the preserved original amount.'
+            );
+            System.assertEquals(
+                'USD',
+                result[0].Original_Currency_Code__c,
+                'The query should return the preserved original currency.'
+            );
+            System.assertEquals(
+                56.75,
+                result[0].Exchange_Rate_To_PHP__c,
+                'The query should return the persisted conversion rate.'
+            );
+            System.assertEquals(
+                expenseDate,
+                result[0].Exchange_Rate_Date__c,
+                'The query should return the effective rate date.'
+            );
+            System.assertEquals(
+                'ECB via Frankfurter',
+                result[0].Exchange_Rate_Source__c,
+                'The query should return provider attribution.'
+            );
+        }
+    }
+
+    @IsTest
     static void testGetExpensesOrdersSameDayByTime() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Category__c groceries = [SELECT Id FROM Category__c WHERE Name = 'Groceries' LIMIT 1];

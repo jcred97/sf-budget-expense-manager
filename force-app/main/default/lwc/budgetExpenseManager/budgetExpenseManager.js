@@ -878,7 +878,12 @@ export default class BudgetExpenseManager extends LightningElement {
                 Expense_Date__c: row.expenseDate,
                 Transaction_Time__c: row.transactionTime,
                 Transaction_Type__c: row.transactionType,
-                Bank_Assignment__c: canCopyBank ? row.bankAssignmentId : null
+                Bank_Assignment__c: canCopyBank ? row.bankAssignmentId : null,
+                Original_Amount__c: row.originalAmount,
+                Original_Currency_Code__c: row.originalCurrencyCode || null,
+                Exchange_Rate_To_PHP__c: row.exchangeRateToPhp,
+                Exchange_Rate_Date__c: row.exchangeRateDate || null,
+                Exchange_Rate_Source__c: row.exchangeRateSource || null
             };
             this.duplicateExpenseBankName = row.bank || '';
             this.currentExpenseBank = null;

@@ -29,6 +29,14 @@
         <members>ExpenseCommandService</members>
         <members>ExpenseController</members>
         <members>ExpenseControllerTest</members>
+        <members>ExchangeRateController</members>
+        <members>ExchangeRateControllerTest</members>
+        <members>ExchangeRateProvider</members>
+        <members>ExchangeRateQuoteDto</members>
+        <members>ExchangeRateRequest</members>
+        <members>ExchangeRateService</members>
+        <members>ExpenseCurrencyService</members>
+        <members>ExpenseCurrencyServiceTest</members>
         <members>ExpenseFilterRequest</members>
         <members>ExpenseGroupBankOptionDto</members>
         <members>ExpenseGroupBankTriggerHandler</members>
@@ -54,6 +62,7 @@
         <members>RecurringExpenseServiceTest</members>
         <members>RecurringExpenseTriggerHandler</members>
         <members>RecurringExpenseTriggerHandlerTest</members>
+        <members>FrankfurterExchangeRateProvider</members>
         <members>SalesforceOrganizationCurrencyProvider</members>
         <members>SettingsController</members>
         <name>ApexClass</name>
@@ -98,6 +107,11 @@
         <members>Expense__c.Category__c</members>
         <members>Expense__c.Description__c</members>
         <members>Expense__c.Expense_Date__c</members>
+        <members>Expense__c.Exchange_Rate_Date__c</members>
+        <members>Expense__c.Exchange_Rate_Source__c</members>
+        <members>Expense__c.Exchange_Rate_To_PHP__c</members>
+        <members>Expense__c.Original_Amount__c</members>
+        <members>Expense__c.Original_Currency_Code__c</members>
         <members>Expense__c.Recurring_Expense__c</members>
         <members>Expense__c.Transaction_Time__c</members>
         <members>Expense__c.Transaction_Type__c</members>
@@ -146,6 +160,10 @@
         <name>FlexiPage</name>
     </types>
     <types>
+        <members>Exchange_Rates_Public</members>
+        <name>ExternalCredential</name>
+    </types>
+    <types>
         <members>Bank</members>
         <name>GlobalValueSet</name>
     </types>
@@ -168,9 +186,11 @@
         <members>budgetPanel</members>
         <members>expenseBarChart</members>
         <members>expenseCsvExport</members>
+        <members>expenseCurrencyMath</members>
         <members>expenseDashboard</members>
         <members>expenseDashboardViewModel</members>
         <members>expenseErrorUtils</members>
+        <members>expenseExchangeRateData</members>
         <members>expenseFormatters</members>
         <members>expenseList</members>
         <members>expenseListViewModel</members>
@@ -189,6 +209,10 @@
         <members>recurringExpenseTransforms</members>
         <members>recurringExpenseViewModel</members>
         <name>LightningComponentBundle</name>
+    </types>
+    <types>
+        <members>Exchange_Rates_API</members>
+        <name>NamedCredential</name>
     </types>
     <types>
         <members>Bank__c.All</members>

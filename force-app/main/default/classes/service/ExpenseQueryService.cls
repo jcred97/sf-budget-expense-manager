@@ -61,7 +61,9 @@ public with sharing class ExpenseQueryService {
             'Category__r.Expense_Group__c, Category__r.Expense_Group__r.Name, ' +
             'Bank__c, Bank_Assignment__c, Bank_Assignment__r.Active__c, ' +
             'Bank_Assignment__r.Bank__c, Bank_Assignment__r.Bank__r.Name, ' +
-            'Bank_Assignment__r.Bank__r.Active__c, Transaction_Type__c, Amount__c ' +
+            'Bank_Assignment__r.Bank__r.Active__c, Transaction_Type__c, Amount__c, ' +
+            'Original_Amount__c, Original_Currency_Code__c, Exchange_Rate_To_PHP__c, ' +
+            'Exchange_Rate_Date__c, Exchange_Rate_Source__c ' +
             'FROM Expense__c WHERE Id != null ';
         query += getRecordFilters(safeFilters.expenseGroupId, safeFilters.categoryId, bindValues);
         query += getDateFilters(safeFilters.startDate, safeFilters.endDate, bindValues);

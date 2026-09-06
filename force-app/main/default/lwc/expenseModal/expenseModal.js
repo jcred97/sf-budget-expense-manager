@@ -1,7 +1,10 @@
 import { LightningElement, api, track } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
+import { multiplyDecimalHalfUp } from 'c/expenseCurrencyMath';
+import { fetchPhpExchangeRate } from 'c/expenseExchangeRateData';
 import { getErrorMessage } from 'c/expenseErrorUtils';
+import { formatCurrency, formatDate, formatDateISO, formatPHP } from 'c/expenseFormatters';
 import {
     captureModalEnvironment,
     getFocusableElements,
@@ -10,6 +13,7 @@ import {
 } from 'c/modalFocusUtils';
 
 const NO_BANK_VALUE = '__NO_BANK__';
+const PHP_CURRENCY_CODE = 'PHP';
 
 export default class ExpenseModal extends LightningElement {
     @api categoryOptions = [];
@@ -26,6 +30,16 @@ export default class ExpenseModal extends LightningElement {
     @track isRendered = false;
     isFormLoaded = false;
     formLoadError = '';
+    isSubmitting = false;
+    isForeignCurrency = false;
+    isExchangeRateLoading = false;
+    exchangeRateError = '';
+    originalCurrencyCode = '';
+    originalAmountValue = '';
+    exchangeRateValue = '';
+    exchangeRateDate = '';
+    exchangeRateSource = '';
+    expenseDateValue = '';
 
     _isOpen = false;
     _recordId = null;
@@ -34,6 +48,7 @@ export default class ExpenseModal extends LightningElement {
     _modalEnvironment;
     _saveAndNew = false;
     _hasFocusedInitialField = false;
+    _exchangeRateRequestId = 0;
     categoryValue = '';
     bankAssignmentValue = '';
     bankSelectionTouched = false;
@@ -55,10 +70,13 @@ export default class ExpenseModal extends LightningElement {
             this.bankAssignmentValue = '';
             this.bankSelectionTouched = false;
             this.transactionTimeValue = '';
+            this.expenseDateValue = '';
+            this.resetForeignCurrencyState();
         }
         if (isOpening) {
             this.isFormLoaded = false;
             this.formLoadError = '';
+            this.isSubmitting = false;
             this._hasFocusedInitialField = false;
         } else if (isClosingExternally) {
             this.teardownModalEnvironment({ restoreFocus: true });
@@ -79,6 +97,7 @@ export default class ExpenseModal extends LightningElement {
             this.transactionTimeValue = this.normalizeTimeForInput(
                 this._duplicateData?.Transaction_Time__c
             );
+            this.initializeCurrencyState(this._duplicateData);
         }
     }
 
@@ -94,6 +113,7 @@ export default class ExpenseModal extends LightningElement {
             this.bankAssignmentValue = value?.Bank_Assignment__c || '';
             this.bankSelectionTouched = false;
             this.transactionTimeValue = this.normalizeTimeForInput(value?.Transaction_Time__c);
+            this.initializeCurrencyState(value);
         }
     }
 
@@ -133,10 +153,11 @@ export default class ExpenseModal extends LightningElement {
     }
 
     handleClose() {
-        if (this.isClosing) {
+        if (this.isClosing || this.isSubmitting) {
             return;
         }
 
+        this.cancelExchangeRateRequest();
         this.isClosing = true;
 
         const modal = this.template.querySelector('.slds-modal');
@@ -173,6 +194,8 @@ export default class ExpenseModal extends LightningElement {
         this.isRendered = false;
         this.isFormLoaded = false;
         this.formLoadError = '';
+        this.isSubmitting = false;
+        this.cancelExchangeRateRequest();
         this._hasFocusedInitialField = false;
     }
 
@@ -202,6 +225,11 @@ export default class ExpenseModal extends LightningElement {
 
     handleSaveAndNew() {
         this._saveAndNew = true;
+        Promise.resolve().then(() => {
+            if (!this.isSubmitting) {
+                this._saveAndNew = false;
+            }
+        });
     }
 
     handleSave() {
@@ -210,6 +238,7 @@ export default class ExpenseModal extends LightningElement {
 
     handleLoad(event) {
         this.formLoadError = '';
+        this.isSubmitting = false;
         if (this.isEditMode) {
             const record = event.detail.records?.[this.recordId];
             this.categoryValue = record?.fields?.Category__c?.value || '';
@@ -219,12 +248,32 @@ export default class ExpenseModal extends LightningElement {
             this.transactionTimeValue = this.normalizeTimeForInput(
                 record?.fields?.Transaction_Time__c?.value
             );
+            this.initializeCurrencyState({
+                Expense_Date__c: record?.fields?.Expense_Date__c?.value,
+                Original_Amount__c: record?.fields?.Original_Amount__c?.value,
+                Original_Currency_Code__c: record?.fields?.Original_Currency_Code__c?.value,
+                Exchange_Rate_To_PHP__c: record?.fields?.Exchange_Rate_To_PHP__c?.value,
+                Exchange_Rate_Date__c: record?.fields?.Exchange_Rate_Date__c?.value,
+                Exchange_Rate_Source__c: record?.fields?.Exchange_Rate_Source__c?.value
+            });
         }
         this.isFormLoaded = true;
     }
 
     handleSubmit(event) {
         event.preventDefault();
+
+        const saveAndNewRequested = this._saveAndNew;
+        this._saveAndNew = false;
+
+        if (this.isSubmitting) {
+            return;
+        }
+
+        if (this.isExchangeRateLoading) {
+            this.template.querySelector('[data-exchange-rate-status]')?.focus();
+            return;
+        }
 
         if (this.isSaveBlocked) {
             const selector = this.formLoadError
@@ -248,9 +297,28 @@ export default class ExpenseModal extends LightningElement {
             return;
         }
 
+        if (this.isForeignCurrency && !this.reportForeignCurrencyValidity()) {
+            return;
+        }
+
         const fields = { ...event.detail.fields };
         fields.Category__c = this.categoryValue;
         fields.Transaction_Time__c = this.normalizeTimeForSubmit(this.transactionTimeValue);
+
+        if (this.isForeignCurrency) {
+            fields.Amount__c = this.calculatedPhpAmount;
+            fields.Original_Amount__c = String(this.originalAmountValue).trim();
+            fields.Original_Currency_Code__c = this.normalizedOriginalCurrencyCode;
+            fields.Exchange_Rate_To_PHP__c = String(this.exchangeRateValue).trim();
+            fields.Exchange_Rate_Date__c = this.exchangeRateDate;
+            fields.Exchange_Rate_Source__c = this.exchangeRateSource;
+        } else {
+            fields.Original_Amount__c = null;
+            fields.Original_Currency_Code__c = null;
+            fields.Exchange_Rate_To_PHP__c = null;
+            fields.Exchange_Rate_Date__c = null;
+            fields.Exchange_Rate_Source__c = null;
+        }
 
         if (!this.hasUntouchedLegacyBank) {
             fields.Bank_Assignment__c = this.normalizedBankAssignmentValue;
@@ -259,6 +327,8 @@ export default class ExpenseModal extends LightningElement {
             fields.Bank__c = null;
         }
 
+        this._saveAndNew = saveAndNewRequested;
+        this.isSubmitting = true;
         this.template.querySelector('lightning-record-edit-form').submit(fields);
     }
 
@@ -268,6 +338,113 @@ export default class ExpenseModal extends LightningElement {
 
     handleTransactionTimeChange(event) {
         this.transactionTimeValue = event.detail.value;
+    }
+
+    handleExpenseDateChange(event) {
+        const nextDate = event.detail?.value || event.target?.value || '';
+        if (nextDate === this.expenseDateValue) {
+            return;
+        }
+
+        this.expenseDateValue = nextDate;
+        if (this.isForeignCurrency) {
+            this.clearExchangeRateQuote();
+        }
+    }
+
+    handleForeignCurrencyToggle(event) {
+        const isEnabled = Boolean(event.target.checked);
+        if (isEnabled === this.isForeignCurrency) {
+            return;
+        }
+
+        if (!isEnabled) {
+            const calculatedAmount = this.calculatedPhpAmount;
+            if (calculatedAmount != null) {
+                const amountField = this.template.querySelector('[data-field="phpAmount"]');
+                if (amountField) {
+                    amountField.value = calculatedAmount;
+                }
+            }
+            this.resetForeignCurrencyState();
+            return;
+        }
+
+        this.isForeignCurrency = true;
+        this.exchangeRateError = '';
+    }
+
+    handleCurrencyCodeChange(event) {
+        const nextCode = String(event.detail?.value || event.target?.value || '').toUpperCase();
+        if (nextCode !== this.originalCurrencyCode) {
+            this.originalCurrencyCode = nextCode;
+            this.clearExchangeRateQuote();
+        }
+        this.setCurrencyInputValidity(event.target);
+    }
+
+    handleOriginalAmountChange(event) {
+        const nextAmount = event.detail?.value ?? event.target?.value;
+        this.originalAmountValue = nextAmount == null ? '' : String(nextAmount);
+    }
+
+    handleExchangeRateChange(event) {
+        this.cancelExchangeRateRequest();
+        const nextRate = event.detail?.value ?? event.target?.value;
+        this.exchangeRateValue = nextRate == null ? '' : String(nextRate);
+        this.exchangeRateError = '';
+
+        if (this.isPositiveNumber(this.exchangeRateValue)) {
+            this.exchangeRateDate = this.rateContextDate;
+            this.exchangeRateSource = 'Manual';
+        } else {
+            this.exchangeRateDate = '';
+            this.exchangeRateSource = '';
+        }
+    }
+
+    async handleFetchExchangeRate() {
+        const currencyInput = this.template.querySelector('[data-field="originalCurrency"]');
+        this.setCurrencyInputValidity(currencyInput);
+        if (!currencyInput?.reportValidity()) {
+            return;
+        }
+
+        const sourceCurrency = this.normalizedOriginalCurrencyCode;
+        const requestedDate = this.expenseDateValue || null;
+        const requestId = ++this._exchangeRateRequestId;
+        this.isExchangeRateLoading = true;
+        this.exchangeRateError = '';
+
+        try {
+            const quote = await fetchPhpExchangeRate({ sourceCurrency, requestedDate });
+            if (
+                requestId !== this._exchangeRateRequestId ||
+                sourceCurrency !== this.normalizedOriginalCurrencyCode ||
+                requestedDate !== (this.expenseDateValue || null)
+            ) {
+                return;
+            }
+
+            if (!this.isPositiveNumber(quote?.rate) || !quote?.effectiveDate) {
+                throw new Error('The exchange-rate service returned an incomplete quote.');
+            }
+
+            this.exchangeRateValue = String(quote.rate);
+            this.exchangeRateDate = quote.effectiveDate;
+            this.exchangeRateSource = quote.source || 'ECB via Frankfurter';
+        } catch (error) {
+            if (requestId === this._exchangeRateRequestId) {
+                this.exchangeRateError = getErrorMessage(
+                    error,
+                    'Could not load a reference rate. Enter the rate manually or try again.'
+                );
+            }
+        } finally {
+            if (requestId === this._exchangeRateRequestId) {
+                this.isExchangeRateLoading = false;
+            }
+        }
     }
 
     handleBankChange(event) {
@@ -284,6 +461,7 @@ export default class ExpenseModal extends LightningElement {
     }
 
     handleSuccess() {
+        this.isSubmitting = false;
         this.dispatchEvent(new CustomEvent('success'));
 
         if (this._saveAndNew) {
@@ -296,6 +474,8 @@ export default class ExpenseModal extends LightningElement {
             this.bankAssignmentValue = '';
             this.bankSelectionTouched = false;
             this.transactionTimeValue = '';
+            this.expenseDateValue = '';
+            this.resetForeignCurrencyState();
             this._saveAndNew = false;
         } else {
             this.handleClose();
@@ -303,6 +483,8 @@ export default class ExpenseModal extends LightningElement {
     }
 
     handleError(event) {
+        this.isSubmitting = false;
+        this._saveAndNew = false;
         if (!this.isFormLoaded) {
             this.formLoadError = getErrorMessage(
                 event.detail,
@@ -324,6 +506,164 @@ export default class ExpenseModal extends LightningElement {
 
     get fieldValue() {
         return this.duplicateData || {};
+    }
+
+    initializeCurrencyState(data) {
+        this.cancelExchangeRateRequest();
+        this.expenseDateValue = data?.Expense_Date__c || '';
+        this.originalAmountValue =
+            data?.Original_Amount__c == null ? '' : String(data.Original_Amount__c);
+        this.originalCurrencyCode = String(data?.Original_Currency_Code__c || '').toUpperCase();
+        this.exchangeRateValue =
+            data?.Exchange_Rate_To_PHP__c == null ? '' : String(data.Exchange_Rate_To_PHP__c);
+        this.exchangeRateDate = data?.Exchange_Rate_Date__c || '';
+        this.exchangeRateSource = data?.Exchange_Rate_Source__c || '';
+        this.exchangeRateError = '';
+        this.isForeignCurrency = Boolean(
+            this.originalCurrencyCode ||
+            this.originalAmountValue !== '' ||
+            this.exchangeRateValue !== '' ||
+            this.exchangeRateDate ||
+            this.exchangeRateSource
+        );
+    }
+
+    resetForeignCurrencyState() {
+        this.cancelExchangeRateRequest();
+        this.isForeignCurrency = false;
+        this.originalCurrencyCode = '';
+        this.originalAmountValue = '';
+        this.exchangeRateValue = '';
+        this.exchangeRateDate = '';
+        this.exchangeRateSource = '';
+        this.exchangeRateError = '';
+    }
+
+    clearExchangeRateQuote() {
+        this.cancelExchangeRateRequest();
+        this.exchangeRateValue = '';
+        this.exchangeRateDate = '';
+        this.exchangeRateSource = '';
+        this.exchangeRateError = '';
+    }
+
+    cancelExchangeRateRequest() {
+        this._exchangeRateRequestId += 1;
+        this.isExchangeRateLoading = false;
+    }
+
+    reportForeignCurrencyValidity() {
+        const currencyInput = this.template.querySelector('[data-field="originalCurrency"]');
+        this.setCurrencyInputValidity(currencyInput);
+
+        let isValid = true;
+        this.template.querySelectorAll('[data-fx-input]').forEach(input => {
+            isValid = input.reportValidity() && isValid;
+        });
+
+        if (
+            isValid &&
+            (!this.exchangeRateDate || !this.exchangeRateSource || this.calculatedPhpAmount == null)
+        ) {
+            this.exchangeRateError =
+                'Enter a valid exchange rate or get a reference rate before saving.';
+            this.template.querySelector('[data-field="exchangeRate"]')?.focus();
+            return false;
+        }
+
+        return isValid;
+    }
+
+    setCurrencyInputValidity(input) {
+        if (!input) {
+            return;
+        }
+        input.setCustomValidity(
+            this.normalizedOriginalCurrencyCode === PHP_CURRENCY_CODE
+                ? 'Turn off foreign currency to enter a PHP expense.'
+                : ''
+        );
+    }
+
+    isPositiveNumber(value) {
+        const numberValue = Number(value);
+        return Number.isFinite(numberValue) && numberValue > 0;
+    }
+
+    get normalizedOriginalCurrencyCode() {
+        return this.originalCurrencyCode.trim().toUpperCase();
+    }
+
+    get calculatedPhpAmount() {
+        if (
+            !this.isPositiveNumber(this.originalAmountValue) ||
+            !this.isPositiveNumber(this.exchangeRateValue)
+        ) {
+            return null;
+        }
+
+        return multiplyDecimalHalfUp(this.originalAmountValue, this.exchangeRateValue, 2);
+    }
+
+    get rateContextDate() {
+        const today = formatDateISO(new Date());
+        return this.expenseDateValue && this.expenseDateValue <= today
+            ? this.expenseDateValue
+            : today;
+    }
+
+    get phpAmountClass() {
+        return this.isForeignCurrency ? 'slds-hide' : '';
+    }
+
+    get foreignCurrencyFieldsClass() {
+        const baseClass = 'foreign-currency-fields slds-box slds-theme_shade slds-m-bottom_small';
+        return this.isForeignCurrency ? baseClass : `${baseClass} slds-hide`;
+    }
+
+    get areForeignCurrencyFieldsHidden() {
+        return !this.isForeignCurrency;
+    }
+
+    get isPhpAmountDisabled() {
+        return this.isForeignCurrency || this.isSubmitting;
+    }
+
+    get areForeignCurrencyInputsDisabled() {
+        return !this.isForeignCurrency || this.isExchangeRateLoading || this.isSubmitting;
+    }
+
+    get isExchangeRateActionDisabled() {
+        return !this.isForeignCurrency || this.isExchangeRateLoading || this.isSubmitting;
+    }
+
+    get hasConversionPreview() {
+        return this.isForeignCurrency && this.calculatedPhpAmount != null;
+    }
+
+    get formattedOriginalAmount() {
+        return formatCurrency(this.originalAmountValue, this.normalizedOriginalCurrencyCode);
+    }
+
+    get formattedPhpAmount() {
+        return this.calculatedPhpAmount == null ? '-' : formatPHP(this.calculatedPhpAmount);
+    }
+
+    get formattedExchangeRate() {
+        if (!this.isPositiveNumber(this.exchangeRateValue)) {
+            return '-';
+        }
+        return Number(this.exchangeRateValue).toLocaleString('en-PH', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 8
+        });
+    }
+
+    get exchangeRateContext() {
+        if (!this.exchangeRateSource || !this.exchangeRateDate) {
+            return '';
+        }
+        return `${this.exchangeRateSource}, effective ${formatDate(this.exchangeRateDate)}.`;
     }
 
     get categoryPlaceholder() {
@@ -376,6 +716,7 @@ export default class ExpenseModal extends LightningElement {
     get isCategoryInputDisabled() {
         return (
             Boolean(this.formLoadError) ||
+            this.isSubmitting ||
             this.categoryOptionsLoading ||
             Boolean(this.categoryOptionsError) ||
             this.hasNoCategories
@@ -384,7 +725,10 @@ export default class ExpenseModal extends LightningElement {
 
     get isBankInputDisabled() {
         return (
-            Boolean(this.formLoadError) || this.bankOptionsLoading || Boolean(this.bankOptionsError)
+            Boolean(this.formLoadError) ||
+            this.isSubmitting ||
+            this.bankOptionsLoading ||
+            Boolean(this.bankOptionsError)
         );
     }
 
@@ -392,6 +736,8 @@ export default class ExpenseModal extends LightningElement {
         return (
             Boolean(this.formLoadError) ||
             this.isModalContentLoading ||
+            this.isSubmitting ||
+            this.isExchangeRateLoading ||
             Boolean(this.categoryOptionsError) ||
             this.hasNoCategories ||
             Boolean(this.bankOptionsError)

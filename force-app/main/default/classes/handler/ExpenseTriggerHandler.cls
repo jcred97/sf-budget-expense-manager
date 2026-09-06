@@ -1,4 +1,4 @@
-/** Delegates Expense trigger validation to the shared Bank assignment validator. */
+/** Delegates Expense trigger normalization and validation to focused domain services. */
 public inherited sharing class ExpenseTriggerHandler {
     /**
      * Routes supported Expense trigger operations.
@@ -16,6 +16,7 @@ public inherited sharing class ExpenseTriggerHandler {
             operation == System.TriggerOperation.BEFORE_INSERT ||
             operation == System.TriggerOperation.BEFORE_UPDATE
         ) {
+            ExpenseCurrencyService.normalizeAndValidate(expenses);
             BankAssignmentValidator.validateExpenses(expenses, oldExpenses);
         }
     }

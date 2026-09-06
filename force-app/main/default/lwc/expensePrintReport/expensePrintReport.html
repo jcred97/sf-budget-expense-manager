@@ -40,7 +40,14 @@
                         <td>{row.expenseGroup}</td>
                         <td>{row.bank}</td>
                         <td>{row.transactionType}</td>
-                        <td class="print-amount-col">{row.amountFormatted}</td>
+                        <td class="print-amount-col">
+                            <div>{row.amountFormatted}</div>
+                            <template lwc:if={row.hasForeignCurrency}>
+                                <div class="print-original-amount">
+                                    {row.foreignCurrencySummary}
+                                </div>
+                            </template>
+                        </td>
                     </tr>
                 </template>
             </tbody>

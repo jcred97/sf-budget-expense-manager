@@ -6,7 +6,12 @@ const CSV_HEADERS = [
     'Expense Group',
     'Bank',
     'Type',
-    'Amount (PHP)'
+    'Amount (PHP)',
+    'Original Amount',
+    'Original Currency',
+    'Exchange Rate to PHP',
+    'Exchange Rate Date',
+    'Exchange Rate Source'
 ];
 
 export function downloadExpensesCsv(rows, endDate) {
@@ -29,7 +34,12 @@ export function buildExpensesCsv(rows = []) {
         row.expenseGroup || '',
         row.bank || '',
         row.transactionType || '',
-        row.amount != null ? row.amount : ''
+        row.amount != null ? row.amount : '',
+        row.originalAmount != null ? row.originalAmount : '',
+        row.originalCurrencyCode || '',
+        row.exchangeRateToPhp != null ? row.exchangeRateToPhp : '',
+        row.exchangeRateDate || '',
+        row.exchangeRateSource || ''
     ]);
 
     return [CSV_HEADERS, ...expenseRows].map(row => row.map(escapeCsvCell).join(',')).join('\n');
