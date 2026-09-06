@@ -157,6 +157,7 @@ private class ExchangeRateControllerTest {
     @IsTest
     static void testRequestValidation() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
+            Integer dmlBefore = Limits.getDmlStatements();
             assertFailure(null, 'Exchange-rate details are required.');
             assertFailure(
                 requestFor(null, Date.today()),
@@ -171,7 +172,7 @@ private class ExchangeRateControllerTest {
                 'Exchange rates cannot be requested for a future date.'
             );
             System.assertEquals(
-                0,
+                dmlBefore,
                 Limits.getDmlStatements(),
                 'Rate validation must remain read-only.'
             );
@@ -181,6 +182,7 @@ private class ExchangeRateControllerTest {
     @IsTest
     static void testRejectsStaleOrFutureEffectiveDate() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
+            Integer dmlBefore = Limits.getDmlStatements();
             Date requestedDate = Date.today().addDays(-1);
             Test.setMock(
                 HttpCalloutMock.class,
@@ -199,13 +201,18 @@ private class ExchangeRateControllerTest {
                 requestFor('USD', requestedDate),
                 'The exchange-rate provider returned a rate after the selected transaction date.'
             );
-            System.assertEquals(0, Limits.getDmlStatements(), 'Rate lookup must remain read-only.');
+            System.assertEquals(
+                dmlBefore,
+                Limits.getDmlStatements(),
+                'Rate lookup must remain read-only.'
+            );
         }
     }
 
     @IsTest
     static void testMapsProviderStatusesToFriendlyErrors() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
+            Integer dmlBefore = Limits.getDmlStatements();
             Date requestedDate = Date.today().addDays(-1);
             assertStatusFailure(
                 404,
@@ -232,13 +239,18 @@ private class ExchangeRateControllerTest {
                 requestedDate,
                 'Unable to retrieve an exchange rate. Enter a rate manually or try again.'
             );
-            System.assertEquals(0, Limits.getDmlStatements(), 'Rate lookup must remain read-only.');
+            System.assertEquals(
+                dmlBefore,
+                Limits.getDmlStatements(),
+                'Rate lookup must remain read-only.'
+            );
         }
     }
 
     @IsTest
     static void testRejectsMalformedMismatchedAndNonPositiveResponses() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
+            Integer dmlBefore = Limits.getDmlStatements();
             Date requestedDate = Date.today().addDays(-1);
             String expectedMessage = 'The exchange-rate provider returned an invalid response. Enter a rate manually.';
 
@@ -267,20 +279,29 @@ private class ExchangeRateControllerTest {
                 )
             );
             assertFailure(requestFor('USD', requestedDate), expectedMessage);
-            System.assertEquals(0, Limits.getDmlStatements(), 'Rate lookup must remain read-only.');
+            System.assertEquals(
+                dmlBefore,
+                Limits.getDmlStatements(),
+                'Rate lookup must remain read-only.'
+            );
         }
     }
 
     @IsTest
     static void testMapsCalloutFailureToFriendlyError() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
+            Integer dmlBefore = Limits.getDmlStatements();
             Test.setMock(HttpCalloutMock.class, new CalloutFailureMock());
 
             assertFailure(
                 requestFor('USD', Date.today().addDays(-1)),
                 'The exchange-rate provider could not be reached. Enter a rate manually or try again.'
             );
-            System.assertEquals(0, Limits.getDmlStatements(), 'Rate lookup must remain read-only.');
+            System.assertEquals(
+                dmlBefore,
+                Limits.getDmlStatements(),
+                'Rate lookup must remain read-only.'
+            );
         }
     }
 
