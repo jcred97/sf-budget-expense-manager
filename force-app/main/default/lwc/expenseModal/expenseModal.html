@@ -109,7 +109,7 @@
                                 class={foreignCurrencyFieldsClass}
                                 aria-hidden={areForeignCurrencyFieldsHidden}
                             >
-                                <legend class="slds-text-title_bold slds-m-bottom_small">
+                                <legend class="slds-text-title_bold">
                                     Foreign currency details
                                 </legend>
                                 <div class="slds-grid slds-wrap slds-gutters_small">
@@ -152,7 +152,7 @@
                                             data-field="exchangeRate"
                                             type="number"
                                             label="Exchange rate to PHP"
-                                            field-level-help="The PHP value of one unit of the original currency."
+                                            field-level-help="PHP per unit of the original currency. Reference rates are estimates; use your bank or card's settled rate when available."
                                             value={exchangeRateValue}
                                             min="0.00000001"
                                             step="0.00000001"
@@ -216,18 +216,10 @@
                                             <strong>{formattedPhpAmount}</strong>
                                         </p>
                                         <p class="slds-text-body_small slds-text-color_weak">
-                                            Budgets and reports use {formattedPhpAmount}.
                                             {exchangeRateContext}
                                         </p>
                                     </div>
                                 </template>
-
-                                <p
-                                    class="slds-text-body_small slds-text-color_weak slds-m-top_small"
-                                >
-                                    Reference rates are estimates. Use the settled rate from your
-                                    bank or card statement when it is available.
-                                </p>
                             </fieldset>
 
                             <div class="slds-hide" aria-hidden="true">
@@ -302,40 +294,50 @@
                                     {noCategoriesMessage}
                                 </p>
                             </template>
-                            <lightning-input-field
-                                class="date-format-hide"
-                                field-name="Expense_Date__c"
-                                value={fieldValue.Expense_Date__c}
-                                disabled={isSubmitting}
-                                onchange={handleExpenseDateChange}
-                            >
-                            </lightning-input-field>
-                            <lightning-input
-                                class="slds-m-bottom_x-small"
-                                type="time"
-                                label="Transaction Time"
-                                value={transactionTimeValue}
-                                disabled={isSubmitting}
-                                onchange={handleTransactionTimeChange}
-                            >
-                            </lightning-input>
-                            <lightning-input-field
-                                field-name="Transaction_Type__c"
-                                value={fieldValue.Transaction_Type__c}
-                                disabled={isSubmitting}
-                            >
-                            </lightning-input-field>
-                            <lightning-combobox
-                                class="slds-m-bottom_x-small"
-                                data-field="bank"
-                                label="Bank"
-                                value={bankAssignmentValue}
-                                options={bankComboboxOptions}
-                                placeholder={bankPlaceholder}
-                                disabled={isBankInputDisabled}
-                                onchange={handleBankChange}
-                            >
-                            </lightning-combobox>
+                            <div class="slds-grid slds-wrap slds-gutters_small">
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                    <lightning-input-field
+                                        class="date-format-hide"
+                                        field-name="Expense_Date__c"
+                                        value={fieldValue.Expense_Date__c}
+                                        disabled={isSubmitting}
+                                        onchange={handleExpenseDateChange}
+                                    >
+                                    </lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                    <lightning-input
+                                        class="slds-m-bottom_x-small"
+                                        type="time"
+                                        label="Transaction Time"
+                                        value={transactionTimeValue}
+                                        disabled={isSubmitting}
+                                        onchange={handleTransactionTimeChange}
+                                    >
+                                    </lightning-input>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                    <lightning-input-field
+                                        field-name="Transaction_Type__c"
+                                        value={fieldValue.Transaction_Type__c}
+                                        disabled={isSubmitting}
+                                    >
+                                    </lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                    <lightning-combobox
+                                        class="slds-m-bottom_x-small"
+                                        data-field="bank"
+                                        label="Bank"
+                                        value={bankAssignmentValue}
+                                        options={bankComboboxOptions}
+                                        placeholder={bankPlaceholder}
+                                        disabled={isBankInputDisabled}
+                                        onchange={handleBankChange}
+                                    >
+                                    </lightning-combobox>
+                                </div>
+                            </div>
 
                             <template lwc:if={bankOptionsLoading}>
                                 <div

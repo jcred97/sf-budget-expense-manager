@@ -31,7 +31,7 @@
 .fx-rate-action {
     align-items: flex-end;
     display: flex;
-    padding-bottom: var(--slds-g-spacing-2, 0.5rem);
+    padding-bottom: 0;
 }
 
 .fx-rate-loading {
@@ -42,7 +42,7 @@
 .fx-preview {
     background: var(--slds-g-color-surface-container-1, #ffffff);
     border-radius: var(--slds-g-radius-border-1, 0.25rem);
-    padding: var(--slds-g-spacing-3, 0.75rem);
+    padding: var(--slds-g-spacing-2, 0.5rem);
 }
 
 @media (max-width: 48rem) {
