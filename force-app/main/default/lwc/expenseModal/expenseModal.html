@@ -105,13 +105,17 @@
                                 </lightning-input-field>
                             </div>
 
-                            <fieldset
+                            <section
                                 class={foreignCurrencyFieldsClass}
                                 aria-hidden={areForeignCurrencyFieldsHidden}
+                                aria-labelledby="foreign-currency-heading"
                             >
-                                <legend class="slds-text-title_bold">
-                                    Foreign currency details
-                                </legend>
+                                <h3
+                                    id="foreign-currency-heading"
+                                    class="slds-text-title_caps slds-m-bottom_x-small"
+                                >
+                                    Foreign Currency Details
+                                </h3>
                                 <div class="slds-grid slds-wrap slds-gutters_small">
                                     <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                                         <lightning-input
@@ -146,35 +150,50 @@
                                         >
                                         </lightning-input>
                                     </div>
-                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-3">
-                                        <lightning-input
-                                            data-fx-input
-                                            data-field="exchangeRate"
-                                            type="number"
-                                            label="Exchange rate to PHP"
-                                            field-level-help="PHP per unit of the original currency. Reference rates are estimates; use your bank or card's settled rate when available."
-                                            value={exchangeRateValue}
-                                            min="0.00000001"
-                                            step="0.00000001"
-                                            message-when-range-underflow="Enter a rate greater than zero."
-                                            required
-                                            disabled={areForeignCurrencyInputsDisabled}
-                                            onchange={handleExchangeRateChange}
-                                        >
-                                        </lightning-input>
+                                </div>
+                                <div class="slds-form-element slds-m-top_x-small">
+                                    <div class="slds-form-element__label" aria-hidden="true">
+                                        <abbr class="slds-required" title="required">*</abbr
+                                        >Exchange rate to PHP
                                     </div>
+                                    <lightning-helptext
+                                        content="PHP per unit of the original currency. Reference rates are estimates; use your bank or card's settled rate when available."
+                                    ></lightning-helptext>
                                     <div
-                                        class="fx-rate-action slds-col slds-size_1-of-1 slds-medium-size_1-of-3"
+                                        class="slds-grid slds-wrap slds-gutters_small slds-grid_vertical-align-start"
                                     >
-                                        <lightning-button
-                                            type="button"
-                                            variant="neutral"
-                                            label="Get reference rate"
-                                            icon-name="utility:refresh"
-                                            disabled={isExchangeRateActionDisabled}
-                                            onclick={handleFetchExchangeRate}
+                                        <div
+                                            class="slds-col slds-size_1-of-1 slds-medium-size_2-of-3"
                                         >
-                                        </lightning-button>
+                                            <lightning-input
+                                                data-fx-input
+                                                data-field="exchangeRate"
+                                                type="number"
+                                                label="Exchange rate to PHP"
+                                                variant="label-hidden"
+                                                value={exchangeRateValue}
+                                                min="0.00000001"
+                                                step="0.00000001"
+                                                message-when-range-underflow="Enter a rate greater than zero."
+                                                required
+                                                disabled={areForeignCurrencyInputsDisabled}
+                                                onchange={handleExchangeRateChange}
+                                            >
+                                            </lightning-input>
+                                        </div>
+                                        <div
+                                            class="fx-rate-action slds-col slds-size_1-of-1 slds-medium-size_1-of-3"
+                                        >
+                                            <lightning-button
+                                                type="button"
+                                                variant="neutral"
+                                                label="Get reference rate"
+                                                icon-name="utility:refresh"
+                                                disabled={isExchangeRateActionDisabled}
+                                                onclick={handleFetchExchangeRate}
+                                            >
+                                            </lightning-button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -205,7 +224,7 @@
 
                                 <template lwc:if={hasConversionPreview}>
                                     <div
-                                        class="fx-preview slds-m-top_small"
+                                        class="slds-box slds-box_x-small slds-theme_shade slds-m-top_small"
                                         role="status"
                                         aria-live="polite"
                                     >
@@ -220,7 +239,7 @@
                                         </p>
                                     </div>
                                 </template>
-                            </fieldset>
+                            </section>
 
                             <div class="slds-hide" aria-hidden="true">
                                 <lightning-input-field

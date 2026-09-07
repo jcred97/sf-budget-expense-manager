@@ -617,8 +617,7 @@ export default class ExpenseModal extends LightningElement {
     }
 
     get foreignCurrencyFieldsClass() {
-        const baseClass =
-            'foreign-currency-fields slds-box slds-box_x-small slds-theme_shade slds-m-bottom_small';
+        const baseClass = 'foreign-currency-fields slds-box slds-box_small slds-m-bottom_small';
         return this.isForeignCurrency ? baseClass : `${baseClass} slds-hide`;
     }
 
