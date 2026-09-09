@@ -155,8 +155,16 @@ private class BudgetControllerTest {
     static void testBudgetHistoryValidation() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Expense_Group__c household = getExpenseGroup('Household');
-            assertHistoryFails(null, AUGUST_DATE, 'Expense Group Id is required.');
-            assertHistoryFails(household.Id, null, 'Budget month is required.');
+            System.assertEquals(
+                'Expense Group Id is required.',
+                getHistoryValidationError(null, AUGUST_DATE),
+                'History should reject a missing expense group.'
+            );
+            System.assertEquals(
+                'Budget month is required.',
+                getHistoryValidationError(household.Id, null),
+                'History should reject a missing month.'
+            );
         }
     }
 
@@ -352,20 +360,12 @@ private class BudgetControllerTest {
         }
     }
 
-    private static void assertHistoryFails(
-        Id expenseGroupId,
-        Date endMonth,
-        String expectedMessage
-    ) {
+    private static String getHistoryValidationError(Id expenseGroupId, Date endMonth) {
         try {
             BudgetController.getBudgetHistory(expenseGroupId, endMonth);
-            System.assert(false, 'Expected the budget history request to fail.');
         } catch (AuraHandledException e) {
-            System.assertEquals(
-                expectedMessage,
-                e.getMessage(),
-                'Unexpected budget history validation error.'
-            );
+            return e.getMessage();
         }
+        return null;
     }
 }
