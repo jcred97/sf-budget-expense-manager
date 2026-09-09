@@ -8,8 +8,7 @@ public inherited sharing class BudgetService {
      * @return The monthly budget or null when none exists.
      */
     public static BudgetDto getMonthlyBudget(Id expenseGroupId, Date budgetMonth) {
-        requireExpenseGroupId(expenseGroupId);
-        Date normalizedBudgetMonth = normalizeBudgetMonth(budgetMonth);
+        Date normalizedBudgetMonth = normalizeBudgetContext(expenseGroupId, budgetMonth);
         List<Budget__c> budgets = [
             SELECT Id, Expense_Group__c, Budget_Month__c, Amount__c, Description__c
             FROM Budget__c
@@ -29,8 +28,7 @@ public inherited sharing class BudgetService {
      * @return Accessible budgets ordered from oldest to newest month.
      */
     public static List<BudgetDto> getBudgetHistory(Id expenseGroupId, Date endMonth) {
-        requireExpenseGroupId(expenseGroupId);
-        Date normalizedEndMonth = normalizeBudgetMonth(endMonth);
+        Date normalizedEndMonth = normalizeBudgetContext(expenseGroupId, endMonth);
         Date startMonth = normalizedEndMonth.addMonths(-5);
         List<BudgetDto> history = new List<BudgetDto>();
 
@@ -61,10 +59,12 @@ public inherited sharing class BudgetService {
         Budget__c existingBudget = findBudgetForSave(request, normalizedBudgetMonth);
 
         try {
-            Id savedBudgetId = existingBudget == null
-                ? insertBudget(request, normalizedBudgetMonth)
-                : updateBudget(existingBudget.Id, request);
-            return getBudgetById(savedBudgetId);
+            if (existingBudget == null) {
+                insertBudget(request, normalizedBudgetMonth);
+            } else {
+                updateBudget(existingBudget.Id, request);
+            }
+            return getMonthlyBudget(request.expenseGroupId, normalizedBudgetMonth);
         } catch (DmlException e) {
             throw handledException('Failed to save budget: ' + e.getMessage());
         }
@@ -97,13 +97,10 @@ public inherited sharing class BudgetService {
         }
     }
 
-    private static void requireExpenseGroupId(Id expenseGroupId) {
+    private static Date normalizeBudgetContext(Id expenseGroupId, Date budgetMonth) {
         if (expenseGroupId == null) {
             throw handledException('Expense Group Id is required.');
         }
-    }
-
-    private static Date normalizeBudgetMonth(Date budgetMonth) {
         if (budgetMonth == null) {
             throw handledException('Budget month is required.');
         }
@@ -114,8 +111,10 @@ public inherited sharing class BudgetService {
         if (request == null) {
             throw handledException('Budget details are required.');
         }
-        requireExpenseGroupId(request.expenseGroupId);
-        Date normalizedBudgetMonth = normalizeBudgetMonth(request.budgetMonth);
+        Date normalizedBudgetMonth = normalizeBudgetContext(
+            request.expenseGroupId,
+            request.budgetMonth
+        );
         if (request.amount == null || request.amount <= 0) {
             throw handledException('Budget amount must be greater than zero.');
         }
@@ -182,7 +181,7 @@ public inherited sharing class BudgetService {
         }
     }
 
-    private static Id insertBudget(BudgetSaveRequest request, Date normalizedBudgetMonth) {
+    private static void insertBudget(BudgetSaveRequest request, Date normalizedBudgetMonth) {
         Budget__c budget = new Budget__c(
             Expense_Group__c = request.expenseGroupId,
             Budget_Month__c = normalizedBudgetMonth,
@@ -195,10 +194,9 @@ public inherited sharing class BudgetService {
             )
             .getRecords();
         Database.insert(inserts, AccessLevel.USER_MODE);
-        return inserts[0].Id;
     }
 
-    private static Id updateBudget(Id budgetId, BudgetSaveRequest request) {
+    private static void updateBudget(Id budgetId, BudgetSaveRequest request) {
         Budget__c budgetUpdate = new Budget__c(
             Id = budgetId,
             Amount__c = request.amount,
@@ -210,18 +208,6 @@ public inherited sharing class BudgetService {
             )
             .getRecords();
         Database.update(updates, AccessLevel.USER_MODE);
-        return budgetId;
-    }
-
-    private static BudgetDto getBudgetById(Id budgetId) {
-        Budget__c budget = [
-            SELECT Id, Expense_Group__c, Budget_Month__c, Amount__c, Description__c
-            FROM Budget__c
-            WHERE Id = :budgetId
-            WITH USER_MODE
-            LIMIT 1
-        ];
-        return new BudgetDto(budget);
     }
 
     private static AuraHandledException handledException(String message) {
