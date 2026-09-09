@@ -74,6 +74,7 @@ export default class ExpenseModal extends LightningElement {
             this.resetForeignCurrencyState();
         }
         if (isOpening) {
+            this._saveAndNew = false;
             this.isFormLoaded = false;
             this.formLoadError = '';
             this.isSubmitting = false;
@@ -224,16 +225,16 @@ export default class ExpenseModal extends LightningElement {
     }
 
     handleSaveAndNew() {
-        this._saveAndNew = true;
-        Promise.resolve().then(() => {
-            if (!this.isSubmitting) {
-                this._saveAndNew = false;
-            }
-        });
+        if (!this.isSubmitting) {
+            // LDS may dispatch submit asynchronously after the button click.
+            this._saveAndNew = true;
+        }
     }
 
     handleSave() {
-        this._saveAndNew = false;
+        if (!this.isSubmitting) {
+            this._saveAndNew = false;
+        }
     }
 
     handleLoad(event) {
@@ -263,12 +264,12 @@ export default class ExpenseModal extends LightningElement {
     handleSubmit(event) {
         event.preventDefault();
 
-        const saveAndNewRequested = this._saveAndNew;
-        this._saveAndNew = false;
-
         if (this.isSubmitting) {
             return;
         }
+
+        const saveAndNewRequested = this._saveAndNew;
+        this._saveAndNew = false;
 
         if (this.isExchangeRateLoading) {
             this.template.querySelector('[data-exchange-rate-status]')?.focus();
@@ -477,6 +478,7 @@ export default class ExpenseModal extends LightningElement {
             this.expenseDateValue = '';
             this.resetForeignCurrencyState();
             this._saveAndNew = false;
+            this._hasFocusedInitialField = false;
         } else {
             this.handleClose();
         }
