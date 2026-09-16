@@ -3,6 +3,7 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
     public static final Integer DEFAULT_BATCH_SIZE = 50;
 
     private Date runDate;
+    @TestVisible
     private Integer totalExpensesCreated = 0;
     private Integer totalRecurringExpensesProcessed = 0;
 
@@ -88,6 +89,22 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
      * @param context Platform batch context.
      */
     public void finish(Database.BatchableContext context) {
+        Id jobId = context.getJobId();
+        finishWithJob(
+            [SELECT Id, NumberOfErrors FROM AsyncApexJob WHERE Id = :jobId WITH USER_MODE]
+        );
+    }
+
+    @TestVisible
+    private void finishWithJob(AsyncApexJob job) {
+        if (job.NumberOfErrors > 0) {
+            BudgetExpenseSettingsService.markRecurringRunFailed(
+                totalExpensesCreated > 0 ? 'Completed with errors' : 'Failed',
+                totalExpensesCreated,
+                job
+            );
+            return;
+        }
         BudgetExpenseSettingsService.markRecurringRunCompleted(
             totalExpensesCreated,
             totalRecurringExpensesProcessed

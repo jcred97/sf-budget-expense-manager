@@ -25,6 +25,16 @@
                 <default>false</default>
                 <label>Skipped</label>
             </value>
+            <value>
+                <fullName>Failed</fullName>
+                <default>false</default>
+                <label>Failed</label>
+            </value>
+            <value>
+                <fullName>Completed with errors</fullName>
+                <default>false</default>
+                <label>Completed with errors</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>
