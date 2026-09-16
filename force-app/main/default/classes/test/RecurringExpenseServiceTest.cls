@@ -257,6 +257,114 @@ private class RecurringExpenseServiceTest {
     }
 
     @IsTest
+    static void testStaleBatchScopeDoesNotReplayManualGeneration() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Recurring_Expense__c template = createConcurrencyTemplate();
+            Date runDate = template.Start_Date__c;
+            List<SObject> staleScope = new List<SObject>{
+                template.clone(true, true, false, false)
+            };
+
+            Test.startTest();
+            RecurringExpenseGenerationResult firstRun = RecurringExpenseService.generateDueExpenses(
+                runDate
+            );
+            new RecurringExpenseBatch(runDate).execute(null, staleScope);
+            Test.stopTest();
+
+            System.assertEquals(
+                1,
+                firstRun.expensesCreated,
+                'The manual run should generate the occurrence.'
+            );
+            System.assertEquals(
+                1,
+                [SELECT COUNT() FROM Expense__c WHERE Recurring_Expense__c = :template.Id],
+                'A batch holding the original pointer must not generate the occurrence again.'
+            );
+            System.assertEquals(
+                runDate.addDays(1),
+                [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id]
+                .Next_Run_Date__c,
+                'The stale run must not advance or rewind the persisted pointer.'
+            );
+        }
+
+    }
+    @IsTest
+    static void testReloadUsesCurrentValuesAndDeduplicatesCandidates() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Recurring_Expense__c template = createConcurrencyTemplate();
+            update new Recurring_Expense__c(Id = template.Id, Amount__c = 250);
+
+            Test.startTest();
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
+                new List<Recurring_Expense__c>{
+                    template,
+                    template.clone(true, true, false, false)
+                },
+                template.Start_Date__c
+            );
+            Test.stopTest();
+
+            System.assertEquals(
+                1,
+                result.expensesCreated,
+                'Repeated IDs should be processed only once.'
+            );
+            System.assertEquals(
+                250,
+                [SELECT Amount__c FROM Expense__c WHERE Recurring_Expense__c = :template.Id]
+                .Amount__c,
+                'Generation must use the persisted amount rather than the stale caller values.'
+            );
+        }
+
+    }
+    @IsTest
+    static void testReloadSkipsDeactivatedAndDeletedTemplates() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Recurring_Expense__c inactiveTemplate = createConcurrencyTemplate();
+            Recurring_Expense__c deletedTemplate = createConcurrencyTemplate();
+            update new Recurring_Expense__c(Id = inactiveTemplate.Id, Active__c = false);
+            delete deletedTemplate;
+
+            Test.startTest();
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
+                new List<Recurring_Expense__c>{ inactiveTemplate, deletedTemplate },
+                inactiveTemplate.Start_Date__c
+            );
+            Test.stopTest();
+
+            System.assertEquals(
+                0,
+                result.expensesCreated,
+                'Stale eligible templates must be rechecked after locking.'
+            );
+            System.assertEquals(
+                0,
+                [SELECT COUNT() FROM Expense__c],
+                'No expense should be inserted.'
+            );
+        }
+
+    }
+    private static Recurring_Expense__c createConcurrencyTemplate() {
+        Recurring_Expense__c template = new Recurring_Expense__c(
+            Name = 'Daily Membership',
+            Active__c = true,
+            Amount__c = 100,
+            Category__c = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1]
+            .Id,
+            Frequency__c = 'Daily',
+            Start_Date__c = Date.newInstance(2026, 5, 1)
+        );
+        insert template;
+        template.Next_Run_Date__c = template.Start_Date__c;
+        return template;
+    }
+
+    @IsTest
     static void testGenerationUpdatesSystemManagedFieldsForRestrictedUser() {
         User automationUser = createRestrictedAutomationUser();
 
