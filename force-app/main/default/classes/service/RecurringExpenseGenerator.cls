@@ -52,9 +52,46 @@ public with sharing class RecurringExpenseGenerator {
             return context.result;
         }
 
-        generateExpenses(dueRecurringExpenses, context);
+        generateExpenses(lockAndReloadTemplates(dueRecurringExpenses), context);
         persistGeneration(context);
         return context.result;
+    }
+
+    private static List<Recurring_Expense__c> lockAndReloadTemplates(
+        List<Recurring_Expense__c> candidates
+    ) {
+        if (!Schema.sObjectType.Recurring_Expense__c.isAccessible()) {
+            throw new SecurityException('You do not have permission to read recurring expenses.');
+        }
+        Set<Id> templateIds = new Set<Id>();
+        for (Recurring_Expense__c candidate : candidates) {
+            templateIds.add(candidate.Id);
+        }
+        // Lock by identity only: eligibility and pointers may change while a run waits.
+        // Sharing remains enforced; automation reads system-managed pointer fields.
+        Map<Id, Recurring_Expense__c> lockedTemplates = new Map<Id, Recurring_Expense__c>(
+            [SELECT Id FROM Recurring_Expense__c WHERE Id IN :templateIds FOR UPDATE]
+        );
+        // Read after acquiring every lock rather than trusting the caller or lock-query snapshot.
+        return [
+            SELECT
+                Id,
+                Name,
+                Active__c,
+                Amount__c,
+                Bank__c,
+                Bank_Assignment__c,
+                Category__c,
+                Description__c,
+                End_Date__c,
+                Frequency__c,
+                Next_Run_Date__c,
+                Start_Date__c,
+                Transaction_Type__c
+            FROM Recurring_Expense__c
+            WHERE Id IN :lockedTemplates.keySet() AND Active__c = TRUE
+            ORDER BY Next_Run_Date__c ASC, CreatedDate ASC, Id ASC
+        ];
     }
 
     private static void generateExpenses(
