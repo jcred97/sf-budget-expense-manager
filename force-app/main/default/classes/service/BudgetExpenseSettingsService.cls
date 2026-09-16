@@ -107,6 +107,31 @@ public with sharing class BudgetExpenseSettingsService {
         updateRecurringRunStatus('Skipped', message);
     }
 
+    /**
+     * Records failed batch chunks while preserving the successfully committed expense count.
+     * @param status Outcome determined by the batch finish handler.
+     * @param expensesCreated Number of expenses created by successful chunks.
+     * @param job Job with failed chunk count and ID for Setup Apex Jobs.
+     */
+    public static void markRecurringRunFailed(
+        String status,
+        Integer expensesCreated,
+        AsyncApexJob job
+    ) {
+        String message =
+            'Created ' +
+            expensesCreated +
+            ' ' +
+            pluralize('expense', expensesCreated) +
+            '. Failed batch chunks: ' +
+            job.NumberOfErrors +
+            '.' +
+            ' Check Setup > Apex Jobs for details. Job ID: ' +
+            job.Id +
+            '.';
+        updateRecurringRunStatus(status, message);
+    }
+
     private static Budget_Expense_Manager_Setting__c getOrCreateSettings() {
         List<Budget_Expense_Manager_Setting__c> settingsRecords = [
             SELECT

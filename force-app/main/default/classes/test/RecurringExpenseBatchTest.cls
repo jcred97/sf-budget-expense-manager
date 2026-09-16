@@ -1,6 +1,68 @@
 @IsTest
 private class RecurringExpenseBatchTest {
     @IsTest
+    static void testFinishReportsFailureInsteadOfNothingDue() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Test.startTest();
+            Id jobId = Database.executeBatch(new RecurringExpenseBatch(), 1);
+            Test.stopTest();
+            RecurringExpenseBatch batch = new RecurringExpenseBatch();
+            // AsyncApexJob counters are read-only; supply a failed job snapshot at the finish boundary.
+            batch.finishWithJob(failedJobSnapshot(jobId, 2));
+            Budget_Expense_Manager_Setting__c settings = [
+                SELECT
+                    Last_Recurring_Run_Status__c,
+                    Last_Recurring_Run_Message__c,
+                    Last_Recurring_Run_DateTime__c
+                FROM Budget_Expense_Manager_Setting__c
+                LIMIT 1
+            ];
+            System.assertEquals('Failed', settings.Last_Recurring_Run_Status__c);
+            System.assert(
+                settings.Last_Recurring_Run_Message__c.contains('Failed batch chunks: 2.')
+            );
+            System.assert(
+                !settings.Last_Recurring_Run_Message__c.contains('No recurring expenses were due.')
+            );
+            System.assert(settings.Last_Recurring_Run_Message__c.contains(String.valueOf(jobId)));
+            System.assertNotEquals(null, settings.Last_Recurring_Run_DateTime__c);
+        }
+    }
+
+    @IsTest
+    static void testFinishPreservesPartialSuccessCount() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Test.startTest();
+            Id jobId = Database.executeBatch(new RecurringExpenseBatch(), 1);
+            Test.stopTest();
+            RecurringExpenseBatch batch = new RecurringExpenseBatch();
+            batch.totalExpensesCreated = 12;
+            batch.finishWithJob(failedJobSnapshot(jobId, 1));
+            Budget_Expense_Manager_Setting__c settings = [
+                SELECT Last_Recurring_Run_Status__c, Last_Recurring_Run_Message__c
+                FROM Budget_Expense_Manager_Setting__c
+                LIMIT 1
+            ];
+            System.assertEquals('Completed with errors', settings.Last_Recurring_Run_Status__c);
+            System.assert(
+                settings.Last_Recurring_Run_Message__c.contains(
+                    'Created 12 expenses. Failed batch chunks: 1.'
+                )
+            );
+            System.assert(settings.Last_Recurring_Run_Message__c.contains(String.valueOf(jobId)));
+        }
+    }
+
+    private static AsyncApexJob failedJobSnapshot(Id jobId, Integer errorCount) {
+        return (AsyncApexJob) JSON.deserialize(
+            JSON.serialize(
+                new Map<String, Object>{ 'Id' => jobId, 'NumberOfErrors' => errorCount }
+            ),
+            AsyncApexJob.class
+        );
+    }
+
+    @IsTest
     static void testBatchProcessesMoreThanManualRunCap() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Health');
