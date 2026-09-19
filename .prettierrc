@@ -7,6 +7,10 @@
     "plugins": ["prettier-plugin-apex", "@prettier/plugin-xml"],
     "overrides": [
         {
+            "files": "*.{cls,trigger}",
+            "options": { "printWidth": 140 }
+        },
+        {
             "files": "**/lwc/**/*.html",
             "options": { "parser": "lwc" }
         },

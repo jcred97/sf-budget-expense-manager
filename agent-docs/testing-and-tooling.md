@@ -1,8 +1,59 @@
 # Testing And Tooling
 
+## Apex Formatting — 2026-09-20
+
+`.prettierrc` overrides `printWidth` to 140 for `.cls` and `.trigger` files; other file types retain 100. An in-memory formatting check confirmed that the user's three single-line calls/conditions in `RecurringExpenseBatch.cls` remain on one line. Config formatting and diff checks passed.
+
+### Clarifications
+
+Prettier is now opt-in: `package.json` no longer runs `prettier --write` through lint-staged, while ESLint and related Jest checks remain enabled. Workspace `.vscode/settings.json` disables format-on-save, format-on-paste, and format-on-type, with explicit save overrides for the repository's main languages. Manual `npm run prettier` and `npm run prettier:verify` remain available. JSON configuration and diff checks passed.
+
+No repository-wide formatting was run. Manually invoking Prettier may still wrap longer expressions. These configuration changes are not committed or pushed.
+
 ## Apex Tests
 
-Apex tests live in `BankAssignmentValidatorTest.cls`, `BankControllerTest.cls`, `BankTriggerHandlerTest.cls`, `ExpenseGroupBankTriggerHandlerTest.cls`, `ExpenseControllerTest.cls`, `BudgetControllerTest.cls`, `BudgetTriggerHandlerTest.cls`, `RecurringExpenseTriggerHandlerTest.cls`, `BudgetExpenseSettingsTriggerHandlerTest.cls`, `RecurringExpenseBatchTest.cls`, `RecurringExpenseCalculatorTest.cls`, `RecurringExpenseServiceTest.cls`, `RecurringExpenseSchedulerTest.cls`, and `BudgetExpenseSettingsServiceTest.cls`.
+### Expense-list server pagination — 2026-09-17
+
+- `ExpenseController.getExpensePage(filters, pagination)` delegates to `ExpensePageService`, returns at most 200 rows, and uses user-mode queries for both records and first-page COUNT/SUM. Keyset cursors preserve date/time/CreatedDate/Id ordering and validate filter scope. The DTOs and test class are included in `manifest/package.xml`.
+- Check-only validation `0AfgK00000TP7c6SAD` passed all 130 Apex tests with zero component failures, test failures, or coverage warnings. ExpensePageService (90/90), ExpenseController (14/14), ExpenseQueryService (128/128), and ExpensePageRequest (3/3) had 100% executable coverage. ExpensePageDto has no executable lines.
+- New Apex tests cover full-filter totals, literal wildcard search, category/group/date search, picklist and canonical-bank search, null dates/times, tied sort keys, deleted anchors, invalid/filter-mismatched cursors, bounded sizes, and traversal of 2,030 records.
+- All 14 Jest tests pass (11 new pagination/report tests plus 3 existing modal tests). New UI checks cover duplicate clicks, preserved selection/totals, stale responses, debounced search, retry, full CSV, complete DOM rendering before print, and cancellation after filter changes. Targeted ESLint and PMD recommended rules pass with zero findings.
+
+#### Clarifications
+
+- Deployed to `mainDevOrg` on 2026-09-19 as `0AfgK00000TmnXBSAZ`: all 10 components and 130 Apex tests passed with zero component errors, test errors, or coverage warnings. Committed and pushed to `origin/main` on 2026-09-20 as `30dc502` (`feat(expenses): add server-side pagination`); precommit formatting, ESLint, and related Jest checks passed. No recurring schedule changes were needed for validation or deployment.
+- Final user-approved recheck on 2026-09-19 succeeded in `mainDevOrg` as `0AfgK00000TlnW1SAJ`, including the final client date-validation guard. All 130 Apex tests passed with zero component errors, test errors, or coverage warnings; changed executable Apex classes retained 100% coverage. The initial LWC-only check could not resolve the undeployed `ExpenseController.getExpensePage` method, so the successful combined check included all pagination Apex dependencies and UI bundles. This check-only validation preceded the successful deployment above.
+- Pagination applies to the expense list. Dashboard loading still uses the existing full-row query/calculations. CSV and Print/PDF intentionally accumulate complete results only on demand, so very large reports still consume browser memory. Aggregate queries retain Salesforce governor limits.
+- Pages do not provide a transactionally frozen snapshot across requests. Edits by another session may move rows; refreshing resets cursors and recomputes totals. Local save/delete actions reload from page one.
+
+### Recurring batch failure reporting — 2026-09-16
+
+- The batch finish handler queries its own `AsyncApexJob.NumberOfErrors` in user mode. Failed chunks produce `Failed` when no expenses were committed or `Completed with errors` when successful chunks created expenses. The existing Settings Last Run fields display the outcome, committed expense count, failed chunk count, and job ID. Both statuses were added to the restricted picklist.
+- Two tests use deserialized read-only job snapshots to verify failure and partial-success reporting through the finish helper and persisted settings. Existing real batch runs exercise the job query and successful/empty completion paths.
+- Final check-only validation `0AfgK00000TNvzNSAT` passed all 125 tests with no component errors, test errors, or coverage warnings. Focused PMD recommended rules found zero violations. Formatting and diff checks passed.
+- Restored and verified the daily scheduler as the single active matching job `08egK00000g4qHzQAI`, `WAITING`, same owner, cron `0 0 8 * * ?`, timezone `Asia/Manila`, next fire `2026-09-17T00:00:00Z`.
+
+#### Clarifications
+
+- Deployed to `mainDevOrg` on 2026-09-17 as `0AfgK00000TPXmUSAX`: all 4 components and 125 tests passed with zero component errors, test errors, or coverage warnings. Committed and pushed to `origin/main` as `f2796bc` (`fix(recurring): report failed and partially successful batch runs`). No UI bundle changes were required.
+- Daily schedule restored and verified as the single matching active job `08egK00000g6lYkQAI`, `WAITING`, original owner, cron `0 0 8 * * ?`, timezone `Asia/Manila`, next fire `2026-09-17T00:00:00Z` (08:00 local).
+- This covers execute-chunk errors in jobs that reach `finish`. Aborted jobs, start failures, or failures within the finish handler itself require separate monitoring. Failure tests inject job error counts; they do not induce a platform-level failed asynchronous chunk.
+
+### Recurring generation concurrency fix — 2026-09-13
+
+- `RecurringExpenseGenerator` deduplicates candidate IDs, checks read access, locks accessible templates by ID with `FOR UPDATE`, and separately reloads current active records after obtaining the locks. Generation and pointer updates remain in the same transaction. Both manual and batch entry points use this boundary.
+- Three new regressions cover a stale batch scope after manual generation, duplicate IDs plus updated amounts, and deactivated/deleted candidates. Existing catch-up, capped generation, bulk batch, and restricted-user tests remain included.
+- Check-only validation `0AfgK00000T8tRdSAJ` passed all 123 Apex tests with no errors or coverage warnings. Generator coverage: 85/87 locations (97.70%). Focused `pmd:Recommended` analysis found zero violations; formatting and diff checks passed.
+- Initial validation was blocked by the scheduler. An intermediate run exposed missing active-state revalidation, corrected before final validation.
+- The idle recurring schedule was briefly paused and restored with its original owner, cron `0 0 8 * * ?`, and `Asia/Manila` timezone. Verified job `08egK00000fcGQzQAM` is the single active matching schedule, `WAITING`, with next fire `2026-09-13T00:00:00Z`.
+
+#### Clarifications
+
+- Committed and pushed to `origin/main` as `50ca593` (`fix(recurring): prevent duplicate expenses from overlapping runs`). Deployed to `mainDevOrg` on 2026-09-16 as `0AfgK00000TNeIbSAL`: both Apex components succeeded and all 123 specified tests passed with no component errors, test errors, or coverage warnings. Existing duplicate records were not modified.
+- The daily scheduler was paused for deployment and restored as the single matching active job `08egK00000g21eTQAQ`, verified `WAITING` with the original owner, cron `0 0 8 * * ?`, timezone `Asia/Manila`, and next fire `2026-09-17T00:00:00Z` (08:00 local).
+- Tests simulate stale snapshots deterministically; simultaneous multi-transaction testing was not performed. Lock contention can fail a run before writing. Batch failure-status reporting remains a separate issue.
+
+Apex tests live in `BankAssignmentValidatorTest.cls`, `BankControllerTest.cls`, `BankTriggerHandlerTest.cls`, `ExpenseGroupBankTriggerHandlerTest.cls`, `ExpenseControllerTest.cls`, `ExchangeRateControllerTest.cls`, `ExpenseCurrencyServiceTest.cls`, `BudgetControllerTest.cls`, `BudgetTriggerHandlerTest.cls`, `RecurringExpenseTriggerHandlerTest.cls`, `BudgetExpenseSettingsTriggerHandlerTest.cls`, `CurrencyContextServiceTest.cls`, `RecurringExpenseBatchTest.cls`, `RecurringExpenseCalculatorTest.cls`, `RecurringExpenseServiceTest.cls`, `RecurringExpenseSchedulerTest.cls`, and `BudgetExpenseSettingsServiceTest.cls`.
 
 The test setup creates:
 
@@ -23,6 +74,8 @@ Covered behavior includes:
 - bulk expense delete
 - monthly trend data
 - handled delete failures
+- Frankfurter request construction, prior-business-day rates, PHP identity behavior, provider status/error mapping, malformed responses, and stale/future observation rejection
+- optional foreign-currency snapshot completeness, normalization, bulk behavior, update recalculation, snapshot clearing, transaction-date validation, and exact half-up PHP rounding
 - optional monthly budget opt-out, create, normalized lookup, update, group/month upsert, validation, ownership mismatch, and removal
 - budget trigger month/key normalization, key regeneration, duplicate prevention, and invariant errors
 - recurring expense trigger defaults for `Next_Run_Date__c`
@@ -32,12 +85,76 @@ Covered behavior includes:
 - recurring generation under a restricted automation user while the generated link and next-run pointer remain read-only through FLS
 - scheduled recurring expense generation
 - Budget & Expense Manager Settings default creation, updates, singleton protection, and recurring run status tracking
+- stable base-currency initialization/backfill, pinning, normalization, cacheable sanitized reads, and configuration errors
+
+## Budget Analyzer Cleanup (2026-09-10)
+
+`BudgetService` consolidates expense-group/month validation and reuses the monthly lookup after saving, removing duplicate query/helper code that triggered class-level cyclomatic complexity. `BudgetControllerTest.testBudgetHistoryValidation` now asserts the returned validation messages directly in the test method so PMD recognizes its assertions.
+
+- Full-source recommended ESLint and PMD scan: 0 reported violations with existing inline suppressions retained; no new suppressions were added.
+- Check-only validation `0AfgK00000StnrCSAR` in `mainDevOrg`: both changed classes compiled, all 12 budget tests passed, and `BudgetService` coverage was 98/104 lines (94.2%).
+- Targeted Prettier and diff checks passed.
+
+### Clarifications
+
+These Apex changes were committed and pushed to `origin/main` as `7e488f4` (`fix: resolve budget Apex analyzer violations`). They remain check-only validated and have not been deployed. The Low CSS exceptions are unchanged, and this scan did not run Graph Engine.
 
 ## LWC Tests
 
-LWC tests use `@salesforce/sfdx-lwc-jest`, but no LWC Jest tests are currently checked in. A Jest run with `--passWithNoTests` validates the test harness only and does not provide behavioral coverage.
+LWC tests use `@salesforce/sfdx-lwc-jest`. `expenseModal/__tests__/expenseModal.test.js` covers delayed Save & New submission, field clearing with the modal staying open, duplicate in-flight submits, and regular Save after validation blocks Save & New. A Jest run with `--passWithNoTests` validates the test harness only when no tests are found and does not provide behavioral coverage in that case.
+
+The Save & New timing fix (2026-09-10) preserves the selected action until submission instead of clearing it in a click microtask, protects the in-flight action from duplicate submissions, and restores initial-field focus after clearing the form. All three focused Jest tests, lint, targeted Prettier, and diff checks passed. Check-only validation `0AfgK00000Su6aUSAR` and deployment `0AfgK00000SuDTtSAN` each succeeded for the single `expenseModal` bundle in `mainDevOrg` with `NoTestRun` and zero component errors. Signed-in smoke testing is pending.
+
+## Base Currency Context Workstream
+
+The app now pins a reporting currency on the singleton settings record. First-time initialization
+uses the Salesforce organization default in a single-currency org and the corporate currency in a
+multi-currency org. A cacheable controller returns only the validated currency context; it never
+performs initialization or DML. Validation rules require an uppercase three-letter ISO code and
+prevent the initialized value from being changed or cleared.
+
+Validation and deployment completed on 2026-09-01:
+
+- A read-only `mainDevOrg` probe reported a single-currency organization with `PHP` as its default; no settings data or metadata was changed.
+- Targeted Prettier, `git diff --check`, XML parsing, source/manifest inventory, and Salesforce source-to-Metadata-API conversion: passed.
+- Targeted Salesforce Code Analyzer `pmd:Recommended` and `sfge:Recommended`: 0 findings at the Low threshold.
+- The isolated Metadata API package contained exactly 17 base-currency components and zero foreign-exchange fields, classes, credentials, bundles, or references.
+- Final corrected-package check-only deployment `0AfgK00000SD509SAD` compiled all 17 components and passed all 22 specified tests with zero component errors, test errors, or coverage warnings. `CurrencyContextController` and `CurrencyContextService` reported 100% coverage, `SalesforceOrganizationCurrencyProvider` 94.12%, and `BudgetExpenseSettingsService` 90.68%.
+- Deployment `0AfgK00000SCailSAD` released the same 17 components to `mainDevOrg` and passed the same 22 tests with zero component errors, test errors, or coverage warnings. The package preserved the existing hidden Bank tab setting and excluded the foreign-exchange draft.
+- The provider tests cover the single-currency default, the injected corporate-currency result, and the real `CurrencyType` query behavior in both single- and multi-currency organizations.
+- The recurring schedule was restored as the only active job, `08egK00000eBB4RQAW`, in `WAITING` state with cron `0 0 8 * * ?`, timezone `Asia/Manila`, owner `005gK000034mODtQAM`, and next fire `2026-09-02T00:00:00.000+0000`.
+- The deployed singleton field is available but remains blank. Pinning it to the organization currency is a separate persistent data initialization and remains pending explicit approval.
+- No LWC Jest tests were added or run. No commit or push was performed.
+
+## Foreign Exchange Workstream
+
+### Deployment on 2026-09-06
+
+- Compact modal follow-up `8f8dcb2`: paired Date/Time and Transaction Type/Bank using responsive SLDS columns, reduced FX panel spacing, and moved reference-rate guidance into field help. Lint, formatting, check-only deployment `0AfgK00000Se16xSAB`, and deployment `0AfgK00000SdcmsSAB` passed. The LWC-only deployments used `NoTestRun`; signed-in visual verification remains pending.
+
+- Released the 34 components from currency commit `34f6da4`, with deployment fixes in `1802df2`, to `mainDevOrg`.
+- Initial validation `0AfgK00000SdzDBSAZ` rejected the external credential's `NoAuthentication` protocol. The credential now uses `Custom` with no authentication headers or secrets.
+- Validation `0AfgK00000SdzmfSAB` compiled metadata but exposed five test assertions counting `System.runAs` setup as service DML. Tests now compare against the DML count immediately before the lookup calls.
+- Final check-only deployment `0AfgK00000SdqTGSAZ` and deployment `0AfgK00000SdlYRSAZ` passed all 120 specified Apex tests with zero component errors, test errors, or coverage warnings. Affected executable Apex coverage was 89.66%–100%.
+- A read-only live USD-to-PHP lookup through `ExchangeRateController` and the deployed Named Credential succeeded with a positive PHP rate.
+- Both source fixes were committed and pushed. Local agent notes remain uncommitted. No expense records or base-currency initialization were changed; signed-in UI smoke testing remains pending.
+
+The optional Expense foreign-exchange path keeps `Amount__c` canonical in PHP while preserving a historical original amount, ISO currency code, PHP-per-unit rate, effective date, and source. Reference lookups use the public Frankfurter v2 endpoint through a no-auth Salesforce Named Credential and are pinned to ECB observations. Manual settled rates remain available when the provider is unavailable or a user needs the actual bank/card rate.
+
+Local validation completed on 2026-08-28:
+
+- Targeted Prettier, `npm run lint`, `git diff --check`, parsing of all 24 changed/new XML files, and Salesforce source-to-Metadata-API conversion: passed.
+- Targeted Salesforce Code Analyzer `eslint:Recommended`, `pmd:Recommended`, and `sfge:Recommended`: 0 findings at the Low threshold.
+- Eight exact decimal conversion cases, including the `1 × 1.005 = PHP 1.01` half-up boundary shared with Apex: passed.
+- Source inventory contains 16 Apex test classes, including the two focused FX classes. Their org execution remains pending until the metadata is validated/deployed together.
+- No LWC Jest tests were added or run. No org validation, deployment, commit, or push was performed.
 
 ## Modal Readiness Workstream
+
+### Currency section styling — 2026-09-07
+
+- Commit `717e692` uses a named section with an internal SLDS heading, a white SLDS box, a shaded SLDS conversion summary, and a separate rate-label row above the input/button row. The compact responsive modal layout remains in place.
+- Formatting, ESLint, diff checks, check-only deployment `0AfgK00000SiX8FSAV`, and deployment `0AfgK00000SiOD0SAN` passed. Both deployments targeted only `expenseModal` in `mainDevOrg` with `NoTestRun` and zero component errors. Commit-hook Jest allowed no tests; signed-in visual verification remains pending.
 
 The Expense and Recurring Expense dialogs now reveal their controls atomically after LDS form
 metadata/record data and the group-scoped Category and Bank sources have settled. Their loading
@@ -246,4 +363,10 @@ The completed same-org migration scripts were intentionally removed from this ap
 
 ## Currency
 
-All amounts are in PHP (Philippine Peso). Shared display formatting is centralized in `expenseFormatters` with `Intl.NumberFormat`; view models and expense transforms provide formatted values to presentation components.
+`Budget_Expense_Manager_Setting__c.Base_Currency_Code__c` is the stable app reporting-currency foundation. The non-cacheable admin settings path initializes a blank value once; the cacheable currency-context endpoint only reads the persisted value. The Salesforce provider uses `UserInfo.getDefaultCurrency()` in single-currency orgs and a system-mode dynamic corporate `CurrencyType` query in multi-currency orgs. This foundation does not yet replace the PHP-specific FX fields, calculations, or UI formatting.
+
+`Expense__c.Amount__c`, budgets, totals, averages, charts, and monthly trends are canonical PHP (Philippine Peso). Shared PHP and optional ISO-currency display formatting is centralized in `expenseFormatters` with cached `Intl.NumberFormat` instances; view models and expense transforms provide formatted values to presentation components.
+
+Optional foreign-currency Expenses store the original Number amount (4 decimals), three-letter code, PHP-per-unit Number rate (8 decimals), effective date, and source. These fields are all blank for an ordinary PHP Expense. The before-trigger service requires the full snapshot when any one is present and recalculates the PHP Currency amount with half-up precision. Recurring templates remain PHP-only in this version.
+
+The public `Exchange_Rates_API` Named Credential points to `https://api.frankfurter.dev`; its `Exchange_Rates_Public` External Credential uses no authentication and permission-set principal access. Requests use Frankfurter v2's single-rate endpoint with `providers=ECB`. The provider's returned effective date is retained because weekend/holiday requests can resolve to a prior business day; observations older than seven days are rejected. These are informational reference estimates, so the modal supports a manual settled-rate fallback.

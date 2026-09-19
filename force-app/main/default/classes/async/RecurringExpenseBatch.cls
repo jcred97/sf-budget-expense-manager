@@ -60,13 +60,7 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
         List<Recurring_Expense__c> recurringExpenses = new List<Recurring_Expense__c>();
         for (SObject item : scope) {
             Recurring_Expense__c recurringExpense = (Recurring_Expense__c) item;
-            if (
-                RecurringExpenseCalculator.shouldGenerateForDate(
-                    recurringExpense,
-                    recurringExpense.Next_Run_Date__c,
-                    runDate
-                )
-            ) {
+            if (RecurringExpenseCalculator.shouldGenerateForDate(recurringExpense, recurringExpense.Next_Run_Date__c, runDate)) {
                 recurringExpenses.add(recurringExpense);
             }
         }
@@ -75,10 +69,7 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
             return;
         }
 
-        RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
-            recurringExpenses,
-            runDate
-        );
+        RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(recurringExpenses, runDate);
         totalExpensesCreated += result.expensesCreated;
         totalRecurringExpensesProcessed += result.recurringExpensesProcessed;
     }
@@ -90,9 +81,7 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
      */
     public void finish(Database.BatchableContext context) {
         Id jobId = context.getJobId();
-        finishWithJob(
-            [SELECT Id, NumberOfErrors FROM AsyncApexJob WHERE Id = :jobId WITH USER_MODE]
-        );
+        finishWithJob([SELECT Id, NumberOfErrors FROM AsyncApexJob WHERE Id = :jobId WITH USER_MODE]);
     }
 
     @TestVisible
@@ -105,9 +94,6 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
             );
             return;
         }
-        BudgetExpenseSettingsService.markRecurringRunCompleted(
-            totalExpensesCreated,
-            totalRecurringExpensesProcessed
-        );
+        BudgetExpenseSettingsService.markRecurringRunCompleted(totalExpensesCreated, totalRecurringExpensesProcessed);
     }
 }

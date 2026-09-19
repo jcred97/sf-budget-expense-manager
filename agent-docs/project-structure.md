@@ -28,6 +28,7 @@ sf-budget-expense-manager/
       controller/
         BankController.cls
         BudgetController.cls
+        ExchangeRateController.cls
         ExpenseController.cls
         RecurringExpenseAutomationController.cls
         RecurringExpenseController.cls
@@ -39,6 +40,8 @@ sf-budget-expense-manager/
         BudgetSaveRequest.cls
         ExpenseFilterRequest.cls
         ExpenseGroupBankOptionDto.cls
+        ExchangeRateQuoteDto.cls
+        ExchangeRateRequest.cls
         MonthlyExpenseTotalDto.cls
         RecurringExpenseGenerationResult.cls
         RecurringExpenseOverviewDto.cls
@@ -59,7 +62,11 @@ sf-budget-expense-manager/
         BudgetExpenseSettingsService.cls
         BudgetService.cls
         ExpenseCommandService.cls
+        ExpenseCurrencyService.cls
         ExpenseQueryService.cls
+        ExchangeRateProvider.cls
+        ExchangeRateService.cls
+        FrankfurterExchangeRateProvider.cls
         RecurringExpenseCalculator.cls
         RecurringExpenseGenerator.cls
         RecurringExpenseService.cls
@@ -72,6 +79,8 @@ sf-budget-expense-manager/
         ExpenseGroupBankTriggerHandlerTest.cls
         RecurringExpenseTriggerHandlerTest.cls
         ExpenseControllerTest.cls
+        ExchangeRateControllerTest.cls
+        ExpenseCurrencyServiceTest.cls
         RecurringExpenseBatchTest.cls
         RecurringExpenseCalculatorTest.cls
         RecurringExpenseSchedulerTest.cls
@@ -83,6 +92,8 @@ sf-budget-expense-manager/
     flexipages/
       Budget_Expense_Manager_UtilityBar.flexipage-meta.xml
       Expense_Record_Page.flexipage-meta.xml
+    externalCredentials/
+      Exchange_Rates_Public.externalCredential-meta.xml
     globalValueSets/
       Bank.globalValueSet-meta.xml
     layouts/
@@ -103,6 +114,8 @@ sf-budget-expense-manager/
       expenseCsvExport/
       expenseDashboard/
       expenseDashboardViewModel/
+      expenseCurrencyMath/
+      expenseExchangeRateData/
       expenseErrorUtils/
       expenseFormatters/
       expenseList/
@@ -121,6 +134,8 @@ sf-budget-expense-manager/
       recurringExpenses/
       recurringExpenseTransforms/
       recurringExpenseViewModel/
+    namedCredentials/
+      Exchange_Rates_API.namedCredential-meta.xml
     objects/
       Bank__c/
       Budget__c/

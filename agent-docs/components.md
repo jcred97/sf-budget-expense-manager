@@ -7,6 +7,8 @@
 | `lwc/expenseWorkspaceData`                                    | Non-exposed imperative read gateway for expense rows, Dashboard trend/budget history, and group-scoped Bank options                          |
 | `lwc/expenseWorkspaceViewModels`                              | Non-exposed per-manager memoization façade over the three pure workspace view-model builders                                                 |
 | `lwc/expenseCsvExport`                                        | Non-exposed CSV construction and browser download boundary for filtered expense rows                                                         |
+| `lwc/expenseCurrencyMath`                                     | Non-exposed exact decimal multiplication and HALF_UP rounding shared with the Apex conversion invariant                                      |
+| `lwc/expenseExchangeRateData`                                 | Non-exposed imperative gateway to the PHP exchange-rate controller                                                                           |
 | `lwc/expenseErrorUtils`                                       | Non-exposed shared normalization of Apex, LDS/UI API, record-form, network, and JavaScript error messages                                    |
 | `lwc/modalFocusUtils`                                         | Non-exposed shared modal body locking, focus restoration, focusable-element discovery, and Tab trapping                                      |
 | `lwc/expenseMonthNavigator`                                   | Non-exposed reusable previous/current/next month control used by Dashboard and Expenses                                                      |
@@ -25,12 +27,14 @@
 | `lwc/expenseBarChart`                                         | Reusable horizontal bar chart                                                                                                                |
 | `lwc/expenseTrendChart`                                       | Monthly trend visualization                                                                                                                  |
 | `lwc/expenseSummaryCards`                                     | Reusable data-driven summary metric cards; accepts one card configuration collection                                                         |
-| `lwc/expenseFormatters`                                       | Non-exposed pure utilities for PHP currency, compact currency, date/time and ranges, ISO dates, month labels/bounds, and date parsing        |
-| `lwc/expenseTransforms`                                       | Non-exposed pure utilities for expense mapping, grouping, summaries, chart construction, chart colors, totals, and count labels              |
-| `lwc/expenseModal`                                            | Add/Edit Expense modal: atomic loading, animations, focus management, and document-level lifecycle cleanup                                   |
+| `lwc/expenseFormatters`                                       | Non-exposed pure utilities for PHP/generic ISO currency, compact currency, date/time and ranges, ISO dates, month labels/bounds, and parsing |
+| `lwc/expenseTransforms`                                       | Non-exposed pure utilities for PHP/FX expense mapping, grouping, summaries, chart construction, colors, totals, and count labels             |
+| `lwc/expenseModal`                                            | Add/Edit Expense modal: atomic loading, optional FX conversion, animations, focus management, and document-level lifecycle cleanup           |
 | `lwc/budgetExpenseSettings`                                   | Settings page for recurring automation controls, global run time, and last-run status                                                        |
 | `classes/controller/BankController.cls`                       | Lightning-facing group-scoped active Bank-assignment façade                                                                                  |
 | `classes/controller/BudgetController.cls`                     | Lightning-facing current-month and bounded six-month budget query/save/delete façade                                                         |
+| `classes/controller/CurrencyContextController.cls`            | Lightning-facing cacheable façade over the initialized app reporting currency                                                                |
+| `classes/controller/ExchangeRateController.cls`               | Lightning-facing read-only PHP exchange-rate façade with sanitized client errors                                                             |
 | `classes/controller/ExpenseController.cls`                    | Lightning-facing Expense query/delete façade; contains no SOQL or DTO definitions                                                            |
 | `classes/controller/RecurringExpenseController.cls`           | Lightning-facing recurring-template overview/deactivate façade available to normal app users                                                 |
 | `classes/controller/RecurringExpenseAutomationController.cls` | Admin-only Lightning façade for synchronous or Batch Apex recurring generation                                                               |
@@ -41,6 +45,11 @@
 | `classes/handler/`                                            | Trigger handlers for Bank assignments, expense Bank checks, budget invariants, recurring defaults/date validation, and settings              |
 | `classes/service/BankService.cls`                             | User-mode active Bank assignment query and Lightning option mapping                                                                          |
 | `classes/service/BankAssignmentValidator.cls`                 | Bulk cross-object validation and legacy compatibility for Expense and Recurring Expense Bank assignments                                     |
+| `classes/service/CurrencyContextService.cls`                  | Read-only pinned-currency lookup, validation, transaction caching, and organization-currency initialization boundary                         |
+| `classes/service/SalesforceOrganizationCurrencyProvider.cls`  | Single-currency org-default or dynamic multi-currency corporate-code resolver                                                                |
+| `classes/service/ExchangeRateService.cls`                     | Request/quote validation, PHP identity handling, business-day freshness policy, and provider normalization                                   |
+| `classes/service/FrankfurterExchangeRateProvider.cls`         | HTTP and JSON boundary for ECB-pinned Frankfurter v2 reference rates                                                                         |
+| `classes/service/ExpenseCurrencyService.cls`                  | Bulk-safe optional FX snapshot normalization, validation, and canonical PHP calculation                                                      |
 | `classes/service/`                                            | Non-Lightning business/query services for Bank, budget, expense, recurring generation, and settings behavior                                 |
 | `classes/async/`                                              | Batch and Schedulable recurring-expense execution entry points                                                                               |
 | `classes/test/`                                               | Apex tests grouped separately from production classes                                                                                        |
