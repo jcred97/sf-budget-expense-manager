@@ -53,10 +53,18 @@ public with sharing class ExpenseQueryService {
      * @return Matching expenses ordered from newest to oldest.
      */
     public static List<Expense__c> getExpensesByFilters(ExpenseFilterRequest filters) {
-        ExpenseFilterRequest safeFilters = getSafeFilters(filters);
         Map<String, Object> bindValues = new Map<String, Object>();
-        String query =
-            'SELECT Id, Name, Expense_Date__c, Transaction_Time__c, Description__c, ' +
+        String query = expenseSelect() + expenseWhere(filters, bindValues);
+        query += 'ORDER BY Expense_Date__c DESC, Transaction_Time__c DESC NULLS LAST, CreatedDate DESC';
+        return Database.queryWithBinds(query, bindValues, AccessLevel.USER_MODE);
+    }
+
+    /**
+     * Shared expense fields for full dashboard reads and bounded list pages.
+     * @return Fixed expense SELECT clause.
+     */
+    public static String expenseSelect() {
+        return 'SELECT Id, Name, CreatedDate, Expense_Date__c, Transaction_Time__c, Description__c, ' +
             'Category__c, Category__r.Name, ' +
             'Category__r.Expense_Group__c, Category__r.Expense_Group__r.Name, ' +
             'Bank__c, Bank_Assignment__c, Bank_Assignment__r.Active__c, ' +
@@ -64,12 +72,23 @@ public with sharing class ExpenseQueryService {
             'Bank_Assignment__r.Bank__r.Active__c, Transaction_Type__c, Amount__c, ' +
             'Original_Amount__c, Original_Currency_Code__c, Exchange_Rate_To_PHP__c, ' +
             'Exchange_Rate_Date__c, Exchange_Rate_Source__c ' +
-            'FROM Expense__c WHERE Id != null ';
-        query += getRecordFilters(safeFilters.expenseGroupId, safeFilters.categoryId, bindValues);
-        query += getDateFilters(safeFilters.startDate, safeFilters.endDate, bindValues);
-        query += 'ORDER BY Expense_Date__c DESC, Transaction_Time__c DESC NULLS LAST, CreatedDate DESC';
+            'FROM Expense__c ';
+    }
 
-        return Database.queryWithBinds(query, bindValues, AccessLevel.USER_MODE);
+    /**
+     * Shared bound predicates; callers must execute in user mode.
+     * @param filters Expense group, category and date constraints.
+     * @param bindValues Destination for bind values used by the predicates.
+     * @return Bound WHERE clause.
+     */
+    public static String expenseWhere(
+        ExpenseFilterRequest filters,
+        Map<String, Object> bindValues
+    ) {
+        ExpenseFilterRequest safeFilters = getSafeFilters(filters);
+        return 'WHERE Id != null ' +
+            getRecordFilters(safeFilters.expenseGroupId, safeFilters.categoryId, bindValues) +
+            getDateFilters(safeFilters.startDate, safeFilters.endDate, bindValues);
     }
 
     /**

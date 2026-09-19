@@ -1,6 +1,19 @@
 /** Lightning-facing controller for Expense queries and commands. */
 public with sharing class ExpenseController {
     /**
+     * Loads one expense page, enforcing sharing and field access in the service.
+     * @param filters Expense group, category and date constraints.
+     * @param pagination Search, bounded page size and optional continuation cursor.
+     * @return Bounded rows and full-filter totals on the first page.
+     */
+    @AuraEnabled
+    public static ExpensePageDto getExpensePage(
+        ExpenseFilterRequest filters,
+        ExpensePageRequest pagination
+    ) {
+        return ExpensePageService.getPage(filters, pagination);
+    }
+    /**
      * Returns monthly expense totals matching the supplied filters.
      *
      * @param filters Expense-group, category, and date filters; null uses default filters.

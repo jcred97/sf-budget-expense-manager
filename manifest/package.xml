@@ -43,6 +43,10 @@
         <members>ExpenseGroupBankTriggerHandlerTest</members>
         <members>ExpenseGroupSelector</members>
         <members>ExpenseQueryService</members>
+        <members>ExpensePageDto</members>
+        <members>ExpensePageRequest</members>
+        <members>ExpensePageService</members>
+        <members>ExpensePageServiceTest</members>
         <members>ExpenseTriggerHandler</members>
         <members>MonthlyExpenseTotalDto</members>
         <members>OrganizationCurrencyProvider</members>

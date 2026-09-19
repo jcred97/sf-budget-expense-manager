@@ -9,7 +9,10 @@ import {
 export function buildExpensesViewModel({
     rows = [],
     searchTerm = '',
-    visibleCount,
+    summary,
+    hasMore = false,
+    isLoadingMore = false,
+    loadError = '',
     selectedExpenseIds = [],
     categoryId,
     startDate,
@@ -18,19 +21,17 @@ export function buildExpensesViewModel({
     dateError,
     isLoading
 }) {
-    const filteredRows = filterRows(rows, searchTerm);
-    const displayedRows = filteredRows.slice(0, visibleCount);
+    const filteredRows = rows;
     const selectedIds = new Set(selectedExpenseIds);
-    const dateGroups = groupRowsByDate(displayedRows, selectedIds);
-    const totalAmount = sumExpenseAmounts(filteredRows);
-    const expenseCount = filteredRows.length;
+    const dateGroups = groupRowsByDate(rows, selectedIds);
+    const totalAmount = summary?.totalAmount ?? sumExpenseAmounts(rows);
+    const expenseCount = summary?.totalCount ?? rows.length;
     const hasActiveFilters = Boolean(searchTerm) || categoryId !== 'All';
     const topCategory = getTopAmountSummary(filteredRows, 'category', 'Uncategorized');
     const topBank = getTopCountSummary(filteredRows, 'bank', 'No bank');
     const formattedTotal = formatPHP(totalAmount);
     const countLabel = formatExpenseCount(expenseCount);
-    const hasNoRows = filteredRows.length === 0 && !isLoading;
-    const hasMoreRows = visibleCount < filteredRows.length;
+    const hasNoRows = filteredRows.length === 0 && !isLoading && !loadError;
 
     return {
         filteredRows,
@@ -49,6 +50,9 @@ export function buildExpensesViewModel({
         dateError,
         periodLabel: formatPeriodRange(startDate, endDate),
         isLoading,
+        isLoadingMore,
+        loadError,
+        loadMoreLabel: isLoadingMore ? 'Loading...' : 'Load More',
         hasNoRows,
         emptyIcon: hasActiveFilters ? 'utility:filterList' : 'utility:table',
         emptyTitle: hasActiveFilters
@@ -61,28 +65,11 @@ export function buildExpensesViewModel({
         hasSelectedRows: selectedExpenseIds.length > 0,
         selectedCount: selectedExpenseIds.length,
         dateGroups,
-        visibleRowsSummary: `Showing ${Math.min(visibleCount, filteredRows.length)} of ${filteredRows.length}`,
-        hasMoreRows,
+        visibleRowsSummary: `Showing ${rows.length} of ${expenseCount}`,
+        hasMoreRows: hasMore,
         printDateRange: formatIsoDateRange(startDate, endDate),
         printRows: buildPrintRows(filteredRows)
     };
-}
-
-function filterRows(rows, searchTerm) {
-    if (!searchTerm) {
-        return rows;
-    }
-
-    const term = searchTerm.toLowerCase();
-    return rows.filter(
-        row =>
-            (row.name || '').toLowerCase().includes(term) ||
-            (row.category || '').toLowerCase().includes(term) ||
-            (row.expenseGroup || '').toLowerCase().includes(term) ||
-            (row.bank || '').toLowerCase().includes(term) ||
-            (row.transactionType || '').toLowerCase().includes(term) ||
-            (row.originalCurrencyCode || '').toLowerCase().includes(term)
-    );
 }
 
 function groupRowsByDate(rows, selectedIds) {
