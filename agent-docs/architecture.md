@@ -17,7 +17,12 @@ Expense_Group__c
        - Display_Name__c
        - Total_Amount__c (roll-up, read-only)
        -> Expense__c (Category__c lookup)
-            - Amount__c
+            - Amount__c (canonical PHP amount)
+            - Original_Amount__c (optional foreign amount)
+            - Original_Currency_Code__c (optional ISO code)
+            - Exchange_Rate_To_PHP__c (optional PHP per original unit)
+            - Exchange_Rate_Date__c (optional effective date)
+            - Exchange_Rate_Source__c (optional provider/manual attribution)
             - Expense_Date__c
             - Transaction_Time__c (optional)
             - Bank_Assignment__c (optional restricted lookup during migration)
@@ -45,6 +50,7 @@ Bank__c (global, Public Read Only catalog)
   - Bank_Key__c (generated normalized unique key)
 
 Budget_Expense_Manager_Setting__c
+  - Base_Currency_Code__c (stable ISO reporting currency)
   - Recurring_Expenses_Enabled__c
   - Global_Recurring_Run_Time__c
   - Last_Recurring_Run_DateTime__c
@@ -57,6 +63,8 @@ Legacy `Spending__c` metadata has been removed. `Expense_Group__c` is the active
 `Bank__c` stores each institution once. `Expense_Group_Bank__c` is a logical junction with a master-detail relationship to the Expense Group and a deletion-restricted lookup to the global Bank. Its generated composite key prevents duplicate group/Bank assignments. Expense and recurring records reference the assignment so the database retains the selected group context; deleting a referenced assignment or an assigned global Bank is restricted. Deactivation removes a choice from new selections without changing historical labels. During the additive migration, application reads prefer the assignment relationship and fall back to the unchanged legacy picklist.
 
 `Budget__c` is opt-in by record presence. A group/month with no budget record keeps the original expense-only behavior. `BudgetTrigger` normalizes the month and regenerates the unique group/month key for every insert and update, so only one budget can exist for that context. Removing a budget does not remove or change expenses. The standard `Budget__c` tab provides list-view and record-level administration alongside the Dashboard budget panel.
+
+Foreign-currency data is also opt-in by record presence. When every FX field is blank, `ExpenseCurrencyService` leaves the existing PHP amount untouched. When any FX field is present, the service requires a complete snapshot, normalizes its currency/source text, rejects invalid dates and amounts, and recalculates `Amount__c` with half-up rounding in the before trigger. This keeps imports, standard record pages, API writes, and the custom modal on the same database invariant. Historical rates are never refreshed automatically. The user may request an ECB reference estimate through Frankfurter or enter a settled rate manually; the response date and source are stored with the Expense.
 
 Recurring expenses are managed as templates. The generator Apex creates due
 `Expense__c` records, links them back through `Expense__c.Recurring_Expense__c`,
@@ -90,7 +98,15 @@ reads are grouped behind the non-visual `expenseWorkspaceData` boundary; the man
 owns request tokens and applies results only when their workspace context is current.
 `Budget_Expense_Manager_Setting__c` is a singleton app settings object. `BudgetExpenseSettingsTrigger`
 prevents more than one settings record. The settings service creates the default
-record when it is missing. Recurring automation currently uses these global
+record when it is missing and initializes a blank base currency exactly once from Salesforce.
+Validation rules require a normalized three-letter code and prevent the initialized value from
+being changed or cleared through UI, API, or import paths.
+`CurrencyContextController` exposes only the sanitized, persisted currency through a read-only
+cacheable method; initialization remains on the non-cacheable admin settings path. Single-currency
+orgs use their organization default, while multi-currency orgs resolve the corporate currency
+through a dynamic `CurrencyType` query so the source still compiles when that object is unavailable.
+The current PHP-specific FX and display layers are unchanged until the next currency workstream.
+Recurring automation currently uses these global
 settings; `Expense_Group__c` has no group-specific settings fields.
 
 Lightning calls enter Apex only through classes under `classes/controller`. Their request and
@@ -110,6 +126,11 @@ entry points live under `classes/async` without changing their Salesforce metada
 - `BudgetController.saveMonthlyBudget(request)` - creates or updates the single budget for a group/month using user-mode DML.
 - `BudgetController.deleteMonthlyBudget(budgetId)` - removes the accessible budget record without affecting expenses.
 - `BudgetService` - owns user-mode budget queries, validation, mutations, lookup normalization, and Lightning-safe responses; `BudgetSaveRequest` is data-only.
+- `CurrencyContextController.getCurrencyContext()` - cacheable read-only façade returning the pinned base currency and the current Salesforce multi-currency feature state.
+- `CurrencyContextService` and `SalesforceOrganizationCurrencyProvider` - validate the stored ISO code, cache it per transaction, and resolve the organization or corporate currency only for first-time settings initialization.
+- `ExchangeRateController.getPhpRate(request)` - returns a validated PHP-per-unit quote through the public `Exchange_Rates_API` Named Credential; null dates use today and future dates are rejected.
+- `ExchangeRateService` and `FrankfurterExchangeRateProvider` - validate ISO-style source codes, pin the request to the ECB provider, accept recent prior business-day observations, reject stale or malformed responses, and return sanitized errors with a manual-rate fallback.
+- `ExpenseCurrencyService` - bulk-safe before-trigger authority for optional FX completeness, normalization, date validation, and canonical PHP calculation.
 - `ExpenseController.getCategoriesByExpenseGroup(expenseGroupId)` - cacheable façade over `CategorySelector`; a null ID returns the bounded compatibility list.
 - `ExpenseController.getExpensesByFilters(filters)` - delegates dynamic user-mode querying to `ExpenseQueryService`; filter DTO group/category values are `Id` or null.
 - `ExpenseController.deleteExpense(expenseId)` - delegates the null check and scoped user-mode deletion to `ExpenseCommandService`.
@@ -120,7 +141,7 @@ entry points live under `classes/async` without changing their Salesforce metada
 - `RecurringExpenseBatch` - Batch Apex processor for due recurring expenses. Each batch chunk creates expenses and advances `Next_Run_Date__c`.
 - `RecurringExpenseScheduler.execute(context)` - scheduled Apex wrapper that starts `RecurringExpenseBatch`.
 - `SettingsController.getSettings()` and `saveSettings(request)` - Admin/All Access Lightning entry points for global settings.
-- `BudgetExpenseSettingsService` - creates/updates the singleton settings record and tracks recurring run status without exposing Lightning methods directly.
+- `BudgetExpenseSettingsService` - creates/updates the singleton settings record, initializes its base currency once, and tracks recurring run status without exposing Lightning methods directly.
 
 ## Custom Application
 
@@ -128,9 +149,9 @@ entry points live under `classes/async` without changing their Salesforce metada
 
 ## Permission Sets
 
-- `Budget_Expense_Manager_User` - Day-to-day app access. Grants the Bank, Budget, Expense, and normal recurring-template controllers, read-only access to the global Bank catalog, and normal CRUD on group Bank assignments, budgets, expense groups, categories, expenses, and recurring expense templates without `viewAllRecords` or `modifyAllRecords`. The Banks tab is hidden from this permission set; assignments are managed from the Expense Group related list.
-- `Budget_Expense_Manager_Admin` - Operational admin access. Grants the four normal controllers plus `SettingsController` and `RecurringExpenseAutomationController`, full access to global Banks and group assignments, and access to budgets and settings.
-- `Budget_Expense_Manager_All_Access` - Development/admin convenience set. Uses the same controller-only Apex access boundary as Admin and grants broad CRUD plus `viewAllRecords` and `modifyAllRecords` on the app objects. Generated key fields stay hidden.
+- `Budget_Expense_Manager_User` - Day-to-day app access. Grants the Bank, Budget, Currency Context, Exchange Rate, Expense, and normal recurring-template controllers, the public exchange-rate credential principal, read-only access to the global Bank catalog, and normal CRUD on group Bank assignments, budgets, expense groups, categories, expenses, and recurring expense templates without `viewAllRecords` or `modifyAllRecords`. The Banks tab is hidden from this permission set; assignments are managed from the Expense Group related list.
+- `Budget_Expense_Manager_Admin` - Operational admin access. Grants the normal controllers, including Currency Context and Exchange Rate, plus `SettingsController` and `RecurringExpenseAutomationController`, the public exchange-rate credential principal, full access to global Banks and group assignments, and access to budgets and settings.
+- `Budget_Expense_Manager_All_Access` - Development/admin convenience set. Uses the same controller-only Apex access boundary as Admin, grants the public exchange-rate credential principal, and grants broad CRUD plus `viewAllRecords` and `modifyAllRecords` on the app objects. Generated key fields stay hidden.
 
 ## Pages And Tabs
 

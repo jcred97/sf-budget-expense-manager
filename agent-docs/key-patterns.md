@@ -59,14 +59,24 @@ The app defaults to the current month on load.
 
 ## Incremental Loading
 
-The expense list loads 20 rows initially and adds 10 rows when users click
-Load More. All filtered rows stay in memory, while `rowsToDisplay` controls the
-visible slice.
+The expense list fetches 20 rows initially and 10 more on Load More through
+`ExpenseController.getExpensePage`. Cursor order is expense date descending
+(null last), time descending (null last), CreatedDate descending, then Id
+descending. Search runs on the server after a 300 ms debounce. Filter changes
+clear selection and pagination and invalidate outstanding responses. Failed
+pages retain loaded rows and offer Retry. Only fetched rows stay in list memory.
+
+CSV and Print/PDF fetch all matching pages on demand (200 per request) and never
+publish partial results after a failed request. Print uses a separate complete
+report view model. Changing filters cancels report preparation. Use the app's
+Print/PDF button to prepare the report before opening the print dialog.
 
 ## Totals And Summaries
 
-`totalAmount` sums all filtered rows, not only visible rows. `formattedTotal`
-uses PHP currency formatting via `Intl.NumberFormat`.
+Expense-list count and amount come from a user-mode aggregate query for the full
+filter/search result on the first page. Subsequent pages reuse those totals.
+`formattedTotal` uses PHP currency formatting via `Intl.NumberFormat`.
+Dashboard calculations retain their existing complete-row data path.
 
 Summary cards show total amount, expense count, average expense, top
 category, and top bank. Dashboard chart and summary fallbacks should match the
@@ -87,6 +97,14 @@ The Dashboard also requests a bounded six-month budget history alongside its exi
 The compatibility read order is assignment Bank name first, then the temporary legacy `Bank__c` picklist. Editing preserves an existing inactive assignment so historical data remains editable; Add and Duplicate do not offer inactive choices. Server validation, rather than the optional lookup filter, enforces that the assignment belongs to the Category's Expense Group and that newly chosen assignments are active. Assignment Bank identity is immutable after creation because changing it would relabel every historical record that references that junction row.
 
 Standard layouts show the new Bank lookup plus the legacy value read-only during migration. The assignment Name is an auto-number, so the Expense and Recurring workspace dialogs present `Bank__r.Name` through group-scoped comboboxes. The standard Recurring record page remains available through the record-name link and object tab, so the legacy field cannot be destructively removed until that compatibility boundary is separately approved and verified.
+
+## Optional Foreign Currency
+
+An Expense remains PHP-only unless the user enables **Paid in another currency**. The modal then captures the original amount and three-letter code plus an editable PHP-per-unit rate. **Get reference rate** performs an explicit, imperative callout; it never runs automatically. The quote is an ECB reference estimate delivered through Frankfurter, and the user can replace it with the settled Bank/card rate. Provider loading and errors stay inside the FX fieldset and do not participate in the modal's atomic initial-readiness gate.
+
+The five FX fields form one historical snapshot. Changing the source currency or Expense Date invalidates the current quote, changing only the original amount does not, and editing an existing Expense never silently refreshes its rate. A request token prevents late callout responses from replacing a newer currency/date context or updating a closed modal. Duplicate copies the snapshot, Save & New clears it, and turning FX off retains the calculated PHP amount while clearing all five audit fields.
+
+`ExpenseCurrencyService` is the final calculation authority for every DML entry path. `expenseCurrencyMath` mirrors Apex Decimal multiplication and HALF_UP scale-2 rounding without JavaScript binary floating-point arithmetic, so the preview and toggle-off PHP value agree with the before trigger even on half-cent ties. Budgets, totals, averages, charts, and monthly trends continue to use only `Amount__c`; list and print rows add quiet original-currency context, while CSV adds the five raw FX audit columns. No cross-currency aggregate is produced.
 
 ## Charts
 
@@ -130,6 +148,7 @@ than custom decorative treatments.
 - Category selection is a required `lightning-combobox` populated from the
   current workspace `Expense_Group__c`; the selected category is injected into
   the record form on submit.
+- FX controls stay mounted inside `expenseModal` so the shared focus trap can see them. They are hidden and disabled for PHP-only records; an inline quote request disables Save without hiding the rest of the form.
 
 ## Date Input Styling
 
@@ -147,7 +166,7 @@ minute entry while preserving Lightning Data Service save behavior.
 
 The Expenses view uses custom date-grouped rows instead of
 `lightning-datatable`. Each row shows the expense name, category, bank,
-transaction type, time, date, and PHP amount. Checkboxes populate
+transaction type, time, date, and PHP amount. Foreign Expenses add the original amount/currency and stored rate as secondary text. Checkboxes populate
 `selectedExpenseIds` for bulk delete, while row action menus call the shared
 edit/duplicate/delete behavior. Prefer Lightning button/icon controls and
 quiet SLDS-like row typography over custom button chrome.
@@ -165,7 +184,7 @@ bulkified and avoid one-DML-per-row implementations.
 ## Export And Print
 
 The app can export filtered rows to CSV through `expenseCsvExport` and render a
-print-only expense report through `expensePrintReport`. Dashboard and Expenses share
+print-only expense report through `expensePrintReport`. The CSV retains the raw FX snapshot and the print table shows its concise original-currency context below the canonical PHP amount. Dashboard and Expenses share
 `expenseMonthNavigator`; shared date-range labels come from `expenseFormatters`.
 
 Modal components share body scroll locking, focus restoration, focusable-element discovery,

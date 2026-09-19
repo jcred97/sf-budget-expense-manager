@@ -1,4 +1,16 @@
 {
+  "editor.formatOnSave": false,
+  "editor.formatOnPaste": false,
+  "editor.formatOnType": false,
+  "[apex]": { "editor.formatOnSave": false },
+  "[javascript]": { "editor.formatOnSave": false },
+  "[html]": { "editor.formatOnSave": false },
+  "[css]": { "editor.formatOnSave": false },
+  "[xml]": { "editor.formatOnSave": false },
+  "[json]": { "editor.formatOnSave": false },
+  "[jsonc]": { "editor.formatOnSave": false },
+  "[markdown]": { "editor.formatOnSave": false },
+  "[yaml]": { "editor.formatOnSave": false },
   "search.exclude": {
     "**/node_modules": true,
     "**/bower_components": true,

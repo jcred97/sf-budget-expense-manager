@@ -7,15 +7,10 @@ public with sharing class RecurringExpenseScheduler implements Schedulable {
      */
     public void execute(SchedulableContext context) {
         if (!BudgetExpenseSettingsService.areRecurringExpensesEnabled()) {
-            BudgetExpenseSettingsService.markRecurringRunSkipped(
-                'Recurring expenses are disabled in Budget & Expense Manager Settings.'
-            );
+            BudgetExpenseSettingsService.markRecurringRunSkipped('Recurring expenses are disabled in Budget & Expense Manager Settings.');
             return;
         }
 
-        Database.executeBatch(
-            new RecurringExpenseBatch(),
-            RecurringExpenseBatch.DEFAULT_BATCH_SIZE
-        );
+        Database.executeBatch(new RecurringExpenseBatch(), RecurringExpenseBatch.DEFAULT_BATCH_SIZE);
     }
 }
