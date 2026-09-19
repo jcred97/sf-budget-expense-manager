@@ -25,7 +25,13 @@ import {
     buildWorkspaceNavItems,
     getWorkspaceViewConfig
 } from 'c/expenseWorkspaceConfig';
-import { fetchBankOptions, fetchDashboardData, fetchExpenseRows } from 'c/expenseWorkspaceData';
+import {
+    fetchBankOptions,
+    fetchDashboardData,
+    fetchExpensePage,
+    fetchAllExpenseRows
+} from 'c/expenseWorkspaceData';
+import { buildExpensesViewModel } from 'c/expenseListViewModel';
 import { mapRecurringExpenseRow } from 'c/recurringExpenseTransforms';
 import {
     getDashboardViewModel,
@@ -75,7 +81,14 @@ export default class BudgetExpenseManager extends LightningElement {
         monthlyTotal: 0
     };
 
-    visibleExpenseCount = PAGE_SIZE;
+    expenseSummary = { totalCount: 0, totalAmount: 0 };
+    expenseNextCursor = null;
+    expenseHasMore = false;
+    expenseLoadError = '';
+    isExpensesLoadingMore = false;
+    isReportLoading = false;
+    printViewModel;
+    _expenseSearchTimer;
 
     isExpensesLoading = false;
     isDashboardLoading = false;
@@ -248,38 +261,62 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     // View data loading.
-    async loadExpenses() {
+    async loadExpenses(append = false) {
+        // Event handlers can pass an Event; only an explicit true appends a page.
+        append = append === true;
+        clearTimeout(this._expenseSearchTimer);
         if (!this.expenseGroupId) {
             this.clearExpenseData();
             return;
         }
 
         const requestId = ++this._latestExpenseLoadRequestId;
-        this.isExpensesLoading = true;
-        this.selectedExpenseIds = [];
+        this.isExpensesLoading = !append;
+        this.isExpensesLoadingMore = append;
+        this.expenseLoadError = '';
+        this.printViewModel = undefined;
+        if (!append) {
+            this.expenseRows = [];
+            this.expenseSummary = { totalCount: 0, totalAmount: 0 };
+            this.expenseNextCursor = null;
+            this.expenseHasMore = false;
+            this.selectedExpenseIds = [];
+        }
 
         try {
-            const rows = await fetchExpenseRows({
-                expenseGroupId: this.expenseGroupId,
-                categoryId: this.categoryId,
-                startDate: this.startDate,
-                endDate: this.endDate
+            const page = await fetchExpensePage({
+                ...this.expenseFilters,
+                pageSize: append ? LOAD_MORE_SIZE : PAGE_SIZE,
+                cursor: append ? this.expenseNextCursor : null
             });
 
             if (requestId !== this._latestExpenseLoadRequestId) {
                 return;
             }
 
-            this.expenseRows = rows;
-            this.visibleExpenseCount = PAGE_SIZE;
-        } catch {
+            const rows = new Map((append ? this.expenseRows : []).map(row => [row.id, row]));
+            page.rows.forEach(row => rows.set(row.id, row));
+            this.expenseRows = [...rows.values()];
+            this.expenseNextCursor = page.nextCursor;
+            this.expenseHasMore = page.hasMore;
+            if (!append) {
+                this.expenseSummary = {
+                    totalCount: page.totalCount,
+                    totalAmount: page.totalAmount
+                };
+            }
+        } catch (error) {
             if (requestId !== this._latestExpenseLoadRequestId) {
                 return;
             }
-            this.showToast('Error', 'Failed to load expenses.', 'error');
+            this.expenseLoadError = getErrorMessage(
+                error,
+                'Failed to load expenses. Please retry.'
+            );
         } finally {
             if (requestId === this._latestExpenseLoadRequestId) {
                 this.isExpensesLoading = false;
+                this.isExpensesLoadingMore = false;
             }
         }
     }
@@ -436,7 +473,10 @@ export default class BudgetExpenseManager extends LightningElement {
         return getExpensesViewModel(this, {
             rows: this.expenseRows,
             searchTerm: this.searchTerm,
-            visibleCount: this.visibleExpenseCount,
+            summary: this.expenseSummary,
+            hasMore: this.expenseHasMore,
+            isLoadingMore: this.isExpensesLoadingMore,
+            loadError: this.expenseLoadError,
             selectedExpenseIds: this.selectedExpenseIds,
             categoryId: this.categoryId,
             startDate: this.startDate,
@@ -497,17 +537,18 @@ export default class BudgetExpenseManager extends LightningElement {
     handleExpenseFilterChange(event) {
         const { field, value } = event.detail;
         this[field] = value;
-        this.visibleExpenseCount = PAGE_SIZE;
-
-        if (field === 'searchTerm') {
+        this.clearExpenseData();
+        this.validateDates();
+        if (this.expenseDateError) {
             return;
         }
 
-        if (field === 'startDate' || field === 'endDate') {
-            this.validateDates();
-            if (this.expenseDateError) {
-                return;
-            }
+        if (field === 'searchTerm') {
+            this.isExpensesLoading = true;
+            // Debounce typing while immediately invalidating the previous page request.
+            // eslint-disable-next-line @lwc/lwc/no-async-operation
+            this._expenseSearchTimer = setTimeout(() => this.loadExpenses(), 300);
+            return;
         }
 
         this.loadExpenses();
@@ -522,7 +563,6 @@ export default class BudgetExpenseManager extends LightningElement {
         this.categoryId = 'All';
         this.searchTerm = '';
         this.expenseDateError = '';
-        this.visibleExpenseCount = PAGE_SIZE;
         this.loadExpenses();
     }
 
@@ -555,7 +595,6 @@ export default class BudgetExpenseManager extends LightningElement {
         this.startDate = monthBounds.startDate;
         this.endDate = monthBounds.endDate;
         this.expenseDateError = '';
-        this.visibleExpenseCount = PAGE_SIZE;
         this.loadExpenses();
     }
 
@@ -634,10 +673,16 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     clearExpenseData() {
+        clearTimeout(this._expenseSearchTimer);
         this._latestExpenseLoadRequestId += 1;
         this.expenseRows = [];
         this.selectedExpenseIds = [];
-        this.visibleExpenseCount = PAGE_SIZE;
+        this.expenseSummary = { totalCount: 0, totalAmount: 0 };
+        this.expenseNextCursor = null;
+        this.expenseHasMore = false;
+        this.expenseLoadError = '';
+        this.isExpensesLoadingMore = false;
+        this.printViewModel = undefined;
         this.isExpensesLoading = false;
     }
 
@@ -674,12 +719,14 @@ export default class BudgetExpenseManager extends LightningElement {
 
     // Expense selection and row actions.
     handleLoadMore() {
-        const { filteredRows } = this.expensesViewModel;
-        if (this.visibleExpenseCount >= filteredRows.length) {
+        if (!this.expenseHasMore || this.isExpensesLoading || this.isExpensesLoadingMore) {
             return;
         }
+        this.loadExpenses(true);
+    }
 
-        this.visibleExpenseCount += LOAD_MORE_SIZE;
+    handleRetryExpenses() {
+        this.loadExpenses(Boolean(this.expenseNextCursor));
     }
 
     handleExpenseSelect(event) {
@@ -1025,17 +1072,74 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     // Report output and user feedback.
+    get expenseFilters() {
+        return {
+            expenseGroupId: this.expenseGroupId,
+            categoryId: this.categoryId,
+            startDate: this.startDate,
+            endDate: this.endDate,
+            searchTerm: this.searchTerm
+        };
+    }
+
+    get isReportDisabled() {
+        return (
+            this.isReportLoading ||
+            this.isExpensesLoading ||
+            this.isExpensesLoadingMore ||
+            Boolean(this.expenseLoadError) ||
+            !this.expenseSummary.totalCount
+        );
+    }
+
     handlePrint() {
-        window.print();
+        this.prepareReport(true);
     }
 
     handleExportCsv() {
-        const { filteredRows, hasNoRows } = this.expensesViewModel;
-        if (hasNoRows) {
+        this.prepareReport(false);
+    }
+
+    async prepareReport(print) {
+        if (this.isReportDisabled) {
             return;
         }
+        this.isReportLoading = true;
+        const filters = this.expenseFilters;
+        const requestId = this._latestExpenseLoadRequestId;
+        const isCurrent = () => this.isConnected && requestId === this._latestExpenseLoadRequestId;
+        try {
+            const rows = await fetchAllExpenseRows(filters, isCurrent);
+            if (!rows || !isCurrent()) {
+                return;
+            }
+            if (print) {
+                this.printViewModel = buildExpensesViewModel({ ...filters, rows });
+                // Let both the parent and report component render the complete report.
+                await Promise.resolve();
+                await Promise.resolve();
+                if (isCurrent()) {
+                    window.print();
+                }
+            } else {
+                downloadExpensesCsv(rows, filters.endDate);
+            }
+        } catch (error) {
+            if (isCurrent()) {
+                this.showToast(
+                    'Error',
+                    getErrorMessage(error, 'Failed to prepare the complete report.'),
+                    'error'
+                );
+            }
+        } finally {
+            this.isReportLoading = false;
+        }
+    }
 
-        downloadExpensesCsv(filteredRows, this.endDate);
+    disconnectedCallback() {
+        clearTimeout(this._expenseSearchTimer);
+        this._latestExpenseLoadRequestId += 1;
     }
 
     showToast(title, message, variant) {

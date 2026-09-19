@@ -112,7 +112,7 @@
                                     label="Export CSV"
                                     icon-name="utility:download"
                                     onclick={handleExportCsv}
-                                    disabled={expensesViewModel.hasNoRows}
+                                    disabled={isReportDisabled}
                                 >
                                 </lightning-button>
                                 <lightning-button
@@ -120,7 +120,7 @@
                                     label="Print / PDF"
                                     icon-name="utility:print"
                                     onclick={handlePrint}
-                                    disabled={expensesViewModel.hasNoRows}
+                                    disabled={isReportDisabled}
                                 >
                                 </lightning-button>
                                 <lightning-button
@@ -133,6 +133,11 @@
                             </div>
                         </div>
 
+                        <template lwc:if={isReportLoading}>
+                            <p class="slds-p-around_small" role="status">
+                                Preparing all matching expenses for your report...
+                            </p>
+                        </template>
                         <c-expense-list
                             view-model={expensesViewModel}
                             onfilterchange={handleExpenseFilterChange}
@@ -142,6 +147,7 @@
                             onrowaction={handleExpenseAction}
                             onbulkdelete={handleBulkExpenseDelete}
                             onloadmore={handleLoadMore}
+                            onretry={handleRetryExpenses}
                         >
                         </c-expense-list>
                     </section>
@@ -185,7 +191,9 @@
         </div>
     </div>
 
-    <c-expense-print-report view-model={expensesViewModel}></c-expense-print-report>
+    <template lwc:if={printViewModel}>
+        <c-expense-print-report view-model={printViewModel}></c-expense-print-report>
+    </template>
 
     <c-expense-modal
         is-open={isExpenseModalOpen}

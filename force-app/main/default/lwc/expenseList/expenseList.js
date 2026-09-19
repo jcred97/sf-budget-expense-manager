@@ -54,4 +54,8 @@ export default class ExpenseList extends LightningElement {
     handleLoadMore() {
         this.dispatchEvent(new CustomEvent('loadmore'));
     }
+
+    handleRetry() {
+        this.dispatchEvent(new CustomEvent('retry'));
+    }
 }
