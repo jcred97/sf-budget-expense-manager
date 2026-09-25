@@ -17,9 +17,7 @@ public with sharing class SettingsController {
      * @return Persisted settings and current scheduler state.
      */
     @AuraEnabled
-    public static BudgetExpenseSettingsState saveSettings(
-        BudgetExpenseSettingsUpdateRequest request
-    ) {
+    public static BudgetExpenseSettingsState saveSettings(BudgetExpenseSettingsUpdateRequest request) {
         return BudgetExpenseSettingsService.saveSettings(request);
     }
 }
