@@ -13,13 +13,14 @@ public with sharing class BudgetController {
     }
 
     /**
-     * Returns budgets in the six-month window ending in the requested calendar month.
+     * Returns fresh budgets in the six-month window ending in the requested calendar month.
+     * Called imperatively after budget mutations, so client-side caching must remain disabled.
      *
      * @param expenseGroupId Expense group that owns the budgets.
      * @param endMonth Any date in the final calendar month of the window.
      * @return Accessible budgets ordered from oldest to newest month.
      */
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled
     public static List<BudgetDto> getBudgetHistory(Id expenseGroupId, Date endMonth) {
         return BudgetService.getBudgetHistory(expenseGroupId, endMonth);
     }
