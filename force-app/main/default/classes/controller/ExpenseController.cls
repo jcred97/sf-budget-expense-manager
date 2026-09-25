@@ -7,10 +7,7 @@ public with sharing class ExpenseController {
      * @return Bounded rows and full-filter totals on the first page.
      */
     @AuraEnabled
-    public static ExpensePageDto getExpensePage(
-        ExpenseFilterRequest filters,
-        ExpensePageRequest pagination
-    ) {
+    public static ExpensePageDto getExpensePage(ExpenseFilterRequest filters, ExpensePageRequest pagination) {
         return ExpensePageService.getPage(filters, pagination);
     }
     /**
