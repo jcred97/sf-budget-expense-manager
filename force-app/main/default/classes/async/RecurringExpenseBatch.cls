@@ -87,11 +87,7 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
     @TestVisible
     private void finishWithJob(AsyncApexJob job) {
         if (job.NumberOfErrors > 0) {
-            BudgetExpenseSettingsService.markRecurringRunFailed(
-                totalExpensesCreated > 0 ? 'Completed with errors' : 'Failed',
-                totalExpensesCreated,
-                job
-            );
+            BudgetExpenseSettingsService.markRecurringRunFailed(totalExpensesCreated > 0 ? 'Completed with errors' : 'Failed', totalExpensesCreated, job);
             return;
         }
         BudgetExpenseSettingsService.markRecurringRunCompleted(totalExpensesCreated, totalRecurringExpensesProcessed);
