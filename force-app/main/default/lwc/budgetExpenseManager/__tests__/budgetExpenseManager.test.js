@@ -9,6 +9,11 @@ import {
 } from 'c/expenseWorkspaceData';
 import { downloadExpensesCsv } from 'c/expenseCsvExport';
 import { loadStyle } from 'lightning/platformResourceLoader';
+import LightningConfirm from 'lightning/confirm';
+import deleteExpense from '@salesforce/apex/ExpenseController.deleteExpense';
+import deleteExpenses from '@salesforce/apex/ExpenseController.deleteExpenses';
+
+jest.mock('lightning/confirm', () => ({ open: jest.fn() }));
 
 jest.mock(
     '@salesforce/apex/ExpenseController.getAllExpenseGroups',
@@ -93,6 +98,7 @@ async function mount() {
 describe('expense pagination UI', () => {
     beforeEach(() => {
         jest.resetAllMocks();
+        LightningConfirm.open.mockResolvedValue(true);
         loadStyle.mockResolvedValue();
         fetchExpensePage.mockResolvedValue(firstPage());
         fetchDashboardData.mockResolvedValue({ rows: [], trend: [], budgets: [] });
@@ -101,6 +107,101 @@ describe('expense pagination UI', () => {
     afterEach(() => {
         document.body.replaceChildren();
         jest.useRealTimers();
+    });
+
+    describe.each(['single', 'bulk'])('%s deletion rollback', mode => {
+        const startDelete = element => {
+            if (mode === 'bulk') {
+                dispatch(element, 'selectionchange', { id: '1', selected: true });
+                dispatch(element, 'selectionchange', { id: '3', selected: true });
+                dispatch(element, 'bulkdelete');
+            } else {
+                dispatch(element, 'rowaction', { action: 'delete', id: '1' });
+            }
+        };
+
+        it.each(['unchanged', 'filter', 'group'])(
+            'restores only the original list when context is %s',
+            async context => {
+                fetchExpensePage.mockResolvedValueOnce({
+                    ...firstPage(),
+                    rows: [row('1'), row('2'), row('3')]
+                });
+                const element = await mount();
+                const deleteMock = mode === 'bulk' ? deleteExpenses : deleteExpense;
+                let rejectDelete;
+                deleteMock.mockImplementationOnce(
+                    () =>
+                        new Promise((resolve, reject) => {
+                            rejectDelete = reject;
+                        })
+                );
+                startDelete(element);
+                await flush();
+                expect(deleteMock).toHaveBeenCalledTimes(1);
+                expect(list(element).viewModel.filteredRows.map(item => item.id)).toEqual(
+                    mode === 'bulk' ? ['2'] : ['2', '3']
+                );
+
+                if (context !== 'unchanged') {
+                    fetchExpensePage.mockResolvedValueOnce({
+                        rows: [row('new')],
+                        totalCount: 1,
+                        totalAmount: 10,
+                        hasMore: false
+                    });
+                    if (context === 'filter') {
+                        dispatch(element, 'filterchange', {
+                            field: 'categoryId',
+                            value: 'another'
+                        });
+                    } else {
+                        element.shadowRoot
+                            .querySelector('lightning-combobox')
+                            .dispatchEvent(
+                                new CustomEvent('change', { detail: { value: 'other-group' } })
+                            );
+                        await flush();
+                        element.shadowRoot
+                            .querySelector('c-expense-dashboard')
+                            .dispatchEvent(new CustomEvent('viewexpenses'));
+                    }
+                    await flush();
+                    dispatch(element, 'selectionchange', { id: 'new', selected: true });
+                }
+
+                rejectDelete(new Error('Deletion rejected'));
+                await flush();
+                const vm = list(element).viewModel;
+                expect(vm.filteredRows.map(item => item.id)).toEqual(
+                    context === 'unchanged' ? ['1', '2', '3'] : ['new']
+                );
+                expect(vm.selectedCount).toBe(
+                    context === 'unchanged' ? (mode === 'bulk' ? 2 : 0) : 1
+                );
+                expect(vm.dateGroups[0].rows[0].isSelected).toBe(
+                    context !== 'unchanged' || mode === 'bulk'
+                );
+            }
+        );
+
+        it('does not delete after the list changes while confirmation is pending', async () => {
+            const element = await mount();
+            let confirmDelete;
+            LightningConfirm.open.mockImplementationOnce(
+                () =>
+                    new Promise(resolve => {
+                        confirmDelete = resolve;
+                    })
+            );
+            startDelete(element);
+            dispatch(element, 'filterchange', { field: 'categoryId', value: 'another' });
+            await flush();
+            confirmDelete(true);
+            await flush();
+            expect(deleteExpense).not.toHaveBeenCalled();
+            expect(deleteExpenses).not.toHaveBeenCalled();
+        });
     });
 
     it('fetches a cursor page once, keeps selection and full-result totals, and ends pagination', async () => {
