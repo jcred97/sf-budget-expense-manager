@@ -14,6 +14,9 @@ const CSV_HEADERS = [
     'Exchange Rate Source'
 ];
 
+const NUMERIC_COLUMNS = new Set([7, 8, 10]);
+const NUMBER_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+
 export function downloadExpensesCsv(rows, endDate) {
     const csvContent = buildExpensesCsv(rows);
     const link = document.createElement('a');
@@ -45,6 +48,12 @@ export function buildExpensesCsv(rows = []) {
     return [CSV_HEADERS, ...expenseRows].map(row => row.map(escapeCsvCell).join(',')).join('\n');
 }
 
-function escapeCsvCell(value) {
-    return `"${String(value).replace(/"/g, '""')}"`;
+function escapeCsvCell(value, columnIndex) {
+    let text = String(value);
+    const isNumericValue = NUMERIC_COLUMNS.has(columnIndex) && NUMBER_PATTERN.test(text);
+    // Quoting alone does not prevent spreadsheets from evaluating a cell as a formula.
+    if (!isNumericValue && (/^\s*[=+@-]/.test(text) || /^[\t\r\n]/.test(text))) {
+        text = `'${text}`;
+    }
+    return `"${text.replace(/"/g, '""')}"`;
 }
