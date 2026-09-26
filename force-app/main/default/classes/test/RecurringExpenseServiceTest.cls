@@ -1,5 +1,121 @@
 @IsTest
 private class RecurringExpenseServiceTest {
+    private static Id synchronousCategoryId;
+    @IsTest
+    static void testSynchronousControllerRespectsDisabledSetting() {
+        Recurring_Expense__c template = synchronousTemplate('Disabled', Date.today());
+        insert template;
+        insert new Budget_Expense_Manager_Setting__c(Name = 'Default', Recurring_Expenses_Enabled__c = false);
+
+        Test.startTest();
+        try {
+            RecurringExpenseAutomationController.generateDueExpenses();
+            System.assert(false, 'Disabled synchronous generation must fail.');
+        } catch (AuraHandledException expected) {
+            System.assert(expected.getMessage().contains('disabled'), 'Explain why generation is blocked.');
+        }
+        Test.stopTest();
+        System.assertEquals(0, [SELECT COUNT() FROM Expense__c], 'Disabled generation must not create expenses.');
+        System.assertEquals(
+            Date.today(),
+            [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id].Next_Run_Date__c,
+            'Disabled generation must not advance the pointer.'
+        );
+    }
+
+    @IsTest
+    static void testSynchronousCapResumesWithoutReplaying() {
+        Date startDate = Date.today().addDays(-200);
+        Recurring_Expense__c template = synchronousTemplate('Catch up', startDate);
+        insert template;
+
+        Test.startTest();
+        RecurringExpenseGenerationResult first = RecurringExpenseAutomationController.generateDueExpenses();
+        Date nextDate = [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id].Next_Run_Date__c;
+        RecurringExpenseGenerationResult second = RecurringExpenseAutomationController.generateDueExpenses();
+        Test.stopTest();
+
+        System.assertEquals(200, first.expensesCreated, 'Synchronous generation stops after 200 occurrences.');
+        System.assertEquals(true, first.hitGenerationLimit, 'Report remaining due work.');
+        System.assertEquals(Date.today(), nextDate, 'Keep the first ungenerated occurrence.');
+        System.assertEquals(1, second.expensesCreated, 'Resume with only the outstanding occurrence.');
+        System.assertEquals(false, second.hitGenerationLimit, 'Catch-up is complete.');
+        System.assertEquals(201, [SELECT COUNT() FROM Expense__c], 'No occurrences are replayed.');
+        AggregateResult dates = [SELECT COUNT_DISTINCT(Expense_Date__c) uniqueDates FROM Expense__c];
+        System.assertEquals(201, dates.get('uniqueDates'), 'Every generated date is unique.');
+    }
+
+    @IsTest
+    static void testEndedTemplatesDoNotStarveSynchronousGeneration() {
+        List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
+        for (Integer i = 0; i < 200; i++) {
+            Recurring_Expense__c ended = synchronousTemplate('Ended ' + i, Date.today().addDays(-2));
+            ended.End_Date__c = Date.today().addDays(-2);
+            ended.Next_Run_Date__c = Date.today().addDays(-1);
+            templates.add(ended);
+        }
+        templates.add(synchronousTemplate('Due today', Date.today()));
+        insert templates;
+        Id dueId = templates[200].Id;
+
+        Test.startTest();
+        RecurringExpenseGenerationResult result = RecurringExpenseAutomationController.generateDueExpenses();
+        Test.stopTest();
+
+        System.assertEquals(1, result.expensesCreated, 'Scan past ended templates to find due work.');
+        System.assertEquals(false, result.hitGenerationLimit, 'Ended templates do not consume the cap.');
+        System.assertEquals(
+            dueId,
+            [SELECT Recurring_Expense__c FROM Expense__c LIMIT 1].Recurring_Expense__c,
+            'Only the eligible template generates an expense.'
+        );
+    }
+
+    @IsTest
+    static void testSynchronousCapReportsAdditionalTemplates() {
+        List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
+        for (Integer i = 0; i < 201; i++) {
+            templates.add(synchronousTemplate('Due ' + i, Date.today()));
+        }
+        insert templates;
+        Test.startTest();
+        RecurringExpenseGenerationResult first = RecurringExpenseAutomationController.generateDueExpenses();
+        RecurringExpenseGenerationResult second = RecurringExpenseAutomationController.generateDueExpenses();
+        Test.stopTest();
+        System.assertEquals(200, first.expensesCreated, 'Limit applies across templates.');
+        System.assertEquals(true, first.hitGenerationLimit, 'The extra eligible template signals remaining work.');
+        System.assertEquals(1, second.expensesCreated, 'The remaining template is processed next time.');
+        System.assertEquals(false, second.hitGenerationLimit, 'No more work remains.');
+    }
+
+    @IsTest
+    static void testBatchOverloadRetainsLargerCap() {
+        Recurring_Expense__c template = synchronousTemplate('Batch catch up', Date.today().addDays(-200));
+        insert template;
+        Test.startTest();
+        RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
+            new List<Recurring_Expense__c>{ template },
+            Date.today()
+        );
+        Test.stopTest();
+        System.assertEquals(201, result.expensesCreated, 'Batch generation is not restricted to the synchronous cap.');
+        System.assertEquals(false, result.hitGenerationLimit, 'The batch still has capacity.');
+    }
+
+    private static Recurring_Expense__c synchronousTemplate(String name, Date startDate) {
+        if (synchronousCategoryId == null) {
+            synchronousCategoryId = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1].Id;
+        }
+        return new Recurring_Expense__c(
+            Name = name,
+            Active__c = true,
+            Amount__c = 10,
+            Category__c = synchronousCategoryId,
+            Frequency__c = 'Daily',
+            Start_Date__c = startDate
+        );
+    }
+
     @TestSetup
     static void setupData() {
         Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Health');
