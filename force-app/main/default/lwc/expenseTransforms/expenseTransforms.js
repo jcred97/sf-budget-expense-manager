@@ -3,7 +3,7 @@ import { formatCurrency, formatDate, formatPHP, formatTime } from 'c/expenseForm
 export const CHART_COLORS = ['#0070D2', '#04844B', '#FFB75D', '#E4A201', '#9E5BB5', '#E16032'];
 
 export function groupByAmount(rows, field, fallbackLabel = 'Unknown') {
-    const groupedAmounts = {};
+    const groupedAmounts = Object.create(null);
     rows.forEach(row => {
         const key = row[field] || fallbackLabel;
         groupedAmounts[key] = (groupedAmounts[key] || 0) + (row.amount || 0);
@@ -12,7 +12,7 @@ export function groupByAmount(rows, field, fallbackLabel = 'Unknown') {
 }
 
 export function groupByCount(rows, field, fallbackLabel = 'Unknown') {
-    const groupedCounts = {};
+    const groupedCounts = Object.create(null);
     rows.forEach(row => {
         const key = row[field] || fallbackLabel;
         groupedCounts[key] = (groupedCounts[key] || 0) + 1;
