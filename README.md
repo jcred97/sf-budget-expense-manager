@@ -70,7 +70,8 @@ Reporting remains PHP-focused and is centralized in `expenseFormatters`. Foreign
 - `expenseCurrencyMath` and `expenseExchangeRateData` — exact decimal HALF_UP conversion plus the imperative, nonvisual gateway from the expense modal to the exchange-rate controller.
 - `budgetExpenseSettings` — global recurring-automation controls.
 - `expenseBarChart`, `expenseTrendChart`, and `expenseSummaryCards` — reusable visualization components.
-- `expenseTransforms`, `recurringExpenseTransforms`, `expenseFormatters`, `expenseWorkspaceConfig`, `expenseErrorUtils`, `modalFocusUtils`, and `expenseCsvExport` — focused mapping, formatting, workspace-configuration, error, modal-accessibility, and export modules.
+- `recurringExpenseViewModel` — recurring row display values and summary cards, built together from the server overview.
+- `expenseTransforms`, `expenseFormatters`, `expenseWorkspaceConfig`, `expenseErrorUtils`, `modalFocusUtils`, and `expenseCsvExport` — focused mapping, formatting, workspace-configuration, error, modal-accessibility, and export modules.
 
 Public component properties, event contracts, Apex DTO fields, and the existing neutral business-object APIs were preserved during the API rebrand.
 

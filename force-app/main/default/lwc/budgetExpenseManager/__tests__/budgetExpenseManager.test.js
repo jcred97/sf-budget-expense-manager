@@ -1,6 +1,7 @@
 import { createElement } from 'lwc';
 import BudgetExpenseManager from 'c/budgetExpenseManager';
 import getAllExpenseGroups from '@salesforce/apex/ExpenseController.getAllExpenseGroups';
+import getRecurringExpenseOverview from '@salesforce/apex/RecurringExpenseController.getRecurringExpenseOverview';
 import {
     fetchExpensePage,
     fetchDashboardData,
@@ -107,6 +108,31 @@ describe('expense pagination UI', () => {
     afterEach(() => {
         document.body.replaceChildren();
         jest.useRealTimers();
+    });
+
+    it('presents recurring server rows through the combined view model', async () => {
+        const element = await mount();
+        getRecurringExpenseOverview.emit({
+            activeCount: 1,
+            dueTodayCount: 1,
+            monthlyTotal: 100,
+            rows: [{ id: 'recurring-1', name: 'Rent', bank: 'BPI', active: true, dueToday: true }]
+        });
+        element.shadowRoot.querySelector('[data-view="recurring"]').click();
+        await flush();
+        const model = element.shadowRoot.querySelector('c-recurring-expenses').viewModel;
+        expect(model.rows[0]).toMatchObject({
+            id: 'recurring-1',
+            name: 'Rent',
+            bank: 'BPI',
+            bankDisplay: 'BPI',
+            recordLink: '/recurring-1',
+            statusLabel: 'Active',
+            rowClass: 'recurring-row is-due',
+            deactivateDisabled: false
+        });
+        expect(model.summaryCards[0].value).toBe(1);
+        expect(model.summaryCards[1].value).toBe(1);
     });
 
     describe.each(['single', 'bulk'])('%s deletion rollback', mode => {

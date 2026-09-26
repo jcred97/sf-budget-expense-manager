@@ -207,7 +207,6 @@
         <members>modalFocusUtils</members>
         <members>recurringExpenseModal</members>
         <members>recurringExpenses</members>
-        <members>recurringExpenseTransforms</members>
         <members>recurringExpenseViewModel</members>
         <name>LightningComponentBundle</name>
     </types>
