@@ -5,7 +5,6 @@
         <members>BankAssignmentValidatorTest</members>
         <members>BankController</members>
         <members>BankControllerTest</members>
-        <members>BankService</members>
         <members>BankTriggerHandler</members>
         <members>BankTriggerHandlerTest</members>
         <members>BudgetController</members>
@@ -21,7 +20,6 @@
         <members>BudgetService</members>
         <members>BudgetTriggerHandler</members>
         <members>BudgetTriggerHandlerTest</members>
-        <members>CategorySelector</members>
         <members>CurrencyContextController</members>
         <members>CurrencyContextDto</members>
         <members>CurrencyContextService</members>
@@ -41,7 +39,6 @@
         <members>ExpenseGroupBankOptionDto</members>
         <members>ExpenseGroupBankTriggerHandler</members>
         <members>ExpenseGroupBankTriggerHandlerTest</members>
-        <members>ExpenseGroupSelector</members>
         <members>ExpenseQueryService</members>
         <members>ExpensePageDto</members>
         <members>ExpensePageRequest</members>

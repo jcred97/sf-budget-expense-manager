@@ -1,5 +1,7 @@
 /** Lightning-facing controller for Expense queries and commands. */
 public with sharing class ExpenseController {
+    private static final Integer MAX_WORKSPACE_RESULTS = 2000;
+
     /**
      * Loads one expense page, enforcing sharing and field access in the service.
      * @param filters Expense group, category and date constraints.
@@ -24,11 +26,17 @@ public with sharing class ExpenseController {
     /**
      * Returns expense groups available to the current user for workspace selection.
      *
-     * @return Expense groups ordered by name, subject to the selector result cap.
+     * @return Expense groups ordered by name, capped at 2,000 records.
      */
     @AuraEnabled(cacheable=true)
     public static List<Expense_Group__c> getAllExpenseGroups() {
-        return ExpenseGroupSelector.selectAllForWorkspace();
+        return [
+            SELECT Id, Name
+            FROM Expense_Group__c
+            WITH USER_MODE
+            ORDER BY Name
+            LIMIT :MAX_WORKSPACE_RESULTS
+        ];
     }
 
     /**
@@ -39,7 +47,23 @@ public with sharing class ExpenseController {
      */
     @AuraEnabled(cacheable=true)
     public static List<Category__c> getCategoriesByExpenseGroup(Id expenseGroupId) {
-        return CategorySelector.selectByExpenseGroup(expenseGroupId);
+        if (expenseGroupId == null) {
+            return [
+                SELECT Id, Name, Expense_Group__c, Expense_Group__r.Name
+                FROM Category__c
+                WITH USER_MODE
+                ORDER BY Name
+                LIMIT :MAX_WORKSPACE_RESULTS
+            ];
+        }
+
+        return [
+            SELECT Id, Name, Expense_Group__c, Expense_Group__r.Name
+            FROM Category__c
+            WHERE Expense_Group__c = :expenseGroupId
+            WITH USER_MODE
+            ORDER BY Name
+        ];
     }
 
     /**
