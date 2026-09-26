@@ -11,6 +11,7 @@ public with sharing class RecurringExpenseService {
      * @return Generation counts and limit status.
      */
     public static RecurringExpenseGenerationResult generateDueExpenses() {
+        requireRecurringExpensesEnabled();
         return generateDueExpenses(Date.today());
     }
 
@@ -20,18 +21,17 @@ public with sharing class RecurringExpenseService {
      * @return Salesforce batch job ID.
      */
     public static Id runDueExpensesBatch() {
-        if (!BudgetExpenseSettingsService.areRecurringExpensesEnabled()) {
-            throw handledException(
-                'Recurring expenses are disabled in Budget & Expense Manager Settings.'
-            );
-        }
+        requireRecurringExpensesEnabled();
 
-        Id jobId = Database.executeBatch(
-            new RecurringExpenseBatch(),
-            RecurringExpenseBatch.DEFAULT_BATCH_SIZE
-        );
+        Id jobId = Database.executeBatch(new RecurringExpenseBatch(), RecurringExpenseBatch.DEFAULT_BATCH_SIZE);
         BudgetExpenseSettingsService.markRecurringRunQueued(jobId);
         return jobId;
+    }
+
+    private static void requireRecurringExpensesEnabled() {
+        if (!BudgetExpenseSettingsService.areRecurringExpensesEnabled()) {
+            throw handledException('Recurring expenses are disabled in Budget & Expense Manager Settings.');
+        }
     }
 
     @TestVisible
@@ -40,7 +40,10 @@ public with sharing class RecurringExpenseService {
             throw new AuraHandledException('Run date is required.');
         }
 
-        List<Recurring_Expense__c> dueRecurringExpenses = [
+        List<Recurring_Expense__c> generatableRecurringExpenses = new List<Recurring_Expense__c>();
+        // Stream past ended templates before applying the candidate cap. One extra
+        // eligible template lets the generator report remaining work at the limit.
+        for (Recurring_Expense__c recurringExpense : [
             SELECT
                 Id,
                 Name,
@@ -58,26 +61,19 @@ public with sharing class RecurringExpenseService {
             FROM Recurring_Expense__c
             WHERE Active__c = TRUE AND Next_Run_Date__c != NULL AND Next_Run_Date__c <= :runDate
             WITH USER_MODE
-            ORDER BY Next_Run_Date__c ASC, CreatedDate ASC
-            LIMIT :MAX_EXPENSES_PER_RUN
-        ];
-
-        List<Recurring_Expense__c> generatableRecurringExpenses = new List<Recurring_Expense__c>();
-        for (Recurring_Expense__c recurringExpense : dueRecurringExpenses) {
-            if (
-                RecurringExpenseCalculator.shouldGenerateForDate(
-                    recurringExpense,
-                    recurringExpense.Next_Run_Date__c,
-                    runDate
-                )
-            ) {
+            ORDER BY Next_Run_Date__c ASC, CreatedDate ASC, Id ASC
+        ]) {
+            if (RecurringExpenseCalculator.shouldGenerateForDate(recurringExpense, recurringExpense.Next_Run_Date__c, runDate)) {
                 generatableRecurringExpenses.add(recurringExpense);
+                if (generatableRecurringExpenses.size() > MAX_EXPENSES_PER_RUN) {
+                    break;
+                }
             }
         }
 
         return generatableRecurringExpenses.isEmpty()
             ? new RecurringExpenseGenerationResult(runDate)
-            : generateDueExpenses(generatableRecurringExpenses, runDate);
+            : generateDueExpenses(generatableRecurringExpenses, runDate, MAX_EXPENSES_PER_RUN);
     }
 
     /**
@@ -87,10 +83,7 @@ public with sharing class RecurringExpenseService {
      * @param runDate Inclusive generation cutoff.
      * @return Generation counts and limit status.
      */
-    public static RecurringExpenseGenerationResult generateDueExpenses(
-        List<Recurring_Expense__c> dueRecurringExpenses,
-        Date runDate
-    ) {
+    public static RecurringExpenseGenerationResult generateDueExpenses(List<Recurring_Expense__c> dueRecurringExpenses, Date runDate) {
         return generateDueExpenses(dueRecurringExpenses, runDate, MAX_EXPENSES_PER_TRANSACTION);
     }
 
