@@ -44,8 +44,8 @@ Reporting remains PHP-focused and is centralized in `expenseFormatters`. Foreign
 
 - `BankController`, `BudgetController`, `CurrencyContextController`, `ExchangeRateController`, `ExpenseController`, `RecurringExpenseController`, `RecurringExpenseAutomationController`, and `SettingsController` — the only Lightning-facing Apex entry points.
 - Top-level classes under `classes/dto` define stable LWC request and response contracts; DTOs contain data and mapping only, not validation or persistence logic.
-- `ExpenseGroupSelector` and `CategorySelector` — reusable user-mode workspace lookup queries.
-- `BankService` — user-mode group-scoped Bank assignment lookup and DTO mapping.
+- `ExpenseController` owns its simple Expense Group and Category lookups; `BankController` owns its group-scoped Bank lookup and DTO mapping. All three lookups use user-mode queries.
+- Extract services for substantial business logic or actual reuse; simple endpoint-specific queries do not need a separate service or selector class.
 - `BudgetService` — user-mode lookup, validation, and mutation of optional monthly expense-group budgets.
 - `ExpenseQueryService` and `ExpenseCommandService` — scoped user-mode queries and DML.
 - `ExchangeRateService`, `FrankfurterExchangeRateProvider`, and `ExpenseCurrencyService` — validated ECB reference-rate lookup plus bulk-safe foreign-currency snapshot validation and PHP calculation.
@@ -99,7 +99,7 @@ sf-budget-expense-manager/
 |- manifest/
 |- force-app/main/default/
 |  |- applications/
-|  |- classes/{async,controller,dto,handler,selector,service,test}/
+|  |- classes/{async,controller,dto,handler,service,test}/
 |  |- contentassets/
 |  |- flexipages/
 |  |- layouts/
