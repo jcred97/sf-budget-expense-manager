@@ -1,9 +1,9 @@
 /** Coordinates manual, synchronous, and batch recurring-expense generation. */
 public with sharing class RecurringExpenseService {
     @TestVisible
-    private static final Integer MAX_EXPENSES_PER_RUN = 200;
+    private static final Integer MAX_SYNCHRONOUS_EXPENSES = 200;
     @TestVisible
-    private static final Integer MAX_EXPENSES_PER_TRANSACTION = 9000;
+    private static final Integer MAX_BATCH_EXPENSES = 9000;
 
     /**
      * Generates due recurring expenses for today using the synchronous run cap.
@@ -40,7 +40,15 @@ public with sharing class RecurringExpenseService {
             throw new AuraHandledException('Run date is required.');
         }
 
-        List<Recurring_Expense__c> generatableRecurringExpenses = new List<Recurring_Expense__c>();
+        List<Recurring_Expense__c> eligibleTemplates = findSynchronousCandidates(runDate);
+        if (eligibleTemplates.isEmpty()) {
+            return new RecurringExpenseGenerationResult(runDate);
+        }
+        return generateDueExpenses(eligibleTemplates, runDate, MAX_SYNCHRONOUS_EXPENSES);
+    }
+
+    private static List<Recurring_Expense__c> findSynchronousCandidates(Date runDate) {
+        List<Recurring_Expense__c> eligibleTemplates = new List<Recurring_Expense__c>();
         // Stream past ended templates before applying the candidate cap. One extra
         // eligible template lets the generator report remaining work at the limit.
         for (Recurring_Expense__c recurringExpense : [
@@ -64,16 +72,14 @@ public with sharing class RecurringExpenseService {
             ORDER BY Next_Run_Date__c ASC, CreatedDate ASC, Id ASC
         ]) {
             if (RecurringExpenseCalculator.shouldGenerateForDate(recurringExpense, recurringExpense.Next_Run_Date__c, runDate)) {
-                generatableRecurringExpenses.add(recurringExpense);
-                if (generatableRecurringExpenses.size() > MAX_EXPENSES_PER_RUN) {
+                eligibleTemplates.add(recurringExpense);
+                if (eligibleTemplates.size() > MAX_SYNCHRONOUS_EXPENSES) {
                     break;
                 }
             }
         }
 
-        return generatableRecurringExpenses.isEmpty()
-            ? new RecurringExpenseGenerationResult(runDate)
-            : generateDueExpenses(generatableRecurringExpenses, runDate, MAX_EXPENSES_PER_RUN);
+        return eligibleTemplates;
     }
 
     /**
@@ -84,7 +90,7 @@ public with sharing class RecurringExpenseService {
      * @return Generation counts and limit status.
      */
     public static RecurringExpenseGenerationResult generateDueExpenses(List<Recurring_Expense__c> dueRecurringExpenses, Date runDate) {
-        return generateDueExpenses(dueRecurringExpenses, runDate, MAX_EXPENSES_PER_TRANSACTION);
+        return generateDueExpenses(dueRecurringExpenses, runDate, MAX_BATCH_EXPENSES);
     }
 
     private static RecurringExpenseGenerationResult generateDueExpenses(

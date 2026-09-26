@@ -7,6 +7,8 @@ import getMonthlyTrend from '@salesforce/apex/ExpenseController.getMonthlyTrend'
 import { formatDateISO, parseDateString } from 'c/expenseFormatters';
 import { mapExpenseRow } from 'c/expenseTransforms';
 
+const REPORT_PAGE_SIZE = 200;
+
 export async function fetchExpensePage({
     expenseGroupId,
     categoryId,
@@ -30,8 +32,8 @@ export async function fetchExpensePage({
 
 // Reports deliberately fetch every page. A failed or superseded request never exports partial data.
 export async function fetchAllExpenseRows(filters, isCurrent = () => true) {
-    const rows = new Map();
-    const cursors = new Set();
+    const rowsById = new Map();
+    const visitedCursors = new Set();
     let cursor = null;
     do {
         if (!isCurrent()) {
@@ -39,18 +41,18 @@ export async function fetchAllExpenseRows(filters, isCurrent = () => true) {
         }
         // Each request depends on the cursor returned by the preceding page.
         // eslint-disable-next-line no-await-in-loop
-        const page = await fetchExpensePage({ ...filters, pageSize: 200, cursor });
+        const page = await fetchExpensePage({ ...filters, pageSize: REPORT_PAGE_SIZE, cursor });
         if (!isCurrent()) {
             return null;
         }
-        page.rows.forEach(row => rows.set(row.id, row));
+        page.rows.forEach(row => rowsById.set(row.id, row));
         cursor = page.hasMore ? page.nextCursor : null;
-        if (page.hasMore && (!cursor || cursors.has(cursor))) {
+        if (page.hasMore && (!cursor || visitedCursors.has(cursor))) {
             throw new Error('Unable to load the complete report. Please retry.');
         }
-        cursors.add(cursor);
+        visitedCursors.add(cursor);
     } while (cursor);
-    return [...rows.values()];
+    return [...rowsById.values()];
 }
 
 export async function fetchDashboardData({ expenseGroupId, startDate, endDate }) {

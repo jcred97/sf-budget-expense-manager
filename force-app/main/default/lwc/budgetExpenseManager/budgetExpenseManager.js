@@ -948,21 +948,22 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     async confirmAndDeleteExpense(recordId) {
-        const requestId = this._latestExpenseLoadRequestId;
+        // A filter change or reload invalidates this snapshot, including while confirming.
+        const originalListVersion = this._latestExpenseLoadRequestId;
         const confirmed = await LightningConfirm.open({
             message: 'Are you sure you want to delete this expense?',
             variant: 'header',
             label: 'Confirm Deletion'
         });
-        if (!confirmed || requestId !== this._latestExpenseLoadRequestId) {
+        if (!confirmed || originalListVersion !== this._latestExpenseLoadRequestId) {
             return;
         }
 
-        const index = this.expenseRows.findIndex(row => row.id === recordId);
-        if (index < 0) {
+        const removedIndex = this.expenseRows.findIndex(row => row.id === recordId);
+        if (removedIndex < 0) {
             return;
         }
-        const removed = this.expenseRows[index];
+        const removedRow = this.expenseRows[removedIndex];
         this.expenseRows = this.expenseRows.filter(row => row.id !== recordId);
 
         try {
@@ -970,11 +971,11 @@ export default class BudgetExpenseManager extends LightningElement {
             this.showToast('Deleted', 'Expense deleted successfully!', 'success');
             await Promise.all([this.loadDashboard(), this.loadExpenses()]);
         } catch (error) {
-            if (requestId === this._latestExpenseLoadRequestId) {
+            if (originalListVersion === this._latestExpenseLoadRequestId) {
                 this.expenseRows = [
-                    ...this.expenseRows.slice(0, index),
-                    removed,
-                    ...this.expenseRows.slice(index)
+                    ...this.expenseRows.slice(0, removedIndex),
+                    removedRow,
+                    ...this.expenseRows.slice(removedIndex)
                 ];
             }
             this.showToast('Error', getErrorMessage(error, 'Failed to delete expense.'), 'error');
@@ -982,7 +983,7 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     async handleBulkExpenseDelete() {
-        const requestId = this._latestExpenseLoadRequestId;
+        const originalListVersion = this._latestExpenseLoadRequestId;
         const idsToDelete = [...this.selectedExpenseIds];
         const count = idsToDelete.length;
         if (!count) {
@@ -993,7 +994,7 @@ export default class BudgetExpenseManager extends LightningElement {
             variant: 'header',
             label: 'Confirm Bulk Deletion'
         });
-        if (!confirmed || requestId !== this._latestExpenseLoadRequestId) {
+        if (!confirmed || originalListVersion !== this._latestExpenseLoadRequestId) {
             return;
         }
 
@@ -1010,12 +1011,12 @@ export default class BudgetExpenseManager extends LightningElement {
             this.showToast('Deleted', `${count} expense(s) deleted successfully!`, 'success');
             await Promise.all([this.loadDashboard(), this.loadExpenses()]);
         } catch (error) {
-            if (requestId === this._latestExpenseLoadRequestId) {
-                const restored = [...this.expenseRows];
+            if (originalListVersion === this._latestExpenseLoadRequestId) {
+                const restoredRows = [...this.expenseRows];
                 removedRows.forEach((row, index) => {
-                    restored.splice(removedIndexes[index], 0, row);
+                    restoredRows.splice(removedIndexes[index], 0, row);
                 });
-                this.expenseRows = restored;
+                this.expenseRows = restoredRows;
                 this.selectedExpenseIds = idsToDelete;
             }
             this.showToast('Error', getErrorMessage(error, 'Failed to delete expenses.'), 'error');
