@@ -32,7 +32,6 @@ import {
     fetchAllExpenseRows
 } from 'c/expenseWorkspaceData';
 import { buildExpensesViewModel } from 'c/expenseListViewModel';
-import { mapRecurringExpenseRow } from 'c/recurringExpenseTransforms';
 import {
     getDashboardViewModel,
     getExpensesViewModel,
@@ -390,7 +389,7 @@ export default class BudgetExpenseManager extends LightningElement {
             dueTodayCount: overview?.dueTodayCount || 0,
             monthlyTotal: overview?.monthlyTotal || 0
         };
-        this.recurringRows = (overview?.rows || []).map(mapRecurringExpenseRow);
+        this.recurringRows = overview?.rows || [];
     }
 
     async loadBankOptions() {
