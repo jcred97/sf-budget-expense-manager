@@ -13,8 +13,12 @@ import { loadStyle } from 'lightning/platformResourceLoader';
 import LightningConfirm from 'lightning/confirm';
 import deleteExpense from '@salesforce/apex/ExpenseController.deleteExpense';
 import deleteExpenses from '@salesforce/apex/ExpenseController.deleteExpenses';
+import { refreshApex } from '@salesforce/apex';
+import deactivateRecurringExpense from '@salesforce/apex/RecurringExpenseController.deactivateRecurringExpense';
+import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
 
 jest.mock('lightning/confirm', () => ({ open: jest.fn() }));
+jest.mock('@salesforce/apex', () => ({ refreshApex: jest.fn() }), { virtual: true });
 
 jest.mock(
     '@salesforce/apex/ExpenseController.getAllExpenseGroups',
@@ -120,19 +124,145 @@ describe('expense pagination UI', () => {
         });
         element.shadowRoot.querySelector('[data-view="recurring"]').click();
         await flush();
-        const model = element.shadowRoot.querySelector('c-recurring-expenses').viewModel;
-        expect(model.rows[0]).toMatchObject({
-            id: 'recurring-1',
-            name: 'Rent',
-            bank: 'BPI',
-            bankDisplay: 'BPI',
-            recordLink: '/recurring-1',
-            statusLabel: 'Active',
-            rowClass: 'recurring-row is-due',
-            deactivateDisabled: false
+        const screen = element.shadowRoot.querySelector('c-recurring-expenses').shadowRoot;
+        expect(screen.querySelector('.recurring-row.is-due').textContent).toContain('Rent');
+        expect(screen.querySelector('a').getAttribute('href')).toBe('/recurring-1');
+        expect(screen.textContent).toContain('BPI');
+        expect(screen.textContent).toContain('Active');
+    });
+
+    const recurring = element => element.shadowRoot.querySelector('c-recurring-expenses');
+    const modal = element =>
+        recurring(element).shadowRoot.querySelector('c-recurring-expense-modal');
+    const recurringButton = (element, label) =>
+        [...recurring(element).shadowRoot.querySelectorAll('lightning-button')].find(
+            button => button.label === label
+        );
+    const selectRecurring = (element, value) =>
+        recurring(element)
+            .shadowRoot.querySelector('lightning-button-menu')
+            .dispatchEvent(new CustomEvent('select', { detail: { value } }));
+    const changeGroup = element =>
+        element.shadowRoot
+            .querySelector('lightning-combobox')
+            .dispatchEvent(new CustomEvent('change', { detail: { value: 'other-group' } }));
+    async function mountRecurring() {
+        const element = await mount();
+        element.shadowRoot.querySelector('[data-view="recurring"]').click();
+        await flush();
+        getRecurringExpenseOverview.emit({
+            rows: [{ id: 'template', name: 'Rent', bank: 'BPI', active: true }]
         });
-        expect(model.summaryCards[0].value).toBe(1);
-        expect(model.summaryCards[1].value).toBe(1);
+        await flush();
+        return element;
+    }
+
+    it('owns the recurring modal and refreshes shared options and saved templates', async () => {
+        const element = await mountRecurring();
+        fetchBankOptions.mockClear();
+        recurringButton(element, 'Add Recurring').click();
+        await flush();
+        expect(modal(element).isOpen).toBe(true);
+        expect(modal(element).recordId).toBeNull();
+        expect(fetchBankOptions).toHaveBeenCalledTimes(1);
+        modal(element).dispatchEvent(new CustomEvent('close'));
+        await flush();
+        selectRecurring(element, 'edit');
+        await flush();
+        expect(modal(element).recordId).toBe('template');
+        expect(modal(element).currentBankLabel).toBe('BPI');
+        refreshApex.mockClear();
+        modal(element).dispatchEvent(new CustomEvent('success', { detail: { mode: 'edit' } }));
+        await flush();
+        expect(refreshApex).toHaveBeenCalledTimes(1);
+        changeGroup(element);
+        await flush();
+        expect(modal(element).isOpen).toBe(false);
+        expect(recurring(element).shadowRoot.querySelector('.recurring-row')).toBeNull();
+        expect(getRecurringExpenseOverview.getLastConfig()).toEqual({
+            expenseGroupId: 'other-group'
+        });
+    });
+
+    it('deactivates a template and refreshes its screen', async () => {
+        const element = await mountRecurring();
+        refreshApex.mockClear();
+        selectRecurring(element, 'deactivate');
+        await flush();
+        expect(deactivateRecurringExpense).toHaveBeenCalledWith({ recurringExpenseId: 'template' });
+        expect(refreshApex).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not deactivate an old group after its confirmation is left open', async () => {
+        const element = await mountRecurring();
+        let confirm;
+        LightningConfirm.open.mockImplementationOnce(
+            () =>
+                new Promise(resolve => {
+                    confirm = resolve;
+                })
+        );
+        selectRecurring(element, 'deactivate');
+        changeGroup(element);
+        await flush();
+        confirm(true);
+        await flush();
+        expect(deactivateRecurringExpense).not.toHaveBeenCalled();
+    });
+
+    it('refreshes other screens when a recurring run starts after navigation', async () => {
+        const element = await mountRecurring();
+        let started;
+        runDueExpensesBatch.mockImplementationOnce(
+            () =>
+                new Promise(resolve => {
+                    started = resolve;
+                })
+        );
+        recurringButton(element, 'Run Recurring').click();
+        await flush();
+        expect(recurringButton(element, 'Running...').disabled).toBe(true);
+        element.shadowRoot.querySelector('[data-view="expenses"]').click();
+        await flush();
+        fetchDashboardData.mockClear();
+        fetchExpensePage.mockClear();
+        started();
+        await flush();
+        expect(fetchDashboardData).toHaveBeenCalledTimes(1);
+        expect(fetchExpensePage).toHaveBeenCalledTimes(1);
+        expect(recurringButton(element, 'Run Recurring').disabled).toBe(false);
+    });
+
+    it('re-enables generation after a failed start without refreshing other screens', async () => {
+        const element = await mountRecurring();
+        runDueExpensesBatch.mockRejectedValueOnce(new Error('Start failed'));
+        fetchDashboardData.mockClear();
+        fetchExpensePage.mockClear();
+        recurringButton(element, 'Run Recurring').click();
+        await flush();
+        expect(recurringButton(element, 'Run Recurring').disabled).toBe(false);
+        expect(fetchDashboardData).not.toHaveBeenCalled();
+        expect(fetchExpensePage).not.toHaveBeenCalled();
+    });
+
+    it('keeps a new group loading when the previous group refresh finishes', async () => {
+        const element = await mountRecurring();
+        let refreshed;
+        refreshApex.mockImplementationOnce(
+            () =>
+                new Promise(resolve => {
+                    refreshed = resolve;
+                })
+        );
+        modal(element).dispatchEvent(new CustomEvent('success', { detail: { mode: 'create' } }));
+        changeGroup(element);
+        await flush();
+        refreshed();
+        await flush();
+        expect(recurring(element).shadowRoot.querySelector('lightning-spinner')).not.toBeNull();
+        getRecurringExpenseOverview.emit({ rows: [] });
+        await flush();
+        expect(recurring(element).shadowRoot.querySelector('lightning-spinner')).toBeNull();
     });
 
     describe.each(['single', 'bulk'])('%s deletion rollback', mode => {
