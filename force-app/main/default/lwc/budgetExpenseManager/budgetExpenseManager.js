@@ -9,9 +9,6 @@ import getAllExpenseGroups from '@salesforce/apex/ExpenseController.getAllExpens
 import getCategoriesByExpenseGroup from '@salesforce/apex/ExpenseController.getCategoriesByExpenseGroup';
 import deleteExpense from '@salesforce/apex/ExpenseController.deleteExpense';
 import deleteExpenses from '@salesforce/apex/ExpenseController.deleteExpenses';
-import getRecurringExpenseOverview from '@salesforce/apex/RecurringExpenseController.getRecurringExpenseOverview';
-import deactivateRecurringExpense from '@salesforce/apex/RecurringExpenseController.deactivateRecurringExpense';
-import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
 import {
     formatMonthLabel,
     formatPeriodRange,
@@ -32,11 +29,7 @@ import {
     fetchAllExpenseRows
 } from 'c/expenseWorkspaceData';
 import { buildExpensesViewModel } from 'c/expenseListViewModel';
-import {
-    getDashboardViewModel,
-    getExpensesViewModel,
-    getRecurringViewModel
-} from 'c/expenseWorkspaceViewModels';
+import { getDashboardViewModel, getExpensesViewModel } from 'c/expenseWorkspaceViewModels';
 
 const PAGE_SIZE = 20;
 const LOAD_MORE_SIZE = 10;
@@ -49,7 +42,6 @@ export default class BudgetExpenseManager extends LightningElement {
     _latestCategoryRefreshRequestId = 0;
     _activeCategoryRefreshRequestId = 0;
     _wiredCategoriesResult;
-    _wiredRecurringResult;
     _dateFormatStyleLoadPromise;
 
     // Workspace and filter state.
@@ -73,12 +65,6 @@ export default class BudgetExpenseManager extends LightningElement {
     dashboardBudgets = [];
     selectedExpenseIds = [];
     dashboardTrend = [];
-    recurringRows = [];
-    recurringOverview = {
-        activeCount: 0,
-        dueTodayCount: 0,
-        monthlyTotal: 0
-    };
 
     expenseSummary = { totalCount: 0, totalAmount: 0 };
     expenseNextCursor = null;
@@ -92,8 +78,6 @@ export default class BudgetExpenseManager extends LightningElement {
     isExpensesLoading = false;
     isDashboardLoading = false;
     dashboardLoadError = '';
-    isRecurringLoading = false;
-    isRunningRecurring = false;
     isCategoriesLoading = false;
     categoryOptionsError = '';
     isBankOptionsLoading = false;
@@ -105,9 +89,6 @@ export default class BudgetExpenseManager extends LightningElement {
     currentExpenseBank = null;
     expenseBankNotice = '';
     expenseDateError = '';
-    isRecurringExpenseModalOpen = false;
-    editingRecurringExpenseId = null;
-    currentRecurringBankLabel = '';
 
     // Workspace presentation.
     get isDashboardView() {
@@ -233,32 +214,6 @@ export default class BudgetExpenseManager extends LightningElement {
         }
     }
 
-    @wire(getRecurringExpenseOverview, { expenseGroupId: '$categoryExpenseGroupId' })
-    wiredRecurringExpenseOverview(result) {
-        this._wiredRecurringResult = result;
-        const { error, data } = result;
-
-        if (data) {
-            this.applyRecurringOverview(data);
-            this.isRecurringLoading = false;
-        } else if (error && this.expenseGroupId) {
-            this.recurringRows = [];
-            this.recurringOverview = {
-                activeCount: 0,
-                dueTodayCount: 0,
-                monthlyTotal: 0
-            };
-            this.isRecurringLoading = false;
-            this.showToast(
-                'Error',
-                getErrorMessage(error, 'Failed to load recurring expenses.'),
-                'error'
-            );
-        } else if (this.expenseGroupId) {
-            this.isRecurringLoading = true;
-        }
-    }
-
     // View data loading.
     async loadExpenses(append = false) {
         // Event handlers can pass an Event; only an explicit true appends a page.
@@ -360,38 +315,6 @@ export default class BudgetExpenseManager extends LightningElement {
         }
     }
 
-    async loadRecurringExpenses() {
-        if (!this.expenseGroupId) {
-            this.clearRecurringData();
-            return;
-        }
-
-        const expenseGroupId = this.expenseGroupId;
-        this.isRecurringLoading = true;
-        if (!this._wiredRecurringResult) {
-            return;
-        }
-
-        try {
-            await refreshApex(this._wiredRecurringResult);
-        } catch {
-            // The wire handler owns recurring-load error presentation.
-        } finally {
-            if (expenseGroupId === this.expenseGroupId) {
-                this.isRecurringLoading = false;
-            }
-        }
-    }
-
-    applyRecurringOverview(overview) {
-        this.recurringOverview = {
-            activeCount: overview?.activeCount || 0,
-            dueTodayCount: overview?.dueTodayCount || 0,
-            monthlyTotal: overview?.monthlyTotal || 0
-        };
-        this.recurringRows = overview?.rows || [];
-    }
-
     async loadBankOptions() {
         if (!this.expenseGroupId) {
             this.clearBankOptions();
@@ -463,10 +386,6 @@ export default class BudgetExpenseManager extends LightningElement {
         return options;
     }
 
-    get isAddRecurringDisabled() {
-        return !this.expenseGroupId;
-    }
-
     get expensesViewModel() {
         const isLoading = this.isExpensesView && this.isExpensesLoading;
         return getExpensesViewModel(this, {
@@ -502,23 +421,6 @@ export default class BudgetExpenseManager extends LightningElement {
             loadError: this.dashboardLoadError,
             showEmptyState: this.isDashboardView && this.dashboardRows.length === 0 && !isLoading
         });
-    }
-
-    get recurringExpensesViewModel() {
-        return getRecurringViewModel(this, {
-            rows: this.recurringRows,
-            overview: this.recurringOverview,
-            expenseGroupName: this.selectedExpenseGroupName,
-            isLoading: this.isRecurringLoading
-        });
-    }
-
-    get runRecurringLabel() {
-        return this.isRunningRecurring ? 'Running...' : 'Run Recurring';
-    }
-
-    get isRunRecurringDisabled() {
-        return this.isRunningRecurring || this.isRecurringLoading;
     }
 
     get dashboardPeriodLabel() {
@@ -619,10 +521,6 @@ export default class BudgetExpenseManager extends LightningElement {
         if (viewName === WORKSPACE_VIEWS.DASHBOARD) {
             this.loadDashboard();
         }
-
-        if (viewName === WORKSPACE_VIEWS.RECURRING) {
-            this.loadRecurringExpenses();
-        }
     }
 
     handleWorkspaceGroupChange(event) {
@@ -635,12 +533,10 @@ export default class BudgetExpenseManager extends LightningElement {
         }
 
         this.handleExpenseModalClose();
-        this.resetRecurringExpenseModal();
         this.invalidateCategoryRefresh();
         this._wiredCategoriesResult = undefined;
         this.expenseGroupId = expenseGroupId;
         this.clearBankOptions();
-        this.clearRecurringData();
         this.categoryId = 'All';
         this.categoryOptions = [{ label: 'All Categories', value: 'All' }];
         this.categoryOptionsError = '';
@@ -650,12 +546,10 @@ export default class BudgetExpenseManager extends LightningElement {
         this.loadBankOptions();
         this.loadDashboard();
         this.loadExpenses();
-        this.isRecurringLoading = true;
     }
 
     clearWorkspaceContext() {
         this.handleExpenseModalClose();
-        this.resetRecurringExpenseModal();
         this.invalidateCategoryRefresh();
         this._wiredCategoriesResult = undefined;
         this.expenseGroupId = '';
@@ -668,7 +562,6 @@ export default class BudgetExpenseManager extends LightningElement {
         this.clearBankOptions();
         this.clearDashboardData();
         this.clearExpenseData();
-        this.clearRecurringData();
     }
 
     clearExpenseData() {
@@ -692,17 +585,6 @@ export default class BudgetExpenseManager extends LightningElement {
         this.dashboardBudgets = [];
         this.dashboardLoadError = '';
         this.isDashboardLoading = false;
-    }
-
-    clearRecurringData() {
-        this._wiredRecurringResult = undefined;
-        this.recurringRows = [];
-        this.recurringOverview = {
-            activeCount: 0,
-            dueTodayCount: 0,
-            monthlyTotal: 0
-        };
-        this.isRecurringLoading = false;
     }
 
     clearBankOptions() {
@@ -747,103 +629,18 @@ export default class BudgetExpenseManager extends LightningElement {
         await this.performExpenseRowAction(action, row);
     }
 
-    // Recurring-expense actions.
-    async handleRecurringExpenseAction(event) {
-        const { action, id } = event.detail;
-
-        if (action === 'edit') {
-            const row = this.recurringRows.find(item => item.id === id);
-            if (!row) {
-                return;
-            }
-
-            this.editingRecurringExpenseId = id;
-            this.currentRecurringBankLabel = row.bank || '';
-            this.refreshCategoryOptions();
-            this.loadBankOptions();
-            this.isRecurringExpenseModalOpen = true;
-            return;
-        }
-
-        if (action === 'deactivate') {
-            await this.confirmAndDeactivateRecurringExpense(id);
-        }
+    get isRecurringHidden() {
+        return !this.isRecurringView;
     }
 
-    async handleRunRecurringExpenses() {
-        this.isRunningRecurring = true;
-        try {
-            await runDueExpensesBatch();
-            this.showToast(
-                'Recurring run started',
-                'Due recurring expenses are being generated.',
-                'success'
-            );
-            await Promise.all([
-                this.loadRecurringExpenses(),
-                this.loadDashboard(),
-                this.loadExpenses()
-            ]);
-        } catch (error) {
-            this.showToast(
-                'Error',
-                getErrorMessage(error, 'Failed to start recurring expense generation.'),
-                'error'
-            );
-        } finally {
-            this.isRunningRecurring = false;
-        }
-    }
-
-    async confirmAndDeactivateRecurringExpense(recordId) {
-        const confirmed = await LightningConfirm.open({
-            message: 'Deactivate this recurring expense template?',
-            variant: 'header',
-            label: 'Deactivate Recurring Expense'
-        });
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            await deactivateRecurringExpense({ recurringExpenseId: recordId });
-            this.showToast('Deactivated', 'Recurring expense deactivated.', 'success');
-            await this.loadRecurringExpenses();
-        } catch (error) {
-            this.showToast(
-                'Error',
-                getErrorMessage(error, 'Failed to deactivate recurring expense.'),
-                'error'
-            );
-        }
-    }
-
-    openRecurringExpenseModal() {
-        if (!this.expenseGroupId) {
-            return;
-        }
-
-        this.editingRecurringExpenseId = null;
-        this.currentRecurringBankLabel = '';
+    handleRecurringOptionsRefresh() {
         this.refreshCategoryOptions();
         this.loadBankOptions();
-        this.isRecurringExpenseModalOpen = true;
     }
 
-    handleRecurringExpenseModalClose() {
-        this.resetRecurringExpenseModal();
-    }
-
-    resetRecurringExpenseModal() {
-        this.isRecurringExpenseModalOpen = false;
-        this.editingRecurringExpenseId = null;
-        this.currentRecurringBankLabel = '';
-    }
-
-    async handleRecurringExpenseSaveSuccess(event) {
-        const action = event.detail?.mode === 'edit' ? 'updated' : 'created';
-        this.showToast('Success', `Recurring expense ${action} successfully!`, 'success');
-        await this.loadRecurringExpenses();
+    handleRecurringGenerationStarted() {
+        this.loadDashboard();
+        this.loadExpenses();
     }
 
     handleRetryCategoryOptions() {

@@ -1,6 +1,5 @@
 import { buildDashboardViewModel } from 'c/expenseDashboardViewModel';
 import { buildExpensesViewModel } from 'c/expenseListViewModel';
-import { buildRecurringViewModel } from 'c/recurringExpenseViewModel';
 
 const VIEW_MODEL_CACHES = new WeakMap();
 
@@ -31,8 +30,4 @@ export function getExpensesViewModel(owner, params) {
 
 export function getDashboardViewModel(owner, params) {
     return resolveParams(owner, 'dashboard', params, buildDashboardViewModel);
-}
-
-export function getRecurringViewModel(owner, params) {
-    return resolveParams(owner, 'recurring', params, buildRecurringViewModel);
 }

@@ -153,40 +153,24 @@
                     </section>
                 </template>
 
-                <template lwc:elseif={isRecurringView}>
-                    <section class="workspace-view">
-                        <div class="view-header">
-                            <div>
-                                <h2>{activeViewConfig.title}</h2>
-                                <p>{activeViewConfig.subtitle}</p>
-                            </div>
-                            <div class="view-header-actions">
-                                <lightning-button
-                                    variant="neutral"
-                                    label={runRecurringLabel}
-                                    icon-name="utility:play"
-                                    onclick={handleRunRecurringExpenses}
-                                    disabled={isRunRecurringDisabled}
-                                >
-                                </lightning-button>
-                                <lightning-button
-                                    variant="brand"
-                                    label="Add Recurring"
-                                    icon-name="utility:add"
-                                    onclick={openRecurringExpenseModal}
-                                    disabled={isAddRecurringDisabled}
-                                >
-                                </lightning-button>
-                            </div>
-                        </div>
-
-                        <c-recurring-expenses
-                            view-model={recurringExpensesViewModel}
-                            onrowaction={handleRecurringExpenseAction}
-                        >
-                        </c-recurring-expenses>
-                    </section>
-                </template>
+                <!-- Keep pending recurring actions connected while another view is visible. -->
+                <section class="workspace-view" hidden={isRecurringHidden}>
+                    <c-recurring-expenses
+                        expense-group-id={expenseGroupId}
+                        expense-group-name={selectedExpenseGroupName}
+                        active={isRecurringView}
+                        category-options={modalCategoryOptions}
+                        category-options-loading={isCategoriesLoading}
+                        category-options-error={categoryOptionsError}
+                        bank-options={bankOptions}
+                        bank-options-loading={isBankOptionsLoading}
+                        bank-options-error={bankOptionsError}
+                        onrefreshoptions={handleRecurringOptionsRefresh}
+                        onretrybanks={handleRetryBankOptions}
+                        onretrycategories={handleRetryCategoryOptions}
+                        ongenerationstarted={handleRecurringGenerationStarted}
+                    ></c-recurring-expenses>
+                </section>
             </main>
         </div>
     </div>
@@ -214,22 +198,4 @@
         onretrycategories={handleRetryCategoryOptions}
     >
     </c-expense-modal>
-
-    <c-recurring-expense-modal
-        is-open={isRecurringExpenseModalOpen}
-        record-id={editingRecurringExpenseId}
-        category-options={modalCategoryOptions}
-        category-options-loading={isCategoriesLoading}
-        category-options-error={categoryOptionsError}
-        bank-options={bankOptions}
-        bank-options-loading={isBankOptionsLoading}
-        bank-options-error={bankOptionsError}
-        current-bank-label={currentRecurringBankLabel}
-        selected-expense-group-name={selectedExpenseGroupName}
-        onsuccess={handleRecurringExpenseSaveSuccess}
-        onclose={handleRecurringExpenseModalClose}
-        onretrybanks={handleRetryBankOptions}
-        onretrycategories={handleRetryCategoryOptions}
-    >
-    </c-recurring-expense-modal>
 </template>
