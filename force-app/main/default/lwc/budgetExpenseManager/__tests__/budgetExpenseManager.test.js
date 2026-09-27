@@ -265,6 +265,124 @@ describe('expense pagination UI', () => {
         expect(recurring(element).shadowRoot.querySelector('lightning-spinner')).toBeNull();
     });
 
+    const dashboard = element => element.shadowRoot.querySelector('c-expense-dashboard');
+    const navigate = async (element, view) => {
+        element.shadowRoot.querySelector(`[data-view="${view}"]`).click();
+        await flush();
+    };
+    const dashboardButton = (element, label) =>
+        [...dashboard(element).shadowRoot.querySelectorAll('lightning-button')].find(
+            button => button.label === label
+        );
+
+    it('keeps the dashboard month independent from expenses and preserves it across navigation', async () => {
+        const element = await mount();
+        const originalRange = fetchDashboardData.mock.calls[0][0];
+        await navigate(element, 'dashboard');
+        dashboard(element)
+            .shadowRoot.querySelector('c-expense-month-navigator')
+            .dispatchEvent(new CustomEvent('previous'));
+        await flush();
+        const previousRange = fetchDashboardData.mock.calls.at(-1)[0];
+        expect(previousRange.startDate).not.toBe(originalRange.startDate);
+        expect(previousRange.startDate < originalRange.startDate).toBe(true);
+        expect(previousRange.endDate < originalRange.startDate).toBe(true);
+        await navigate(element, 'expenses');
+        expect(list(element).viewModel.startDate).toBe(originalRange.startDate);
+        const instance = dashboard(element);
+        await navigate(element, 'dashboard');
+        expect(dashboard(element)).toBe(instance);
+        expect(fetchDashboardData.mock.calls.at(-1)[0]).toEqual(previousRange);
+        dashboard(element)
+            .shadowRoot.querySelector('c-expense-month-navigator')
+            .dispatchEvent(new CustomEvent('next'));
+        await flush();
+        expect(fetchDashboardData.mock.calls.at(-1)[0]).toEqual(originalRange);
+    });
+
+    it.each(['resolve', 'reject'])(
+        'ignores an old dashboard request that later %ss after a group switch',
+        async outcome => {
+            const element = await mount();
+            let complete;
+            fetchDashboardData.mockImplementationOnce(
+                () =>
+                    new Promise((resolve, reject) => {
+                        complete = outcome === 'resolve' ? resolve : reject;
+                    })
+            );
+            await navigate(element, 'dashboard');
+            fetchDashboardData.mockResolvedValueOnce({
+                rows: [row('new-group-expense')],
+                trend: [],
+                budgets: []
+            });
+            changeGroup(element);
+            await flush();
+            complete(
+                outcome === 'resolve'
+                    ? { rows: [row('old-group-expense')], trend: [], budgets: [] }
+                    : new Error('Old request failed')
+            );
+            await flush();
+            const screen = dashboard(element).shadowRoot;
+            expect(screen.textContent).toContain('new-group-expense');
+            expect(screen.textContent).not.toContain('old-group-expense');
+            expect(screen.querySelector('[role="alert"]')).toBeNull();
+            expect(screen.querySelector('lightning-spinner')).toBeNull();
+        }
+    );
+
+    it('retries dashboard failures and refreshes after budget changes', async () => {
+        const element = await mount();
+        fetchDashboardData.mockRejectedValueOnce(new Error('Unavailable'));
+        await navigate(element, 'dashboard');
+        expect(dashboard(element).shadowRoot.querySelector('[role="alert"]').textContent).toContain(
+            'Failed to load the dashboard.'
+        );
+        fetchDashboardData.mockClear();
+        dashboardButton(element, 'Retry').click();
+        await flush();
+        expect(fetchDashboardData).toHaveBeenCalledTimes(1);
+        expect(dashboard(element).shadowRoot.querySelector('[role="alert"]')).toBeNull();
+        dashboard(element)
+            .shadowRoot.querySelector('c-budget-panel')
+            .dispatchEvent(new CustomEvent('budgetchange'));
+        await flush();
+        expect(fetchDashboardData).toHaveBeenCalledTimes(2);
+    });
+
+    it('opens the shared expense modal from the dashboard and refreshes after saving', async () => {
+        const element = await mount();
+        await navigate(element, 'dashboard');
+        dashboardButton(element, 'Add Expense').click();
+        await flush();
+        const expenseModal = element.shadowRoot.querySelector('c-expense-modal');
+        expect(expenseModal.isOpen).toBe(true);
+        fetchDashboardData.mockClear();
+        fetchExpensePage.mockClear();
+        expenseModal.dispatchEvent(new CustomEvent('success'));
+        await flush();
+        expect(fetchDashboardData).toHaveBeenCalledTimes(1);
+        expect(fetchExpensePage).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears dashboard data when the selected group disappears', async () => {
+        fetchDashboardData.mockResolvedValueOnce({
+            rows: [row('removed-group-expense')],
+            trend: [],
+            budgets: []
+        });
+        const element = await mount();
+        expect(dashboard(element).shadowRoot.textContent).toContain('removed-group-expense');
+        fetchDashboardData.mockClear();
+        getAllExpenseGroups.emit([]);
+        await flush();
+        expect(dashboard(element).shadowRoot.textContent).not.toContain('removed-group-expense');
+        expect(fetchDashboardData).not.toHaveBeenCalled();
+        expect(dashboard(element).shadowRoot.querySelector('lightning-spinner')).toBeNull();
+    });
+
     describe.each(['single', 'bulk'])('%s deletion rollback', mode => {
         const startDelete = element => {
             if (mode === 'bulk') {

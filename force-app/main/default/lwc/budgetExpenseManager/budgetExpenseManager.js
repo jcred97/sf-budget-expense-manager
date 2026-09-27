@@ -9,12 +9,7 @@ import getAllExpenseGroups from '@salesforce/apex/ExpenseController.getAllExpens
 import getCategoriesByExpenseGroup from '@salesforce/apex/ExpenseController.getCategoriesByExpenseGroup';
 import deleteExpense from '@salesforce/apex/ExpenseController.deleteExpense';
 import deleteExpenses from '@salesforce/apex/ExpenseController.deleteExpenses';
-import {
-    formatMonthLabel,
-    formatPeriodRange,
-    getMonthBounds,
-    parseDateString
-} from 'c/expenseFormatters';
+import { formatMonthLabel, getMonthBounds, parseDateString } from 'c/expenseFormatters';
 import { downloadExpensesCsv } from 'c/expenseCsvExport';
 import { getErrorMessage } from 'c/expenseErrorUtils';
 import {
@@ -22,14 +17,9 @@ import {
     buildWorkspaceNavItems,
     getWorkspaceViewConfig
 } from 'c/expenseWorkspaceConfig';
-import {
-    fetchBankOptions,
-    fetchDashboardData,
-    fetchExpensePage,
-    fetchAllExpenseRows
-} from 'c/expenseWorkspaceData';
+import { fetchBankOptions, fetchExpensePage, fetchAllExpenseRows } from 'c/expenseWorkspaceData';
 import { buildExpensesViewModel } from 'c/expenseListViewModel';
-import { getDashboardViewModel, getExpensesViewModel } from 'c/expenseWorkspaceViewModels';
+import { getExpensesViewModel } from 'c/expenseWorkspaceViewModels';
 
 const PAGE_SIZE = 20;
 const LOAD_MORE_SIZE = 10;
@@ -37,7 +27,6 @@ const LOAD_MORE_SIZE = 10;
 export default class BudgetExpenseManager extends LightningElement {
     // Request counters prevent stale responses from replacing newer view data.
     _latestExpenseLoadRequestId = 0;
-    _latestDashboardLoadRequestId = 0;
     _latestBankOptionsRequestId = 0;
     _latestCategoryRefreshRequestId = 0;
     _activeCategoryRefreshRequestId = 0;
@@ -49,8 +38,6 @@ export default class BudgetExpenseManager extends LightningElement {
     isSidebarCollapsed = false;
     startDate;
     endDate;
-    dashboardStartDate;
-    dashboardEndDate;
     expenseGroupId = '';
     categoryId = 'All';
     searchTerm = '';
@@ -61,10 +48,7 @@ export default class BudgetExpenseManager extends LightningElement {
     bankOptions = [];
 
     expenseRows = [];
-    dashboardRows = [];
-    dashboardBudgets = [];
     selectedExpenseIds = [];
-    dashboardTrend = [];
 
     expenseSummary = { totalCount: 0, totalAmount: 0 };
     expenseNextCursor = null;
@@ -76,8 +60,6 @@ export default class BudgetExpenseManager extends LightningElement {
     _expenseSearchTimer;
 
     isExpensesLoading = false;
-    isDashboardLoading = false;
-    dashboardLoadError = '';
     isCategoriesLoading = false;
     categoryOptionsError = '';
     isBankOptionsLoading = false;
@@ -93,6 +75,14 @@ export default class BudgetExpenseManager extends LightningElement {
     // Workspace presentation.
     get isDashboardView() {
         return this.activeView === WORKSPACE_VIEWS.DASHBOARD;
+    }
+
+    get isDashboardHidden() {
+        return !this.isDashboardView;
+    }
+
+    refreshDashboard() {
+        return this.template.querySelector('c-expense-dashboard')?.refresh();
     }
 
     get isExpensesView() {
@@ -155,8 +145,6 @@ export default class BudgetExpenseManager extends LightningElement {
 
         this.startDate = monthBounds.startDate;
         this.endDate = monthBounds.endDate;
-        this.dashboardStartDate = monthBounds.startDate;
-        this.dashboardEndDate = monthBounds.endDate;
     }
 
     @wire(getAllExpenseGroups)
@@ -275,46 +263,6 @@ export default class BudgetExpenseManager extends LightningElement {
         }
     }
 
-    async loadDashboard() {
-        if (!this.expenseGroupId) {
-            this.clearDashboardData();
-            return;
-        }
-
-        const requestId = ++this._latestDashboardLoadRequestId;
-        this.isDashboardLoading = true;
-        this.dashboardLoadError = '';
-
-        try {
-            const { rows, trend, budgets } = await fetchDashboardData({
-                expenseGroupId: this.expenseGroupId,
-                startDate: this.dashboardStartDate,
-                endDate: this.dashboardEndDate
-            });
-
-            if (requestId !== this._latestDashboardLoadRequestId) {
-                return;
-            }
-
-            this.dashboardRows = rows;
-            this.dashboardTrend = trend;
-            this.dashboardBudgets = budgets;
-        } catch {
-            if (requestId !== this._latestDashboardLoadRequestId) {
-                return;
-            }
-            this.dashboardRows = [];
-            this.dashboardTrend = [];
-            this.dashboardBudgets = [];
-            this.dashboardLoadError = 'Failed to load the dashboard.';
-            this.showToast('Error', 'Failed to load dashboard.', 'error');
-        } finally {
-            if (requestId === this._latestDashboardLoadRequestId) {
-                this.isDashboardLoading = false;
-            }
-        }
-    }
-
     async loadBankOptions() {
         if (!this.expenseGroupId) {
             this.clearBankOptions();
@@ -405,32 +353,8 @@ export default class BudgetExpenseManager extends LightningElement {
         });
     }
 
-    get dashboardViewModel() {
-        const isLoading = this.isDashboardView && this.isDashboardLoading;
-        return getDashboardViewModel(this, {
-            rows: this.dashboardRows,
-            trend: this.dashboardTrend,
-            budgets: this.dashboardBudgets,
-            endDate: this.dashboardEndDate,
-            expenseGroupId: this.expenseGroupId,
-            budgetMonth: this.dashboardStartDate,
-            selectedMonthLabel: this.selectedMonthLabel,
-            expenseGroupName: this.selectedExpenseGroupName,
-            periodLabel: this.dashboardPeriodLabel,
-            isLoading,
-            loadError: this.dashboardLoadError,
-            showEmptyState: this.isDashboardView && this.dashboardRows.length === 0 && !isLoading
-        });
-    }
-
-    get dashboardPeriodLabel() {
-        return formatPeriodRange(this.dashboardStartDate, this.dashboardEndDate);
-    }
-
     get selectedMonthLabel() {
-        const selectedDate =
-            parseDateString(this.isDashboardView ? this.dashboardStartDate : this.startDate) ||
-            new Date();
+        const selectedDate = parseDateString(this.startDate) || new Date();
         return formatMonthLabel(selectedDate);
     }
 
@@ -476,22 +400,13 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     setSelectedMonth(monthOffset) {
-        const selectedDate =
-            parseDateString(this.isDashboardView ? this.dashboardStartDate : this.startDate) ||
-            new Date();
+        const selectedDate = parseDateString(this.startDate) || new Date();
         const targetMonth = new Date(
             selectedDate.getFullYear(),
             selectedDate.getMonth() + monthOffset,
             1
         );
         const monthBounds = getMonthBounds(targetMonth);
-
-        if (this.isDashboardView) {
-            this.dashboardStartDate = monthBounds.startDate;
-            this.dashboardEndDate = monthBounds.endDate;
-            this.loadDashboard();
-            return;
-        }
 
         this.startDate = monthBounds.startDate;
         this.endDate = monthBounds.endDate;
@@ -517,10 +432,6 @@ export default class BudgetExpenseManager extends LightningElement {
 
     activateView(viewName) {
         this.activeView = viewName;
-
-        if (viewName === WORKSPACE_VIEWS.DASHBOARD) {
-            this.loadDashboard();
-        }
     }
 
     handleWorkspaceGroupChange(event) {
@@ -544,7 +455,6 @@ export default class BudgetExpenseManager extends LightningElement {
         this.searchTerm = '';
         this.activeView = WORKSPACE_VIEWS.DASHBOARD;
         this.loadBankOptions();
-        this.loadDashboard();
         this.loadExpenses();
     }
 
@@ -560,7 +470,6 @@ export default class BudgetExpenseManager extends LightningElement {
         this.searchTerm = '';
         this.activeView = WORKSPACE_VIEWS.DASHBOARD;
         this.clearBankOptions();
-        this.clearDashboardData();
         this.clearExpenseData();
     }
 
@@ -576,15 +485,6 @@ export default class BudgetExpenseManager extends LightningElement {
         this.isExpensesLoadingMore = false;
         this.printViewModel = undefined;
         this.isExpensesLoading = false;
-    }
-
-    clearDashboardData() {
-        this._latestDashboardLoadRequestId += 1;
-        this.dashboardRows = [];
-        this.dashboardTrend = [];
-        this.dashboardBudgets = [];
-        this.dashboardLoadError = '';
-        this.isDashboardLoading = false;
     }
 
     clearBankOptions() {
@@ -639,7 +539,7 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     handleRecurringGenerationStarted() {
-        this.loadDashboard();
+        this.refreshDashboard();
         this.loadExpenses();
     }
 
@@ -766,7 +666,7 @@ export default class BudgetExpenseManager extends LightningElement {
         try {
             await deleteExpense({ expenseId: recordId });
             this.showToast('Deleted', 'Expense deleted successfully!', 'success');
-            await Promise.all([this.loadDashboard(), this.loadExpenses()]);
+            await Promise.all([this.refreshDashboard(), this.loadExpenses()]);
         } catch (error) {
             if (originalListVersion === this._latestExpenseLoadRequestId) {
                 this.expenseRows = [
@@ -806,7 +706,7 @@ export default class BudgetExpenseManager extends LightningElement {
         try {
             await deleteExpenses({ expenseIds: idsToDelete });
             this.showToast('Deleted', `${count} expense(s) deleted successfully!`, 'success');
-            await Promise.all([this.loadDashboard(), this.loadExpenses()]);
+            await Promise.all([this.refreshDashboard(), this.loadExpenses()]);
         } catch (error) {
             if (originalListVersion === this._latestExpenseLoadRequestId) {
                 const restoredRows = [...this.expenseRows];
@@ -877,7 +777,7 @@ export default class BudgetExpenseManager extends LightningElement {
 
     async handleExpenseSaveSuccess() {
         this.showToast('Success', 'Expense saved successfully!', 'success');
-        await Promise.all([this.loadDashboard(), this.loadExpenses()]);
+        await Promise.all([this.refreshDashboard(), this.loadExpenses()]);
     }
 
     // Report output and user feedback.
