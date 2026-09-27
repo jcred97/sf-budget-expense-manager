@@ -58,41 +58,17 @@
             </aside>
 
             <main class="workspace-main">
-                <template lwc:if={isDashboardView}>
-                    <section class="workspace-view">
-                        <div class="view-header">
-                            <div>
-                                <h2>{activeViewConfig.title}</h2>
-                                <p>{activeViewConfig.subtitle}</p>
-                            </div>
-                            <div class="view-header-actions">
-                                <c-expense-month-navigator
-                                    label={selectedMonthLabel}
-                                    navigation-label="Dashboard month"
-                                    onprevious={handlePreviousMonth}
-                                    onnext={handleNextMonth}
-                                >
-                                </c-expense-month-navigator>
-                                <lightning-button
-                                    variant="brand"
-                                    label="Add Expense"
-                                    icon-name="utility:add"
-                                    onclick={openExpenseModal}
-                                >
-                                </lightning-button>
-                            </div>
-                        </div>
-
-                        <c-expense-dashboard
-                            view-model={dashboardViewModel}
-                            onbudgetchange={loadDashboard}
-                            onretrydashboard={loadDashboard}
-                            onviewexpenses={handleViewExpenses}
-                        >
-                        </c-expense-dashboard>
-                    </section>
-                </template>
-                <template lwc:elseif={isExpensesView}>
+                <!-- Preserve the dashboard month and allow refreshes from other screens. -->
+                <section class="workspace-view" hidden={isDashboardHidden}>
+                    <c-expense-dashboard
+                        expense-group-id={expenseGroupId}
+                        expense-group-name={selectedExpenseGroupName}
+                        active={isDashboardView}
+                        onaddexpense={openExpenseModal}
+                        onviewexpenses={handleViewExpenses}
+                    ></c-expense-dashboard>
+                </section>
+                <template lwc:if={isExpensesView}>
                     <section class="workspace-view">
                         <div class="view-header">
                             <div>

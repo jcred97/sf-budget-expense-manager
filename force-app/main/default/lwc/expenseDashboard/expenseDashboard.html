@@ -1,4 +1,27 @@
 <template>
+    <div class="view-header">
+        <div>
+            <h2>Dashboard</h2>
+            <p>Overview of monthly spending</p>
+        </div>
+        <div class="view-header-actions">
+            <c-expense-month-navigator
+                label={selectedMonthLabel}
+                navigation-label="Dashboard month"
+                onprevious={handlePreviousMonth}
+                onnext={handleNextMonth}
+            >
+            </c-expense-month-navigator>
+            <lightning-button
+                variant="brand"
+                label="Add Expense"
+                icon-name="utility:add"
+                onclick={handleAddExpense}
+            >
+            </lightning-button>
+        </div>
+    </div>
+
     <section
         class="dashboard-hero slds-box slds-theme_default"
         aria-label="Monthly spending summary"
