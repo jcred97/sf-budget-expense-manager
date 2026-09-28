@@ -85,8 +85,38 @@ const firstPage = () => ({
     nextCursor: 'next'
 });
 const list = element => element.shadowRoot.querySelector('c-expense-list');
-const dispatch = (element, type, detail) =>
-    list(element).dispatchEvent(new CustomEvent(type, { detail }));
+const expenseButton = (element, label) =>
+    [...list(element).shadowRoot.querySelectorAll('lightning-button')].find(
+        button => button.label === label
+    );
+const rowIds = element =>
+    [...list(element).shadowRoot.querySelectorAll('input[type="checkbox"]')].map(
+        input => input.dataset.id
+    );
+const selectedRows = element =>
+    [...list(element).shadowRoot.querySelectorAll('input[type="checkbox"]')].filter(
+        input => input.checked
+    );
+const dispatch = (element, type, detail) => {
+    const screen = list(element).shadowRoot;
+    if (type === 'filterchange') {
+        screen
+            .querySelector(`[data-field="${detail.field}"]`)
+            .dispatchEvent(new CustomEvent('change', { detail: { value: detail.value } }));
+    } else if (type === 'selectionchange') {
+        const input = screen.querySelector(`input[data-id="${detail.id}"]`);
+        input.checked = detail.selected;
+        input.dispatchEvent(new CustomEvent('change'));
+    } else if (type === 'rowaction') {
+        screen
+            .querySelector(`lightning-button-menu[data-id="${detail.id}"]`)
+            .dispatchEvent(new CustomEvent('select', { detail: { value: detail.action } }));
+    } else {
+        const labels = { bulkdelete: 'Delete Selected', loadmore: 'Load More', retry: 'Retry' };
+        const button = expenseButton(element, labels[type]) || expenseButton(element, 'Loading...');
+        button.click();
+    }
+};
 
 async function mount() {
     const element = createElement('c-budget-expense-manager', { is: BudgetExpenseManager });
@@ -288,7 +318,9 @@ describe('expense pagination UI', () => {
         expect(previousRange.startDate < originalRange.startDate).toBe(true);
         expect(previousRange.endDate < originalRange.startDate).toBe(true);
         await navigate(element, 'expenses');
-        expect(list(element).viewModel.startDate).toBe(originalRange.startDate);
+        expect(list(element).shadowRoot.querySelector('[data-field="startDate"]').value).toBe(
+            originalRange.startDate
+        );
         const instance = dashboard(element);
         await navigate(element, 'dashboard');
         expect(dashboard(element)).toBe(instance);
@@ -357,7 +389,7 @@ describe('expense pagination UI', () => {
         await navigate(element, 'dashboard');
         dashboardButton(element, 'Add Expense').click();
         await flush();
-        const expenseModal = element.shadowRoot.querySelector('c-expense-modal');
+        const expenseModal = list(element).shadowRoot.querySelector('c-expense-modal');
         expect(expenseModal.isOpen).toBe(true);
         fetchDashboardData.mockClear();
         fetchExpensePage.mockClear();
@@ -384,10 +416,11 @@ describe('expense pagination UI', () => {
     });
 
     describe.each(['single', 'bulk'])('%s deletion rollback', mode => {
-        const startDelete = element => {
+        const startDelete = async element => {
             if (mode === 'bulk') {
                 dispatch(element, 'selectionchange', { id: '1', selected: true });
                 dispatch(element, 'selectionchange', { id: '3', selected: true });
+                await flush();
                 dispatch(element, 'bulkdelete');
             } else {
                 dispatch(element, 'rowaction', { action: 'delete', id: '1' });
@@ -410,12 +443,10 @@ describe('expense pagination UI', () => {
                             rejectDelete = reject;
                         })
                 );
-                startDelete(element);
+                await startDelete(element);
                 await flush();
                 expect(deleteMock).toHaveBeenCalledTimes(1);
-                expect(list(element).viewModel.filteredRows.map(item => item.id)).toEqual(
-                    mode === 'bulk' ? ['2'] : ['2', '3']
-                );
+                expect(rowIds(element)).toEqual(mode === 'bulk' ? ['2'] : ['2', '3']);
 
                 if (context !== 'unchanged') {
                     fetchExpensePage.mockResolvedValueOnce({
@@ -446,20 +477,21 @@ describe('expense pagination UI', () => {
 
                 rejectDelete(new Error('Deletion rejected'));
                 await flush();
-                const vm = list(element).viewModel;
-                expect(vm.filteredRows.map(item => item.id)).toEqual(
+
+                expect(rowIds(element)).toEqual(
                     context === 'unchanged' ? ['1', '2', '3'] : ['new']
                 );
-                expect(vm.selectedCount).toBe(
+                expect(selectedRows(element).length).toBe(
                     context === 'unchanged' ? (mode === 'bulk' ? 2 : 0) : 1
                 );
-                expect(vm.dateGroups[0].rows[0].isSelected).toBe(
-                    context !== 'unchanged' || mode === 'bulk'
-                );
+                expect(
+                    list(element).shadowRoot.querySelector('input[type="checkbox"]').checked
+                ).toBe(context !== 'unchanged' || mode === 'bulk');
             }
         );
 
         it('does not delete after the list changes while confirmation is pending', async () => {
+            fetchExpensePage.mockResolvedValueOnce({ ...firstPage(), rows: [row('1'), row('3')] });
             const element = await mount();
             let confirmDelete;
             LightningConfirm.open.mockImplementationOnce(
@@ -468,7 +500,7 @@ describe('expense pagination UI', () => {
                         confirmDelete = resolve;
                     })
             );
-            startDelete(element);
+            await startDelete(element);
             dispatch(element, 'filterchange', { field: 'categoryId', value: 'another' });
             await flush();
             confirmDelete(true);
@@ -499,11 +531,15 @@ describe('expense pagination UI', () => {
         );
         resolvePage({ rows: [row('2')], hasMore: false });
         await flush();
-        const vm = list(element).viewModel;
-        expect(vm.visibleRowsSummary).toBe('Showing 2 of 25');
-        expect(vm.totalAmount).toBe(250);
-        expect(vm.selectedCount).toBe(1);
-        expect(vm.hasMoreRows).toBe(false);
+
+        expect(list(element).shadowRoot.querySelector('.table-status').textContent).toBe(
+            'Showing 2 of 25'
+        );
+        expect(
+            list(element).shadowRoot.querySelector('.expenses-total strong').textContent
+        ).toContain('250.00');
+        expect(selectedRows(element).length).toBe(1);
+        expect(expenseButton(element, 'Load More')).toBeUndefined();
     });
 
     it('ignores a late page after a filter change and debounces server search', async () => {
@@ -533,7 +569,7 @@ describe('expense pagination UI', () => {
         expect(fetchExpensePage.mock.calls[2][0]).toEqual(
             expect.objectContaining({ searchTerm: 'newer', cursor: null })
         );
-        expect(list(element).viewModel.filteredRows.map(item => item.id)).toEqual(['newer']);
+        expect(rowIds(element)).toEqual(['newer']);
     });
 
     it('preserves loaded rows and retries the same cursor after a failed page', async () => {
@@ -541,24 +577,140 @@ describe('expense pagination UI', () => {
         fetchExpensePage.mockRejectedValueOnce(new Error('Connection lost'));
         dispatch(element, 'loadmore');
         await flush();
-        expect(list(element).viewModel.loadError).toBe('Connection lost');
-        expect(list(element).viewModel.filteredRows).toHaveLength(1);
+        expect(list(element).shadowRoot.querySelector('[role="alert"]').textContent).toContain(
+            'Connection lost'
+        );
+        expect(rowIds(element)).toHaveLength(1);
         fetchExpensePage.mockResolvedValueOnce({ rows: [row('2')], hasMore: false });
         dispatch(element, 'retry');
         await flush();
         expect(fetchExpensePage.mock.calls[2][0].cursor).toBe('next');
-        expect(list(element).viewModel.loadError).toBe('');
+        expect(list(element).shadowRoot.querySelector('[role="alert"]')).toBeNull();
+    });
+
+    it('preserves expense filters, loaded pages, and selection across navigation', async () => {
+        const element = await mount();
+        dispatch(element, 'filterchange', { field: 'categoryId', value: 'food' });
+        await flush();
+        dispatch(element, 'selectionchange', { id: '1', selected: true });
+        fetchExpensePage.mockResolvedValueOnce({ rows: [row('2')], hasMore: false });
+        dispatch(element, 'loadmore');
+        await flush();
+        fetchExpensePage.mockClear();
+        await navigate(element, 'dashboard');
+        expect(list(element).shadowRoot.querySelector('.expense-screen').hidden).toBe(true);
+        await navigate(element, 'expenses');
+        expect(rowIds(element)).toEqual(['1', '2']);
+        expect(selectedRows(element).map(input => input.dataset.id)).toEqual(['1']);
+        expect(list(element).shadowRoot.querySelector('[data-field="categoryId"]').value).toBe(
+            'food'
+        );
+        expect(fetchExpensePage).not.toHaveBeenCalled();
+    });
+
+    it('closes the expense modal and resets selection and category when the group changes', async () => {
+        const element = await mount();
+        dispatch(element, 'selectionchange', { id: '1', selected: true });
+        dispatch(element, 'rowaction', { id: '1', action: 'edit' });
+        await flush();
+        const expenseModal = list(element).shadowRoot.querySelector('c-expense-modal');
+        expect(expenseModal.isOpen).toBe(true);
+        expect(expenseModal.recordId).toBe('1');
+        changeGroup(element);
+        await flush();
+        expect(expenseModal.isOpen).toBe(false);
+        expect(selectedRows(element)).toHaveLength(0);
+        expect(fetchExpensePage.mock.calls.at(-1)[0]).toEqual(
+            expect.objectContaining({
+                expenseGroupId: 'other-group',
+                categoryId: 'All',
+                cursor: null
+            })
+        );
+    });
+
+    it.each(['success', 'failure'])(
+        'reconciles a duplicated bank only after a successful lookup: %s',
+        async outcome => {
+            fetchExpensePage.mockResolvedValueOnce({
+                ...firstPage(),
+                rows: [
+                    {
+                        ...row('1'),
+                        bank: 'BPI',
+                        bankAssignmentId: 'bank',
+                        bankAssignmentActive: true
+                    }
+                ]
+            });
+            const element = await mount();
+            let finishLookup;
+            fetchBankOptions.mockImplementationOnce(
+                () =>
+                    new Promise((resolve, reject) => {
+                        finishLookup = outcome === 'success' ? resolve : reject;
+                    })
+            );
+            dispatch(element, 'rowaction', { id: '1', action: 'duplicate' });
+            await flush();
+            const expenseModal = list(element).shadowRoot.querySelector('c-expense-modal');
+            expect(expenseModal.duplicateData.Bank_Assignment__c).toBe('bank');
+            expect(expenseModal.bankOptionsLoading).toBe(true);
+            finishLookup(outcome === 'success' ? [] : new Error('Bank lookup failed'));
+            await flush();
+            await flush();
+            expect(expenseModal.duplicateData.Bank_Assignment__c).toBe(
+                outcome === 'success' ? null : 'bank'
+            );
+            expect(expenseModal.bankSelectionNotice).toBe(
+                outcome === 'success'
+                    ? 'BPI is not currently available for new expenses and was not copied.'
+                    : ''
+            );
+            expect(expenseModal.bankOptionsError).toBe(
+                outcome === 'failure' ? 'Bank lookup failed' : ''
+            );
+        }
+    );
+
+    it('refreshes the dashboard after an expense deletion succeeds', async () => {
+        const element = await mount();
+        fetchDashboardData.mockClear();
+        dispatch(element, 'rowaction', { id: '1', action: 'delete' });
+        await flush();
+        expect(deleteExpense).toHaveBeenCalledWith({ expenseId: '1' });
+        expect(fetchDashboardData).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not print a report from a previous group', async () => {
+        const element = await mount();
+        let finishReport;
+        fetchAllExpenseRows.mockImplementationOnce(
+            () =>
+                new Promise(resolve => {
+                    finishReport = resolve;
+                })
+        );
+        const print = jest.spyOn(window, 'print').mockImplementation(() => {});
+        expenseButton(element, 'Print / PDF').click();
+        changeGroup(element);
+        await flush();
+        finishReport([row('old-group')]);
+        await flush();
+        expect(print).not.toHaveBeenCalled();
+        expect(list(element).shadowRoot.querySelector('c-expense-print-report')).toBeNull();
+        print.mockRestore();
     });
 
     it('renders every report row before opening print', async () => {
         const element = await mount();
         fetchAllExpenseRows.mockResolvedValue([row('1'), row('unloaded')]);
         const print = jest.spyOn(window, 'print').mockImplementation(() => {
-            const report = element.shadowRoot.querySelector('c-expense-print-report');
+            const report = list(element).shadowRoot.querySelector('c-expense-print-report');
             expect(report.viewModel.expenseCount).toBe(2);
             expect(report.shadowRoot.querySelectorAll('tbody tr')).toHaveLength(2);
         });
-        [...element.shadowRoot.querySelectorAll('lightning-button')]
+        [...list(element).shadowRoot.querySelectorAll('lightning-button')]
             .find(button => button.label === 'Print / PDF')
             .click();
         await flush();
@@ -576,7 +728,7 @@ describe('expense pagination UI', () => {
                     resolveReport = resolve;
                 })
         );
-        [...element.shadowRoot.querySelectorAll('lightning-button')]
+        [...list(element).shadowRoot.querySelectorAll('lightning-button')]
             .find(button => button.label === 'Export CSV')
             .click();
         dispatch(element, 'filterchange', { field: 'categoryId', value: 'another' });
@@ -588,7 +740,7 @@ describe('expense pagination UI', () => {
     it('exports all matching rows, including rows not loaded in the list', async () => {
         const element = await mount();
         fetchAllExpenseRows.mockResolvedValue([row('1'), row('unloaded')]);
-        [...element.shadowRoot.querySelectorAll('lightning-button')]
+        [...list(element).shadowRoot.querySelectorAll('lightning-button')]
             .find(button => button.label === 'Export CSV')
             .click();
         await flush();
@@ -596,6 +748,6 @@ describe('expense pagination UI', () => {
             [row('1'), row('unloaded')],
             expect.any(String)
         );
-        expect(list(element).viewModel.filteredRows).toHaveLength(1);
+        expect(rowIds(element)).toHaveLength(1);
     });
 });
