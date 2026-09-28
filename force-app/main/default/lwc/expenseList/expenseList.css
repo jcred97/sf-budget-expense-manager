@@ -461,3 +461,72 @@
         justify-content: flex-start;
     }
 }
+
+.view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--slds-g-spacing-4, 1rem);
+    margin-bottom: var(--slds-g-spacing-4, 1rem);
+}
+
+.view-header h2 {
+    color: var(--slds-g-color-on-surface-2, #181818);
+    /* The 18px view heading has no equivalent SLDS typography hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    font-size: 1.125rem;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    font-weight: var(--slds-g-font-weight-6, 600);
+    margin: 0;
+}
+
+.view-header p {
+    color: var(--slds-g-color-on-surface-1, #747474);
+    font-size: var(--slds-g-font-scale-base, 0.8125rem);
+    /* Tight heading-to-subtitle spacing has no equivalent SLDS spacing hook. */
+    /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+    margin: 0.125rem 0 0;
+    /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
+}
+
+.view-header-actions {
+    align-items: center;
+    display: flex;
+    gap: var(--slds-g-spacing-3, 0.75rem);
+    justify-content: flex-end;
+}
+
+/* Adapt page-level actions before the full mobile shell takes over. */
+
+@media (max-width: 1100px) {
+    .view-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .view-header-actions {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+}
+@media (max-width: 900px) {
+    .view-header-actions {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+.expense-screen {
+    padding: var(--slds-g-spacing-4, 1rem) var(--slds-g-spacing-5, 1.5rem)
+        var(--slds-g-spacing-5, 1.5rem);
+}
+@media (max-width: 900px) {
+    .expense-screen {
+        padding: var(--slds-g-spacing-4, 1rem) var(--slds-g-spacing-3, 0.75rem);
+    }
+}
+@media print {
+    .expense-screen,
+    c-expense-modal {
+        display: none !important;
+    }
+}

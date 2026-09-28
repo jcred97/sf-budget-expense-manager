@@ -59,7 +59,7 @@
 
             <main class="workspace-main">
                 <!-- Preserve the dashboard month and allow refreshes from other screens. -->
-                <section class="workspace-view" hidden={isDashboardHidden}>
+                <section class="workspace-view non-print-view" hidden={isDashboardHidden}>
                     <c-expense-dashboard
                         expense-group-id={expenseGroupId}
                         expense-group-name={selectedExpenseGroupName}
@@ -68,69 +68,23 @@
                         onviewexpenses={handleViewExpenses}
                     ></c-expense-dashboard>
                 </section>
-                <template lwc:if={isExpensesView}>
-                    <section class="workspace-view">
-                        <div class="view-header">
-                            <div>
-                                <h2>{activeViewConfig.title}</h2>
-                                <p>{activeViewConfig.subtitle}</p>
-                            </div>
-                            <div class="view-header-actions">
-                                <c-expense-month-navigator
-                                    label={selectedMonthLabel}
-                                    navigation-label="Expense month"
-                                    onprevious={handlePreviousMonth}
-                                    onnext={handleNextMonth}
-                                >
-                                </c-expense-month-navigator>
-                                <lightning-button
-                                    variant="neutral"
-                                    label="Export CSV"
-                                    icon-name="utility:download"
-                                    onclick={handleExportCsv}
-                                    disabled={isReportDisabled}
-                                >
-                                </lightning-button>
-                                <lightning-button
-                                    variant="neutral"
-                                    label="Print / PDF"
-                                    icon-name="utility:print"
-                                    onclick={handlePrint}
-                                    disabled={isReportDisabled}
-                                >
-                                </lightning-button>
-                                <lightning-button
-                                    variant="brand"
-                                    label="Add Expense"
-                                    icon-name="utility:add"
-                                    onclick={openExpenseModal}
-                                >
-                                </lightning-button>
-                            </div>
-                        </div>
-
-                        <template lwc:if={isReportLoading}>
-                            <p class="slds-p-around_small" role="status">
-                                Preparing all matching expenses for your report...
-                            </p>
-                        </template>
-                        <c-expense-list
-                            view-model={expensesViewModel}
-                            onfilterchange={handleExpenseFilterChange}
-                            onresetfilters={handleResetExpenseFilters}
-                            onaddexpense={openExpenseModal}
-                            onselectionchange={handleExpenseSelect}
-                            onrowaction={handleExpenseAction}
-                            onbulkdelete={handleBulkExpenseDelete}
-                            onloadmore={handleLoadMore}
-                            onretry={handleRetryExpenses}
-                        >
-                        </c-expense-list>
-                    </section>
-                </template>
+                <c-expense-list
+                    active={isExpensesView}
+                    expense-group-id={expenseGroupId}
+                    expense-group-name={selectedExpenseGroupName}
+                    category-options={categoryOptions}
+                    is-categories-loading={isCategoriesLoading}
+                    category-options-error={categoryOptionsError}
+                    bank-options={bankOptions}
+                    is-bank-options-loading={isBankOptionsLoading}
+                    bank-options-error={bankOptionsError}
+                    onrefreshbanks={handleRetryBankOptions}
+                    onretrycategories={handleRetryCategoryOptions}
+                    onexpenseschanged={refreshDashboard}
+                ></c-expense-list>
 
                 <!-- Keep pending recurring actions connected while another view is visible. -->
-                <section class="workspace-view" hidden={isRecurringHidden}>
+                <section class="workspace-view non-print-view" hidden={isRecurringHidden}>
                     <c-recurring-expenses
                         expense-group-id={expenseGroupId}
                         expense-group-name={selectedExpenseGroupName}
@@ -150,28 +104,4 @@
             </main>
         </div>
     </div>
-
-    <template lwc:if={printViewModel}>
-        <c-expense-print-report view-model={printViewModel}></c-expense-print-report>
-    </template>
-
-    <c-expense-modal
-        is-open={isExpenseModalOpen}
-        record-id={editingExpenseId}
-        duplicate-data={duplicateExpenseFields}
-        category-options={modalCategoryOptions}
-        category-options-loading={isCategoriesLoading}
-        category-options-error={categoryOptionsError}
-        bank-options={modalBankOptions}
-        bank-options-loading={isBankOptionsLoading}
-        bank-options-error={bankOptionsError}
-        current-bank={currentExpenseBank}
-        bank-selection-notice={expenseBankNotice}
-        selected-expense-group-name={selectedExpenseGroupName}
-        onsuccess={handleExpenseSaveSuccess}
-        onclose={handleExpenseModalClose}
-        onretrybanks={handleRetryBankOptions}
-        onretrycategories={handleRetryCategoryOptions}
-    >
-    </c-expense-modal>
 </template>
