@@ -208,7 +208,6 @@ See the maintained [review findings](review-findings.md) for follow-up scope and
 
 | Finding | Source and intended follow-up |
 | --- | --- |
-| Settings can save defaults before load completes or after load failure | [`budgetExpenseSettings.html`](../force-app/main/default/lwc/budgetExpenseSettings/budgetExpenseSettings.html) disables Save only while saving; JS defaults are enabled / `08:00`. Require successful loading and guard overlapping responses. |
 | Saving enabled settings does not repair a missing schedule | [`BudgetExpenseSettingsService.cls`](../force-app/main/default/classes/service/BudgetExpenseSettingsService.cls) reschedules only when the effective run time changes. Reconcile enabled state and actual job existence. |
 | Normal users see an unauthorized manual-run action | [`recurringExpenses.js`](../force-app/main/default/lwc/recurringExpenses/recurringExpenses.js) exposes the action, while the User permission set omits `RecurringExpenseAutomationController`. Gate the UI on the intended capability. |
 | Data refresh can precede batch completion | The recurring screen receives the queued job ID, then emits `generationstarted` and refreshes immediately. Track completion or provide explicit pending status and a refresh action. |

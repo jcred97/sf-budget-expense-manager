@@ -8,7 +8,8 @@
 - Deployment of the latest simplifications and cleanup of obsolete org metadata remain deferred. Historical job IDs, record counts, coverage and deployment results in the history are evidence from their recorded workstreams, not current live-org checks.
 - Open issues and separate capacity/coverage limitations are tracked in [review findings](review-findings.md). No issue is marked fixed by this documentation update.
 - Screen tests now live beside `expenseDashboard`, `expenseList`, and `recurringExpenses`; the manager suite retains shared lookup, navigation, and cross-screen tests.
-- Missing direct frontend coverage: settings load/save concurrency, budget panel/dialog, recurring modal, FX interactions, and actual browser print pagination/layout.
+- Settings follow-up: five dedicated Jest regression tests and repository lint passed for the load/save protection fix. Coverage includes pending/failed loads, retry, failed refresh, empty responses, and duplicate-save/refresh exclusion. This fix has not been deployed.
+- Missing direct frontend coverage: budget panel/dialog, recurring modal, FX interactions, and actual browser print pagination/layout.
 - Current precommit hooks run ESLint and related Jest tests. Formatting is opt-in; the formatting configuration changes mentioned in older entries were subsequently committed (`c4911c3`).
 
 For this Windows checkout, the verified local command used a writable external Jest cache:

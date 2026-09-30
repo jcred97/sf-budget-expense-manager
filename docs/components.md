@@ -72,6 +72,7 @@ not a fourth workspace view.
 
 Nine Jest suites cover manager integration, dashboard, expense list, recurring screen,
 expense modal, recurring view model, expense transforms, workspace data, and CSV output.
-There are no direct suites for settings, budget panel/modal, or recurring modal, and mocked
+An additional settings suite covers load failures, retry, and save/refresh exclusion.
+There are no direct suites for budget panel/modal or recurring modal, and mocked
 browser tests do not establish Salesforce print/PDF layout correctness. See `key-patterns.md`
-for open settings-loading and recurring-action review findings and asynchronous run limitations.
+for recurring-action review findings and asynchronous run limitations.

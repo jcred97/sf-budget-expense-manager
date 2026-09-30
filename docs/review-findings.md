@@ -1,6 +1,6 @@
 # Architecture Review Findings
 
-Reviewed on **2026-09-30**, against application commit `6d0e13d`, with separate frontend, Apex, and metadata reviews. All findings below remain **open**. This documentation update does not implement their fixes.
+Reviewed on **2026-09-30**, against application commit `6d0e13d`, with separate frontend, Apex, and metadata reviews. F1 is now fixed in local source; F2–F5 remain open. Deployment remains deferred.
 
 The review inspected source and ran local lint/Jest checks; it did not reproduce issues in the live org, rerun Apex tests, or deploy metadata. P2 denotes a normal-priority functional issue, not a claim of an outage in the current org.
 
@@ -9,6 +9,8 @@ The review inspected source and ran local lint/Jest checks; it did not reproduce
 ## Confirmed Findings
 
 ### F1 — Settings can save defaults before existing configuration loads (P2)
+
+**Fixed in source:** Save, editing, and manual run require a successful settings load. Failed loads show an inline error and Retry. Handler guards block duplicate saves and overlapping refresh/mutation requests. Five Jest regression tests cover pending, failed, retried, empty, and overlapping operations. The trigger and evidence below describe the original issue; this fix has not been deployed.
 
 - **Trigger:** Initial settings loading is slow or fails, and the user clicks Save. Defaults are `true` and `08:00`, while Save is disabled only during saving. A load response can also race a save response.
 - **Impact:** Existing disabled automation or a custom time can be overwritten; the UI may apply an older response after newer work.

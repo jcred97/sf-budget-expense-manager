@@ -19,11 +19,17 @@
                     label="Save"
                     icon-name="utility:save"
                     onclick={handleSave}
-                    disabled={isSaving}
+                    disabled={isSaveDisabled}
                 >
                 </lightning-button>
             </div>
         </div>
+
+        <template lwc:if={loadError}>
+            <p class="slds-text-color_error slds-m-bottom_medium" role="alert">
+                {loadError} Select Retry to load settings before making changes.
+            </p>
+        </template>
 
         <div class="settings-grid">
             <section class="settings-panel">
@@ -39,6 +45,7 @@
                     message-toggle-active="Enabled"
                     message-toggle-inactive="Disabled"
                     onchange={handleRecurringToggle}
+                    disabled={isSaveDisabled}
                 >
                 </lightning-input>
 
@@ -48,6 +55,7 @@
                     label="Global Run Time"
                     value={globalRecurringRunTime}
                     onchange={handleGlobalRunTimeChange}
+                    disabled={isSaveDisabled}
                 >
                 </lightning-input>
 

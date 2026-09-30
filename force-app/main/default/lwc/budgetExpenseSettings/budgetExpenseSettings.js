@@ -35,6 +35,8 @@ export default class BudgetExpenseSettings extends LightningElement {
     isLoading = true;
     isSaving = false;
     isRunning = false;
+    hasLoadedSettings = false;
+    loadError;
 
     connectedCallback() {
         this.loadSettings();
@@ -45,11 +47,15 @@ export default class BudgetExpenseSettings extends LightningElement {
     }
 
     get refreshButtonLabel() {
-        return this.isLoading ? 'Refreshing...' : 'Refresh';
+        return this.isLoading ? 'Refreshing...' : this.loadError ? 'Retry' : 'Refresh';
+    }
+
+    get isSaveDisabled() {
+        return !this.hasLoadedSettings || this.isLoading || this.isSaving || this.isRunning;
     }
 
     get isRunDisabled() {
-        return this.isRunning || this.isSaving || !this.recurringExpensesEnabled;
+        return this.isSaveDisabled || !this.recurringExpensesEnabled;
     }
 
     get isRefreshDisabled() {
@@ -131,16 +137,25 @@ export default class BudgetExpenseSettings extends LightningElement {
 
     async loadSettings() {
         this.isLoading = true;
+        this.hasLoadedSettings = false;
+        this.loadError = undefined;
         try {
-            this.applySettings(await getSettings());
+            const settings = await getSettings();
+            if (!settings) {
+                throw new Error('Failed to load settings.');
+            }
+            this.applySettings(settings);
+            this.hasLoadedSettings = true;
         } catch (error) {
-            this.showToast('Error', getErrorMessage(error, 'Failed to load settings.'), 'error');
+            this.loadError = getErrorMessage(error, 'Failed to load settings.');
+            this.showToast('Error', this.loadError, 'error');
         } finally {
             this.isLoading = false;
         }
     }
 
     async handleRefresh() {
+        if (this.isRefreshDisabled) return;
         await this.loadSettings();
     }
 
@@ -153,6 +168,7 @@ export default class BudgetExpenseSettings extends LightningElement {
     }
 
     async handleSave() {
+        if (this.isSaveDisabled) return;
         this.isSaving = true;
         try {
             const settings = await saveSettings({
@@ -171,6 +187,7 @@ export default class BudgetExpenseSettings extends LightningElement {
     }
 
     async handleRunRecurringExpenses() {
+        if (this.isRunDisabled) return;
         this.isRunning = true;
         try {
             await runDueExpensesBatch();

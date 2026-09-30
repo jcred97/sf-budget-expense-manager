@@ -87,7 +87,7 @@
 <text x="962" y="1232" class="body">Groups / templates: public read-write</text>
 <text x="962" y="1258" class="body">Banks: public read; details inherit</text>
 <text x="962" y="1284" class="body">User / Admin / All Access permission sets</text>
-<text x="48" y="1382" class="small">Open findings: settings load/save race · missing schedule reconciliation · automation permission mismatch</text>
+<text x="48" y="1382" class="small">Open findings: missing schedule reconciliation · automation permission mismatch</text>
 <text x="48" y="1408" class="small">Enqueue-only refresh · recurring overview capped at 500. See review-findings.md for triggers, fixes and limits.</text>
 <text x="48" y="1435" class="small">Arrows show dependencies and record relationships; they do not imply every request uses every path.</text>
 </svg>

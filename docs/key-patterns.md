@@ -248,7 +248,6 @@ default record when missing. The `budgetExpenseSettings` LWC enters Apex through
 Lightning entry points. The page lets authorized users enable or disable recurring expense
 generation, manually queue a recurring run, and view the most recent run status.
 
-Open review finding: Save and the settings inputs are not blocked while the initial read is
-pending or after it fails. Saving before a successful read can persist the component defaults
-(enabled, 08:00) over existing settings. Read and save responses also have no sequencing guard.
-These issues have been documented but not fixed.
+Save, inputs, and manual run remain disabled until settings load successfully. Failed loads
+show an inline error and Retry. Save and Refresh handlers reject overlapping operations;
+a failed refresh locks the form until a successful retry. This source fix is not yet deployed.
