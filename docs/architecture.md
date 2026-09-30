@@ -208,12 +208,13 @@ See the maintained [review findings](review-findings.md) for follow-up scope and
 
 | Finding | Source and intended follow-up |
 | --- | --- |
-| Saving enabled settings does not repair a missing schedule | [`BudgetExpenseSettingsService.cls`](../force-app/main/default/classes/service/BudgetExpenseSettingsService.cls) reschedules only when the effective run time changes. Reconcile enabled state and actual job existence. |
 | Normal users see an unauthorized manual-run action | [`recurringExpenses.js`](../force-app/main/default/lwc/recurringExpenses/recurringExpenses.js) exposes the action, while the User permission set omits `RecurringExpenseAutomationController`. Gate the UI on the intended capability. |
 | Data refresh can precede batch completion | The recurring screen receives the queued job ID, then emits `generationstarted` and refreshes immediately. Track completion or provide explicit pending status and a refresh action. |
 | Recurring counts and amounts truncate above 500 templates | [`ExpenseQueryService.cls`](../force-app/main/default/classes/service/ExpenseQueryService.cls) computes the overview from its limited row query. Separate complete summary aggregation from a paginated list. |
 
 ## Source Versus Org State
+
+Settings saves now repair missing/unusable schedules when enabled, even with an unchanged time. Valid same-time jobs retain their owner and timezone. This Apex change passed Salesforce check-only validation (19/19 tests, 93.14% service coverage) and awaits deployment; see F2 in [review findings](review-findings.md).
 
 API version is `65.0`; the project namespace is `bemgr` and `force-app` is the default package directory. This does not establish managed-package installation status. Current source has no active Flow implementation or populated Aura bundle. Eight controllers, sixteen service/interface classes, fifteen DTOs, six handlers, six triggers, two async classes, and eighteen Apex test classes implement the backend.
 

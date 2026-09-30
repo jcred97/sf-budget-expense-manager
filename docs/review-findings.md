@@ -1,6 +1,6 @@
 # Architecture Review Findings
 
-Reviewed on **2026-09-30**, against application commit `6d0e13d`, with separate frontend, Apex, and metadata reviews. F1 is now fixed in local source; F2–F5 remain open. Deployment remains deferred.
+Reviewed on **2026-09-30**, against application commit `6d0e13d`, with separate frontend, Apex, and metadata reviews. F1 and F2 are fixed in source; F2 passed Salesforce check-only validation. F3–F5 remain open. Deployment remains deferred.
 
 The review inspected source and ran local lint/Jest checks; it did not reproduce issues in the live org, rerun Apex tests, or deploy metadata. P2 denotes a normal-priority functional issue, not a claim of an outage in the current org.
 
@@ -19,6 +19,8 @@ The review inspected source and ran local lint/Jest checks; it did not reproduce
 - **Required regression checks:** Save during pending/failed initial load; older load response arriving after save; retry after load failure.
 
 ### F2 — Saving enabled automation does not create a missing schedule (P2)
+
+**Fixed in source; check-only validation passed:** Enabled saves repair a missing or unusable schedule even when the time is unchanged. Same-time saves retain a usable job and its owner/timezone; new jobs use the saving user's timezone. Disabled-save behavior remains unchanged. Added tests cover first-time default saves, repeated saves, same-time re-enable, removed-job recovery, and inactive job states. Validation `0AfgK00000UzpUBSAZ` passed 19/19 settings, batch, and scheduler tests with 93.14% service coverage. This fix is not deployed. The evidence below describes the original issue.
 
 - **Trigger:** Fresh settings default to enabled at `08:00`, or the existing job is removed. Saving the same clock time, including disabled-to-enabled, does not schedule a replacement.
 - **Impact:** Automation can be enabled in the settings record without any daily job.

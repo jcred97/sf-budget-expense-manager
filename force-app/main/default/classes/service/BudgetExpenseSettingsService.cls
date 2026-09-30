@@ -1,7 +1,8 @@
 /** Manages the singleton Budget & Expense Manager settings record, scheduler configuration, and recurring-run status. */
 public with sharing class BudgetExpenseSettingsService {
     private static final String DEFAULT_SETTINGS_NAME = 'Default';
-    private static final String RECURRING_SCHEDULE_NAME = 'Budget Expense Manager Recurring Daily';
+    @TestVisible
+    private static String RECURRING_SCHEDULE_NAME = 'Budget Expense Manager Recurring Daily';
     private static final Time DEFAULT_RECURRING_RUN_TIME = Time.newInstance(8, 0, 0, 0);
     private static final String RUN_TIME_PATTERN = '^(?:[01]\\d|2[0-3]):[0-5]\\d$';
 
@@ -17,7 +18,7 @@ public with sharing class BudgetExpenseSettingsService {
     }
 
     /**
-     * Saves global recurring settings and reschedules the daily job when its run time changes.
+     * Saves settings, rescheduling changed times and repairing missing enabled automation.
      *
      * @param request Updated enablement and daily run-time values.
      * @return Persisted settings and current scheduler state.
@@ -46,7 +47,7 @@ public with sharing class BudgetExpenseSettingsService {
         settings.Recurring_Expenses_Enabled__c = requestedEnabled;
         settings.Global_Recurring_Run_Time__c = requestedRunTime;
 
-        if (originalRunTime != requestedRunTime) {
+        if (originalRunTime != requestedRunTime || (requestedEnabled && !isUsableSchedule(getRecurringSchedule()))) {
             rescheduleRecurringExpenses(requestedRunTime);
         }
 
@@ -240,9 +241,7 @@ public with sharing class BudgetExpenseSettingsService {
         state.lastRecurringRunMessage = settings.Last_Recurring_Run_Message__c;
 
         CronTrigger recurringSchedule = getRecurringSchedule();
-        state.recurringScheduleActive =
-            recurringSchedule != null &&
-            recurringSchedule.NextFireTime != null;
+        state.recurringScheduleActive = isUsableSchedule(recurringSchedule);
         state.recurringScheduleState = recurringSchedule == null
             ? 'Not scheduled'
             : recurringSchedule.State;
@@ -284,6 +283,12 @@ public with sharing class BudgetExpenseSettingsService {
         return count == 1 ? singularValue : singularValue + 's';
     }
 
+    @TestVisible
+    private static Boolean isUsableSchedule(CronTrigger schedule) {
+        return schedule != null && schedule.NextFireTime != null &&
+            new Set<String>{ 'WAITING', 'ACQUIRED', 'EXECUTING', 'BLOCKED' }.contains(schedule.State);
+    }
+
     private static CronTrigger getRecurringSchedule() {
         List<CronTrigger> recurringSchedules = [
             SELECT CronExpression, NextFireTime, State, TimeZoneSidKey
@@ -301,7 +306,7 @@ public with sharing class BudgetExpenseSettingsService {
         List<CronTrigger> existingJobs = [
             SELECT Id
             FROM CronTrigger
-            WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME
+            WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME AND State NOT IN ('DELETED', 'COMPLETE')
             WITH USER_MODE
         ];
 

@@ -1,6 +1,6 @@
 @IsTest
 private class BudgetExpenseSettingsServiceTest {
-    private static final String RECURRING_SCHEDULE_NAME = 'Budget Expense Manager Recurring Daily';
+    private static String RECURRING_SCHEDULE_NAME = 'Budget Expense Manager Recurring Daily';
     private static final String INITIAL_BASE_CURRENCY = 'CAD';
     private static final String BACKFILLED_BASE_CURRENCY = 'EUR';
     private static final String PINNED_BASE_CURRENCY = 'JPY';
@@ -337,9 +337,83 @@ private class BudgetExpenseSettingsServiceTest {
         }
     }
 
+    @IsTest
+    static void testEnabledDefaultSaveCreatesScheduleAndRepeatedSavePreservesIt() {
+        isolateRecurringSchedule();
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            SettingsController.getSettings();
+            BudgetExpenseSettingsState state = SettingsController.saveSettings(defaultScheduleRequest(true));
+            CronTrigger original = getRecurringSchedule();
+            System.assertEquals(true, state.recurringScheduleActive, 'Saving default enabled settings must create a schedule.');
+            System.assertEquals('0 0 8 * * ?', original.CronExpression, 'The default time must schedule daily at 08:00.');
+
+            SettingsController.saveSettings(defaultScheduleRequest(true));
+            CronTrigger unchanged = getRecurringSchedule();
+            System.assertEquals(original.Id, unchanged.Id, 'Repeated saves must preserve the job and its owner.');
+            System.assertEquals(original.TimeZoneSidKey, unchanged.TimeZoneSidKey, 'Repeated saves must preserve the timezone.');
+            System.assertEquals(1, [SELECT COUNT() FROM CronTrigger WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME AND State != 'DELETED'],
+                'Repeated saves must not create duplicate schedules.');
+        }
+    }
+
+    @IsTest
+    static void testSameTimeReenableCreatesMissingSchedule() {
+        isolateRecurringSchedule();
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            SettingsController.saveSettings(defaultScheduleRequest(false));
+            System.assertEquals(null, getRecurringSchedule(), 'A disabled same-time save must not create a schedule.');
+            BudgetExpenseSettingsState state = SettingsController.saveSettings(defaultScheduleRequest(true));
+            System.assertEquals(true, state.recurringScheduleActive, 'Re-enabling at the same time must create the missing job.');
+            System.assertEquals('0 0 8 * * ?', state.recurringScheduleCronExpression, 'Recovery must use the saved time.');
+        }
+    }
+
+    @IsTest
+    static void testSameTimeSaveRepairsRemovedSchedule() {
+        isolateRecurringSchedule();
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            SettingsController.saveSettings(defaultScheduleRequest(true));
+            Id removedJobId = getRecurringSchedule().Id;
+            System.abortJob(removedJobId);
+            BudgetExpenseSettingsState state = SettingsController.saveSettings(defaultScheduleRequest(true));
+            System.assertEquals(true, state.recurringScheduleActive, 'Saving must repair a removed job without a clock change.');
+            System.assertNotEquals(removedJobId, getRecurringSchedule().Id, 'The removed job must be replaced.');
+        }
+    }
+
+    @IsTest
+    static void testScheduleHealthRecognizesInactiveStates() {
+        System.assertEquals(false, BudgetExpenseSettingsService.isUsableSchedule(null), 'A missing job is inactive.');
+        for (String state : new List<String>{ 'PAUSED', 'PAUSED_BLOCKED', 'ERROR', 'COMPLETE', 'DELETED' }) {
+            CronTrigger job = (CronTrigger) JSON.deserialize(
+                '{"State":"' + state + '","NextFireTime":"2099-01-01T08:00:00.000Z"}', CronTrigger.class);
+            System.assertEquals(false, BudgetExpenseSettingsService.isUsableSchedule(job), state + ' must not count as healthy.');
+        }
+        for (String state : new List<String>{ 'WAITING', 'ACQUIRED', 'EXECUTING', 'BLOCKED' }) {
+            CronTrigger job = (CronTrigger) JSON.deserialize(
+                '{"State":"' + state + '","NextFireTime":"2099-01-01T08:00:00.000Z"}', CronTrigger.class);
+            System.assertEquals(true, BudgetExpenseSettingsService.isUsableSchedule(job), state + ' must not be replaced unnecessarily.');
+        }
+        CronTrigger noNextRun = (CronTrigger) JSON.deserialize('{"State":"WAITING"}', CronTrigger.class);
+        System.assertEquals(false, BudgetExpenseSettingsService.isUsableSchedule(noNextRun), 'A job without a next run is inactive.');
+    }
+
+    private static void isolateRecurringSchedule() {
+        // CronTrigger can expose existing org jobs even without SeeAllData.
+        RECURRING_SCHEDULE_NAME = 'Settings recovery regression ' + String.valueOf(System.now().getTime());
+        BudgetExpenseSettingsService.RECURRING_SCHEDULE_NAME = RECURRING_SCHEDULE_NAME;
+    }
+
+    private static BudgetExpenseSettingsUpdateRequest defaultScheduleRequest(Boolean enabled) {
+        BudgetExpenseSettingsUpdateRequest request = new BudgetExpenseSettingsUpdateRequest();
+        request.recurringExpensesEnabled = String.valueOf(enabled);
+        request.globalRecurringRunTime = '08:00';
+        return request;
+    }
+
     private static CronTrigger getRecurringSchedule() {
         List<CronTrigger> recurringSchedules = [
-            SELECT CronExpression, NextFireTime, State, TimeZoneSidKey
+            SELECT Id, CronExpression, NextFireTime, State, TimeZoneSidKey
             FROM CronTrigger
             WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME AND State != 'DELETED'
             ORDER BY NextFireTime ASC
