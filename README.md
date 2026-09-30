@@ -154,7 +154,7 @@ Apex tests were not rerun and the live org was not inspected during that review.
 
 ## Open Review Findings
 
-The five confirmed issues remain **open**, not fixed by the ownership refactors: saving settings before successful load, failure to create a missing same-time schedule, Run Recurring exposed to the regular User role, refreshing on batch enqueue rather than completion, and incomplete recurring summaries above 500 templates. [Reproduction conditions and proposed fixes](docs/review-findings.md).
+Settings now require successful loading before editing or saving, with Retry after failure and guards against overlapping requests. This fix is not yet deployed. Four issues remain open: failure to create a missing same-time schedule, Run Recurring exposed to the regular User role, refreshing on batch enqueue rather than completion, and incomplete recurring summaries above 500 templates. [Reproduction conditions and proposed fixes](docs/review-findings.md).
 
 Groups and recurring templates use internal Public Read/Write sharing; this is not private-per-user budgeting by default. Admin and All Access currently grant equivalent object/controller capabilities. Permission sets remain additive to other org permissions.
 
