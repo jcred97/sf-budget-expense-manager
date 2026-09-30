@@ -22,6 +22,10 @@ That cache path is machine-specific. Normal environments can use `npm run test:u
 
 ## Historical Evidence
 
+The missing-schedule recovery follow-up adds four Apex regression methods covering default/repeated saves, same-time re-enable, removed jobs, and schedule health states. Check-only validation `0AfgK00000UzpUBSAZ` against `mainDevOrg` on 2026-09-30 passed **19/19 tests** across `BudgetExpenseSettingsServiceTest`, `RecurringExpenseBatchTest`, and `RecurringExpenseSchedulerTest`. Service coverage was **93.14%** (163/175 executable lines). No source changes were deployed. The user-approved temporary Deployment Settings option was restored to disabled and its successful save verified. Original recurring job `08egK00000hRaZiQAK` remained WAITING with cron `0 0 8 * * ?`, timezone `Asia/Manila`, and next run `2026-10-01T00:00:00Z`.
+
+Earlier attempts: `0AfgK00000V0CVZSA3` was blocked by the pending-job setting before tests ran. `0AfgK00000V0FYHSA3` compiled but exposed a test-isolation issue: CronTrigger queries can see an existing org job. The new recovery tests now use a test-only schedule-name override to exercise missing jobs independently of the real schedule.
+
 See the [verification log](history/verification-log.md) for earlier test runs and deployments. Those records do not establish the current org state.
 
 ## Test Scope
