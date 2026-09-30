@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1460" viewBox="0 0 1440 1460" role="img" aria-labelledby="title desc">
+<title id="title">Budget and Expense Manager — current source architecture</title>
+<desc id="desc">Salesforce Lightning workspace with three persistent screens, shared lookup coordination, Apex controllers and services, Lightning Data Service record saves, recurring automation, Frankfurter exchange rates, and eight custom objects. Reviewed September 30, 2026. Source architecture, not a live-org deployment diagram.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#64748b" stroke-width="1.5"/></marker></defs>
+<style>text{font-family:Segoe UI,Arial,sans-serif;fill:#172b4d}.title{font-size:32px;font-weight:700}.section{font-size:17px;font-weight:700;letter-spacing:1px;fill:#52647b}.head{font-size:21px;font-weight:650}.body{font-size:18px}.small{font-size:16px;fill:#52647b}.line{fill:none;stroke:#64748b;stroke-width:2;marker-end:url(#arrow)}</style>
+<rect width="1440" height="1460" fill="#f4f7fb"/>
+<text x="48" y="58" class="title">Budget &amp; Expense Manager</text>
+<text x="48" y="91" class="body">Current source architecture · Salesforce API 65.0 · namespace bemgr</text>
+<text x="48" y="119" class="small">Reviewed 30 September 2026 · latest refactor deployment and org cleanup remain deferred</text>
+<text x="48" y="163" class="section">01  LIGHTNING ENTRY POINTS</text>
+<rect x="48" y="180" width="870" height="119" rx="14" fill="#e9f1ff" stroke="#ccd7e5"/>
+<text x="68" y="213" class="head">budgetExpenseManager · workspace shell</text>
+<text x="68" y="244" class="body">Group selection + navigation + shared Category/Bank lookups</text>
+<text x="68" y="270" class="body">Coordinates child refreshes; screens own their data and actions</text>
+<rect x="942" y="180" width="450" height="119" rx="14" fill="#e9f1ff" stroke="#ccd7e5"/>
+<text x="962" y="213" class="head">budgetExpenseSettings</text>
+<text x="962" y="244" class="body">Separate settings tab</text>
+<text x="962" y="270" class="body">Load/save settings and launch automation</text>
+<path d="M483 299 V321 H260 V343" class="line"/>
+<path d="M483 321 H720 V343" class="line"/>
+<path d="M720 321 H1178 V343" class="line"/>
+<rect x="48" y="345" width="432" height="162" rx="14" fill="#ffffff" stroke="#ccd7e5"/>
+<text x="68" y="378" class="head">expenseDashboard</text>
+<text x="68" y="409" class="body">Month + loading/error state</text>
+<text x="68" y="435" class="body">Expense rows, trend, budget history</text>
+<text x="68" y="461" class="body">budgetPanel → budgetModal</text>
+<rect x="504" y="345" width="432" height="162" rx="14" fill="#ffffff" stroke="#ccd7e5"/>
+<text x="524" y="378" class="head">expenseList</text>
+<text x="524" y="409" class="body">Filters, pages, selection, deletion</text>
+<text x="524" y="435" class="body">expenseModal + CSV/print reports</text>
+<text x="524" y="461" class="body">Public refresh() + openExpenseModal()</text>
+<rect x="960" y="345" width="432" height="162" rx="14" fill="#ffffff" stroke="#ccd7e5"/>
+<text x="980" y="378" class="head">recurringExpenses</text>
+<text x="980" y="409" class="body">Overview wire, template actions</text>
+<text x="980" y="435" class="body">recurringExpenseModal</text>
+<text x="980" y="461" class="body">Batch launch + lookup refresh events</text>
+<text x="48" y="538" class="small">All three screens stay mounted across navigation; group changes reset their context.</text>
+<rect x="48" y="558" width="1344" height="96" rx="14" fill="#eaf7f3" stroke="#ccd7e5"/>
+<text x="68" y="591" class="head">Shared presentation and data helpers</text>
+<text x="68" y="622" class="body">View-model builders + per-owner cache · expenseWorkspaceData · formatters/transforms · focus, FX and CSV helpers</text>
+<text x="48" y="699" class="section">02  SALESFORCE DATA ACCESS AND BUSINESS LOGIC</text>
+<path d="M370 654 V670 H890 V716" class="line"/>
+<path d="M1040 654 V716" class="line"/>
+<rect x="48" y="720" width="870" height="145" rx="14" fill="#e9f1ff" stroke="#ccd7e5"/>
+<text x="68" y="753" class="head">Apex controllers → focused services</text>
+<text x="68" y="784" class="body">Expense / Bank / Budget / Recurring / Automation / Settings / Currency / FX</text>
+<text x="68" y="810" class="body">User-mode queries and commands; DTO request/response contracts</text>
+<text x="68" y="836" class="body">Paging · budget invariants · recurrence · currency validation</text>
+<rect x="942" y="720" width="450" height="145" rx="14" fill="#e9f1ff" stroke="#ccd7e5"/>
+<text x="962" y="753" class="head">Lightning Data Service</text>
+<text x="962" y="784" class="body">Expense + recurring record forms</text>
+<text x="962" y="810" class="body">Standard record pages also save here</text>
+<text x="962" y="836" class="body">All record writes invoke triggers</text>
+<path d="M460 865 V885 H260 V905" class="line"/>
+<path d="M460 885 H720 V905" class="line"/>
+<path d="M1178 865 V905" class="line"/>
+<rect x="48" y="909" width="432" height="142" rx="14" fill="#fff4df" stroke="#ccd7e5"/>
+<text x="68" y="942" class="head">Recurring automation</text>
+<text x="68" y="973" class="body">Scheduler → Batch → Generator</text>
+<text x="68" y="999" class="body">Locks/rechecks templates; advances dates</text>
+<text x="68" y="1025" class="body">200 sync / 9,000 per batch transaction</text>
+<rect x="504" y="909" width="432" height="142" rx="14" fill="#fff4df" stroke="#ccd7e5"/>
+<text x="524" y="942" class="head">Foreign-exchange integration</text>
+<text x="524" y="973" class="body">Named + External Credential</text>
+<text x="524" y="999" class="body">Frankfurter / ECB reference rates</text>
+<text x="524" y="1025" class="body">Historical snapshot → canonical PHP</text>
+<rect x="960" y="909" width="432" height="142" rx="14" fill="#fff4df" stroke="#ccd7e5"/>
+<text x="980" y="942" class="head">Trigger integrity</text>
+<text x="980" y="973" class="body">Bank + assignment + budget keys</text>
+<text x="980" y="999" class="body">Expense FX + bank validation</text>
+<text x="980" y="1025" class="body">Recurring dates + settings singleton</text>
+<text x="48" y="1094" class="section">03  CUSTOM OBJECTS AND RELATIONSHIPS</text>
+<path d="M260 1051 V1064 H890 V1110" class="line"/>
+<path d="M1178 1051 V1110" class="line"/>
+<rect x="48" y="1116" width="870" height="226" rx="14" fill="#eaf7f3" stroke="#ccd7e5"/>
+<text x="68" y="1149" class="head">Expense domain</text>
+<text x="68" y="1180" class="body">Expense_Group__c → Category__c → Expense__c</text>
+<text x="68" y="1206" class="body">Expense_Group__c → Budget__c / Expense_Group_Bank__c</text>
+<text x="68" y="1232" class="body">Those arrows are master-detail; assignments look up to Bank__c.</text>
+<text x="68" y="1258" class="body">Recurring_Expense__c has a required Category lookup.</text>
+<text x="68" y="1284" class="body">Expenses + templates optionally reference bank assignments.</text>
+<text x="68" y="1310" class="body">Generated expenses optionally link back to their recurring template.</text>
+<rect x="942" y="1116" width="450" height="226" rx="14" fill="#eaf7f3" stroke="#ccd7e5"/>
+<text x="962" y="1149" class="head">Global configuration and access</text>
+<text x="962" y="1180" class="body">Budget_Expense_Manager_Setting__c</text>
+<text x="962" y="1206" class="body">Private; intended singleton</text>
+<text x="962" y="1232" class="body">Groups / templates: public read-write</text>
+<text x="962" y="1258" class="body">Banks: public read; details inherit</text>
+<text x="962" y="1284" class="body">User / Admin / All Access permission sets</text>
+<text x="48" y="1382" class="small">Open findings: settings load/save race · missing schedule reconciliation · automation permission mismatch</text>
+<text x="48" y="1408" class="small">Enqueue-only refresh · recurring overview capped at 500. See review-findings.md for triggers, fixes and limits.</text>
+<text x="48" y="1435" class="small">Arrows show dependencies and record relationships; they do not imply every request uses every path.</text>
+</svg>

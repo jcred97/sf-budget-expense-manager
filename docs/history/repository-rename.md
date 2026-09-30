@@ -1,6 +1,14 @@
 # Repository and Checkout Rename Record
 
-## Current State
+## Current Source Snapshot — 2026-09-30
+
+Application HEAD is `6d0e13d`. The three screen components own their workflows; the manager owns group/navigation/shared lookups and cross-screen refresh. All 66 Jest tests in 9 suites and lint passed during the review; Apex and live-org state were not rechecked. Latest refactor deployment and obsolete-metadata cleanup remain deferred. Current checkout: `F:\Software Development\Salesforce\Personal\sf-budget-expense-manager`.
+
+See [architecture](../architecture.md), [current verification](../testing-and-tooling.md#current-verification--2026-09-30), and [open findings](../review-findings.md). The historical record below is retained; its older paths, line counts, and pending-work statements do not override this snapshot.
+
+## Historical Record
+
+## State Recorded During the Repository Rename
 
 - GitHub repository: `jcred97/sf-budget-expense-manager`
 - Git remote: `https://github.com/jcred97/sf-budget-expense-manager.git`

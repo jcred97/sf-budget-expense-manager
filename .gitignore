@@ -56,7 +56,7 @@ destructive/
 # Local migration and rollback exports
 scripts/migration/backups/
 
-# Project agent documentation
+# Project documentation
 !AGENTS.md
-!agent-docs/
-!agent-docs/**
+!docs/
+!docs/**
