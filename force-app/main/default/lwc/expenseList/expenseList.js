@@ -546,7 +546,7 @@ export default class ExpenseList extends LightningElement {
             }
             if (print) {
                 this.printViewModel = buildExpensesViewModel({ ...filters, rows });
-                // Let both the parent and report component render the complete report.
+                // Let this screen and its report component render all rows before printing.
                 await Promise.resolve();
                 await Promise.resolve();
                 if (isCurrent()) {
