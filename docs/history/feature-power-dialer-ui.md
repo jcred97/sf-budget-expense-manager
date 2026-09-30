@@ -1,6 +1,8 @@
-﻿# feature/power-dialer-ui
+# feature/power-dialer-ui
 
 Last updated: 2026-06-21 Manila time
+
+Historical branch note only. This describes earlier branch work, not current application source or deployed org state. Pending-work statements are preserved as recorded.
 
 ## Purpose
 

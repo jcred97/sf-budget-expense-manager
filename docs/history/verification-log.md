@@ -1,4 +1,7 @@
-# Testing And Tooling
+# Historical Verification Log
+
+
+The entries below preserve the chronology and original results. References to then-current ownership, missing tests, pending commits, removed selectors, or old paths describe that point in time; the current source status above supersedes them.
 
 ## Apex Formatting — 2026-09-20
 
@@ -336,37 +339,3 @@ Legacy cleanup check-only deployment `0AfgK00000QSD8ESAX` and actual deployment 
 A separate direct `RunLocalTests` diagnostic ran 171 org tests with 91% org-wide coverage. The 168 passing tests include every Budget & Expense Manager test. The only three failures are unrelated methods in `PortfolioLeadEmailActionTest` whose assertions conflict with the org's current notification custom metadata: `testMissingConfig`, `testNullRequestInList`, and `testResolveConfig_ReturnsNullWhenNoOverride` (test run `707gK00000mkb7x`).
 
 Once `Budget Expense Manager Recurring Daily` is active, Salesforce blocks deployments that include its schedulable dependency graph unless the org's Deployment Settings allow deployments with pending Apex jobs. Do not abort the schedule for ordinary metadata-only diagnostics; run Apex tests directly, or use the guarded scheduler scripts when an Apex deployment genuinely requires a cutover window.
-
-## Tooling
-
-- ESLint with Aura and LWC recommended rules
-- Prettier with Apex and XML plugins
-- Husky pre-commit hooks
-- lint-staged
-- Jest ignores `.localdevserver`
-
-The repository-wide `npm run prettier:verify` command currently reports legacy formatting debt. Run targeted checks on files changed by the current task instead of formatting unrelated files.
-
-## Destructive Deploy
-
-The Git-ignored `destructive/` directory can be used for temporary destructive manifests. Verify every member against local references and the target org before running it:
-
-```bash
-sf project deploy start --dry-run --manifest destructive/package.xml --post-destructive-changes destructive/destructiveChanges.xml --target-org your-org-alias
-```
-
-Run the same command without `--dry-run` only after the validation succeeds. Historically, a destructive deployment removed the legacy `spendlyDataTransforms` bundle after its then-replacement was deployed. The completed API-rebrand cleanup used the reviewed `manifest/legacy-spendly-destructive.xml` file with `manifest/empty-package.xml`; neither validation nor deployment used purge-on-delete.
-
-The recurring expense generator uses `Next_Run_Date__c` as its continuation pointer.
-
-The completed same-org migration scripts were intentionally removed from this app repository after verification. A future unpackaged-to-`bemgr` managed-package data migration is a separate workstream and must use separately reviewed tooling and rollback artifacts.
-
-## Currency
-
-`Budget_Expense_Manager_Setting__c.Base_Currency_Code__c` is the stable app reporting-currency foundation. The non-cacheable admin settings path initializes a blank value once; the cacheable currency-context endpoint only reads the persisted value. The Salesforce provider uses `UserInfo.getDefaultCurrency()` in single-currency orgs and a system-mode dynamic corporate `CurrencyType` query in multi-currency orgs. This foundation does not yet replace the PHP-specific FX fields, calculations, or UI formatting.
-
-`Expense__c.Amount__c`, budgets, totals, averages, charts, and monthly trends are canonical PHP (Philippine Peso). Shared PHP and optional ISO-currency display formatting is centralized in `expenseFormatters` with cached `Intl.NumberFormat` instances; view models and expense transforms provide formatted values to presentation components.
-
-Optional foreign-currency Expenses store the original Number amount (4 decimals), three-letter code, PHP-per-unit Number rate (8 decimals), effective date, and source. These fields are all blank for an ordinary PHP Expense. The before-trigger service requires the full snapshot when any one is present and recalculates the PHP Currency amount with half-up precision. Recurring templates remain PHP-only in this version.
-
-The public `Exchange_Rates_API` Named Credential points to `https://api.frankfurter.dev`; its `Exchange_Rates_Public` External Credential uses no authentication and permission-set principal access. Requests use Frankfurter v2's single-rate endpoint with `providers=ECB`. The provider's returned effective date is retained because weekend/holiday requests can resolve to a prior business day; observations older than seven days are rejected. These are informational reference estimates, so the modal supports a manual settled-rate fallback.

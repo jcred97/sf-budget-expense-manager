@@ -24,5 +24,5 @@
 
 - Ask the user before deploying, committing, or pushing.
 - Validate deployable changes with `sf project deploy start --dry-run` before a full deployment.
-- For project architecture and repo context, reference `agent-docs/architecture.md`.
+- For project architecture and repo context, reference `docs/architecture.md`.
 - Use clear, scoped commit messages that summarize the user-facing intent, keep subject lines concise, and include body details when the change needs context or verification notes.

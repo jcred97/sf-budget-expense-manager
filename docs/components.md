@@ -2,10 +2,10 @@
 
 | Path                                                          | Role                                                                                                                                         |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lwc/budgetExpenseManager`                                    | Main workspace shell and coordinator: owns Expense Group context, mutable state, action/modal orchestration, and memoized view models        |
-| `lwc/expenseWorkspaceConfig`                                  | Non-exposed workspace view keys, labels, navigation items, and active-view configuration                                                     |
+| `lwc/budgetExpenseManager`                                    | Workspace shell: group selection, navigation, shared category/bank lookups, and refresh coordination across the three screens |
+| `lwc/expenseWorkspaceConfig`                                  | Non-exposed keys and navigation items for Dashboard, Expenses, and Recurring                                                     |
 | `lwc/expenseWorkspaceData`                                    | Non-exposed imperative read gateway for expense rows, Dashboard trend/budget history, and group-scoped Bank options                          |
-| `lwc/expenseWorkspaceViewModels`                              | Non-exposed per-manager memoization façade over the three pure workspace view-model builders                                                 |
+| `lwc/expenseWorkspaceViewModels`                              | WeakMap memoization by component owner and input identity for dashboard and expense-list builders only; recurring uses its builder directly |
 | `lwc/expenseCsvExport`                                        | Non-exposed CSV construction and browser download boundary for filtered expense rows                                                         |
 | `lwc/expenseCurrencyMath`                                     | Non-exposed exact decimal multiplication and HALF_UP rounding shared with the Apex conversion invariant                                      |
 | `lwc/expenseExchangeRateData`                                 | Non-exposed imperative gateway to the PHP exchange-rate controller                                                                           |
@@ -13,17 +13,16 @@
 | `lwc/modalFocusUtils`                                         | Non-exposed shared modal body locking, focus restoration, focusable-element discovery, and Tab trapping                                      |
 | `lwc/expenseMonthNavigator`                                   | Non-exposed reusable previous/current/next month control used by Dashboard and Expenses                                                      |
 | `lwc/expensePrintReport`                                      | Non-exposed print-only expense summary and detail table                                                                                      |
-| `lwc/expenseDashboard`                                        | Dashboard presentation: hero, loading/empty states, summary cards, charts, latest expenses, insights, responsive styling, and View All event |
+| `lwc/expenseDashboard`                                        | Owns dashboard data loading, month navigation, loading/error states, view-model assembly, and budget refresh; exposes refresh() for workspace changes and emits Add Expense/View All events |
 | `lwc/expenseDashboardViewModel`                               | Non-exposed pure builder for dashboard totals, summaries, charts, trends, budget variance history, recent rows, and insight data             |
 | `lwc/budgetPanel`                                             | Non-exposed optional monthly budget card: load, opt-in state, spent/remaining/over status, edit, remove, retry, and toasts                   |
 | `lwc/budgetModal`                                             | Non-exposed accessible create/edit dialog for a positive PHP budget amount and optional description                                          |
 | `lwc/budgetHistory`                                           | Non-exposed SLDS table comparing six months of optional budgets, spending, variance, and percentage used                                     |
-| `lwc/expenseList`                                             | Expenses presentation: filters, loading/empty states, grouped rows, selection, actions, pagination, and responsive styling                   |
-| `lwc/expenseListViewModel`                                    | Non-exposed pure builder for filtered/grouped expense rows, totals, empty states, pagination, and print data                                 |
-| `lwc/recurringExpenses`                                       | Recurring-expense presentation: summary cards, template list, due/inactive states, and row actions                                           |
+| `lwc/expenseList`                                             | Owns expense filters, paginated loading, selection, mutations, Add/Edit/Duplicate modal, and CSV/print reporting; exposes refresh() and openExpenseModal() for shared workspace actions |
+| `lwc/expenseListViewModel`                                    | Non-exposed pure builder for server-filtered expense rows, date groups, full-result totals, empty states, pagination, and print data                                 |
+| `lwc/recurringExpenses`                                       | Owns recurring overview loading, summary/list presentation, Add/Edit modal state, deactivation, and run actions; receives shared lookup options and notifies the manager when generation starts |
 | `lwc/recurringExpenseModal`                                   | Non-exposed LDS Add/Edit dialog with atomic loading, group-scoped Category/Bank selectors, legacy handling, and focus management             |
-| `lwc/recurringExpenseTransforms`                              | Non-exposed mapper for recurring-template display labels, formatted values, statuses, and active windows                                     |
-| `lwc/recurringExpenseViewModel`                               | Non-exposed pure builder for recurring summary cards, counts, totals, and row data                                                           |
+| `lwc/recurringExpenseViewModel`                               | Non-exposed pure builder for recurring row display values, summary cards, counts, and totals                                                           |
 | `lwc/expenseBarChart`                                         | Reusable horizontal bar chart                                                                                                                |
 | `lwc/expenseTrendChart`                                       | Monthly trend visualization                                                                                                                  |
 | `lwc/expenseSummaryCards`                                     | Reusable data-driven summary metric cards; accepts one card configuration collection                                                         |
@@ -31,25 +30,48 @@
 | `lwc/expenseTransforms`                                       | Non-exposed pure utilities for PHP/FX expense mapping, grouping, summaries, chart construction, colors, totals, and count labels             |
 | `lwc/expenseModal`                                            | Add/Edit Expense modal: atomic loading, optional FX conversion, animations, focus management, and document-level lifecycle cleanup           |
 | `lwc/budgetExpenseSettings`                                   | Settings page for recurring automation controls, global run time, and last-run status                                                        |
-| `classes/controller/BankController.cls`                       | Lightning-facing group-scoped active Bank-assignment façade                                                                                  |
+| `classes/controller/BankController.cls`                       | Direct user-mode group-scoped active Bank query and option mapping                                                                                  |
 | `classes/controller/BudgetController.cls`                     | Lightning-facing current-month and bounded six-month budget query/save/delete façade                                                         |
 | `classes/controller/CurrencyContextController.cls`            | Lightning-facing cacheable façade over the initialized app reporting currency                                                                |
 | `classes/controller/ExchangeRateController.cls`               | Lightning-facing read-only PHP exchange-rate façade with sanitized client errors                                                             |
-| `classes/controller/ExpenseController.cls`                    | Lightning-facing Expense query/delete façade; contains no SOQL or DTO definitions                                                            |
+| `classes/controller/ExpenseController.cls`                    | Expense entry points and direct user-mode Expense Group/Category lookups                                                            |
 | `classes/controller/RecurringExpenseController.cls`           | Lightning-facing recurring-template overview/deactivate façade available to normal app users                                                 |
 | `classes/controller/RecurringExpenseAutomationController.cls` | Admin-only Lightning façade for synchronous or Batch Apex recurring generation                                                               |
 | `classes/controller/SettingsController.cls`                   | Admin-only Lightning façade for singleton settings reads and updates                                                                         |
 | `classes/dto/`                                                | Top-level, data-only LWC requests and responses for budgets, expenses, recurring generation/overview, settings, and Bank options             |
-| `classes/selector/ExpenseGroupSelector.cls`                   | Bounded user-mode Expense Group workspace lookup                                                                                             |
-| `classes/selector/CategorySelector.cls`                       | User-mode Category lookup scoped by an optional Expense Group ID                                                                             |
 | `classes/handler/`                                            | Trigger handlers for Bank assignments, expense Bank checks, budget invariants, recurring defaults/date validation, and settings              |
-| `classes/service/BankService.cls`                             | User-mode active Bank assignment query and Lightning option mapping                                                                          |
 | `classes/service/BankAssignmentValidator.cls`                 | Bulk cross-object validation and legacy compatibility for Expense and Recurring Expense Bank assignments                                     |
 | `classes/service/CurrencyContextService.cls`                  | Read-only pinned-currency lookup, validation, transaction caching, and organization-currency initialization boundary                         |
 | `classes/service/SalesforceOrganizationCurrencyProvider.cls`  | Single-currency org-default or dynamic multi-currency corporate-code resolver                                                                |
 | `classes/service/ExchangeRateService.cls`                     | Request/quote validation, PHP identity handling, business-day freshness policy, and provider normalization                                   |
 | `classes/service/FrankfurterExchangeRateProvider.cls`         | HTTP and JSON boundary for ECB-pinned Frankfurter v2 reference rates                                                                         |
 | `classes/service/ExpenseCurrencyService.cls`                  | Bulk-safe optional FX snapshot normalization, validation, and canonical PHP calculation                                                      |
-| `classes/service/`                                            | Non-Lightning business/query services for Bank, budget, expense, recurring generation, and settings behavior                                 |
+| `classes/service/`                                            | Non-Lightning business/query services for bank validation, budgets, expenses, recurring generation, currency, and settings behavior                                 |
 | `classes/async/`                                              | Batch and Schedulable recurring-expense execution entry points                                                                               |
 | `classes/test/`                                               | Apex tests grouped separately from production classes                                                                                        |
+
+## Screen Lifetime And Events
+
+All three workspace screens stay mounted across navigation. The manager hides Dashboard
+and Recurring sections; `expenseList` hides its interactive screen internally. This preserves
+the independent dashboard month and expense filters, loaded pages, selection, and pending
+actions. A group change resets each screen's scoped data and closes expense/recurring dialogs.
+
+The manager supplies category and bank options with loading/error state. Expense actions
+request bank refreshes and emit `expenseschanged` to refresh the dashboard. Recurring dialog
+opening requests both category and bank refreshes; `generationstarted` refreshes the other
+screens. Dashboard emits `addexpense` and `viewexpenses`; Add Expense calls the list's public
+modal opener even while the list screen is hidden. Budget changes stay within the dashboard.
+
+`expenseModal` and `recurringExpenseModal` save through Lightning Data Service record forms.
+The list owns its modal and complete print report outside the hidden interactive section;
+the recurring screen owns its modal. The standalone settings component is a separate page,
+not a fourth workspace view.
+
+## Verification Boundaries
+
+Nine Jest suites cover manager integration, dashboard, expense list, recurring screen,
+expense modal, recurring view model, expense transforms, workspace data, and CSV output.
+There are no direct suites for settings, budget panel/modal, or recurring modal, and mocked
+browser tests do not establish Salesforce print/PDF layout correctness. See `key-patterns.md`
+for open settings-loading and recurring-action review findings and asynchronous run limitations.

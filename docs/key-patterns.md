@@ -2,13 +2,17 @@
 
 ## Workspace Shell
 
-`budgetExpenseManager` owns the shared context and mutable state for an internal workspace
-shell driven by the view keys and configuration in `expenseWorkspaceConfig`. Imperative
-expense, Dashboard, trend, and Bank-option reads enter through `expenseWorkspaceData`, while
-cacheable Category and recurring-overview wires remain in the component because `refreshApex`
-depends on their wire results. Derived view models pass through
-`expenseWorkspaceViewModels`, which memoizes them per manager instance by input references and
-scalar values so repeated template access within one render cycle reuses the same model.
+`budgetExpenseManager` owns group selection, navigation, shared Category/Bank lookups, and
+cross-screen refresh coordination. `expenseDashboard`, `expenseList`, and `recurringExpenses`
+own their screen data, actions, and loading state. All three remain mounted across navigation;
+hidden sections preserve state and keep pending actions connected. Group setters clear
+scoped data and close the expense/recurring dialogs when the group changes.
+
+Imperative expense, Dashboard, trend, and Bank-option reads enter through
+`expenseWorkspaceData`. The Category wire belongs to the manager; the recurring overview
+wire belongs to `recurringExpenses`, which retains its own `refreshApex` result.
+`expenseWorkspaceViewModels` memoizes Dashboard and expense-list view models per owning
+screen using input references and scalar values. Recurring calls its pure builder directly.
 Desktop uses a collapsible left sidebar so Budget & Expense Manager can have app-like
 navigation inside Salesforce, while smaller screens fall back to a horizontal
 view strip. The first available `Expense_Group__c` is selected automatically,
@@ -38,13 +42,12 @@ insight details where precision matters.
 
 ## Reactive Filters
 
-`budgetExpenseManager.js` binds filters to the UI state. Changing the workspace
-`expenseGroupId` reloads the scoped expense data and resets `categoryId` to
-`All`. Changing `categoryId`, `startDate`, or `endDate` reloads the data inside
-the selected expense group. Dashboard and Expenses both show previous/next
-month controls in their view headers. These controls set `startDate` and
-`endDate` to the selected calendar month, then reload through the same filter
-path so both views stay on the same selected month.
+`expenseList.js` owns expense filters. Changing the workspace `expenseGroupId` reloads
+scoped data, clears search/selection, and resets `categoryId` to `All`. Changing category
+or dates reloads within the selected group. Dashboard and Expenses have independent month
+state and previous/next controls; changing one screen's month does not change the other.
+Their selected ranges survive navigation and group changes. Dashboard refreshes on activation;
+the expense list retains its current pages on activation and refreshes through explicit changes.
 
 ## Date Validation
 
@@ -174,7 +177,11 @@ quiet SLDS-like row typography over custom button chrome.
 ## Row Actions
 
 Rows support Edit, Duplicate, and Delete. Delete uses `LightningConfirm.open()`
-and calls Apex delete methods.
+and calls Apex delete methods. The list captures a request version before confirmation;
+a filter change or reload cancels the pending deletion. Optimistic removal rolls back only
+when the original list version still applies, preventing failed deletes from restoring old
+rows into a newer result. Successful expense saves/deletes refresh the list and notify the
+manager to refresh the dashboard.
 
 ## Bulk Delete
 
@@ -186,6 +193,11 @@ bulkified and avoid one-DML-per-row implementations.
 The app can export filtered rows to CSV through `expenseCsvExport` and render a
 print-only expense report through `expensePrintReport`. The CSV retains the raw FX snapshot and the print table shows its concise original-currency context below the canonical PHP amount. Dashboard and Expenses share
 `expenseMonthNavigator`; shared date-range labels come from `expenseFormatters`.
+
+`expenseList` owns report preparation and waits for its complete report to render before
+calling `window.print()`. The report lives outside the hidden interactive expense section.
+Manager print CSS hides navigation, Dashboard, and Recurring; expense print CSS hides the
+interactive list and modal. CSV text escaping also neutralizes spreadsheet formula prefixes.
 
 Modal components share body scroll locking, focus restoration, focusable-element discovery,
 and Tab trapping through `modalFocusUtils`, while each modal retains its own close, save, and
@@ -205,6 +217,11 @@ calls `RecurringExpenseAutomationController.runDueExpensesBatch()`, whose Apex c
 access remains limited to Admin and All Access. Generation automation uses Batch Apex so
 more than 100 due templates can be processed without hitting per-transaction governor
 limits.
+
+Current limitation: the UI refreshes other screens and recurring data immediately after the
+batch is queued, not after it completes. It does not track the returned job ID; a delayed job
+needs a later refresh before generated records appear. The Run button is currently visible
+to normal users even though automation Apex access is restricted; this is an open review finding.
 
 Generation catches up from `Next_Run_Date__c` through the run date and stops at
 `End_Date__c`. Reaching the transaction cap persists the first ungenerated date so a
@@ -230,3 +247,8 @@ default record when missing. The `budgetExpenseSettings` LWC enters Apex through
 `SettingsController` and `RecurringExpenseAutomationController`; service classes are not
 Lightning entry points. The page lets authorized users enable or disable recurring expense
 generation, manually queue a recurring run, and view the most recent run status.
+
+Open review finding: Save and the settings inputs are not blocked while the initial read is
+pending or after it fails. Saving before a successful read can persist the component defaults
+(enabled, 08:00) over existing settings. Read and save responses also have no sequencing guard.
+These issues have been documented but not fixed.

@@ -1,6 +1,14 @@
 # Budget & Expense Manager API Rebrand
 
-## Current Status
+## Current Source Snapshot — 2026-09-30
+
+Application HEAD is `6d0e13d`. The three screen components own their workflows; the manager owns group/navigation/shared lookups and cross-screen refresh. All 66 Jest tests in 9 suites and lint passed during the review; Apex and live-org state were not rechecked. Latest refactor deployment and obsolete-metadata cleanup remain deferred. Current checkout: `F:\Software Development\Salesforce\Personal\sf-budget-expense-manager`.
+
+See [architecture](../architecture.md), [current verification](../testing-and-tooling.md#current-verification--2026-09-30), and [open findings](../review-findings.md). The historical record below is retained; its older paths, line counts, and pending-work statements do not override this snapshot.
+
+## Historical Record
+
+## Status Recorded During the Rebrand
 
 The source tree has been rebranded for the future `bemgr` second-generation managed package. The unpackaged rebrand and its approved legacy-metadata cleanup were deployed to `mainDevOrg` on 2026-08-15, committed and pushed as `50e1eeb`, and followed by the GitHub repository and local-checkout rename to `sf-budget-expense-manager`. They have not been used to create a managed package.
 
@@ -141,4 +149,4 @@ The legacy branded metadata and settings object no longer remain live in the org
 
 ## Completed Repository Identity Rename
 
-The non-Salesforce repository rebrand is complete. The GitHub repository is `jcred97/sf-budget-expense-manager`, `origin` uses `https://github.com/jcred97/sf-budget-expense-manager.git`, and the local checkout is `F:\Salesforce\Personal\sf-budget-expense-manager`. See `agent-docs/repository-rename.md` for the completion record. Repository renaming did not add a Salesforce namespace or create a managed package.
+The non-Salesforce repository rebrand is complete. The GitHub repository is `jcred97/sf-budget-expense-manager`, `origin` uses `https://github.com/jcred97/sf-budget-expense-manager.git`, and the local checkout is `F:\Salesforce\Personal\sf-budget-expense-manager`. See `docs/history/repository-rename.md` for the completion record. Repository renaming did not add a Salesforce namespace or create a managed package.

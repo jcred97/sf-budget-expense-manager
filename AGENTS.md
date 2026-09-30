@@ -1,6 +1,6 @@
-﻿# Budget & Expense Manager Agent Instructions
+# Budget & Expense Manager Agent Instructions
 
-This repo follows the shared Salesforce agent standards in `F:\Salesforce\AGENTS.md`.
+Follow [repository Salesforce standards](docs/salesforce-standards.md). Consult shared standards at `F:\Salesforce\AGENTS.md` when available.
 
 ## Repo Context
 
@@ -8,17 +8,17 @@ Budget & Expense Manager is a Salesforce Lightning Web Components expense-manage
 
 ## Reference Docs
 
-- `agent-docs/project-overview.md` - product purpose, core hierarchy, and main app capabilities.
-- `agent-docs/project-structure.md` - repository layout and important metadata locations.
-- `agent-docs/architecture.md` - data model, Apex methods, app metadata, permissions, and flexipages.
-- `agent-docs/components.md` - LWC and Apex component responsibilities.
-- `agent-docs/key-patterns.md` - UI, filtering, modal, table, and export behavior.
-- `agent-docs/salesforce-standards.md` - Flow, Apex, SOQL, LWC, deploy, and Git standards.
-- `agent-docs/testing-and-tooling.md` - Apex/LWC tests, tooling, destructive deploy notes, and currency behavior.
+- `docs/project-overview.md` - product purpose, core hierarchy, and main app capabilities.
+- `docs/project-structure.md` - repository layout and important metadata locations.
+- `docs/architecture.md` - data model, Apex methods, app metadata, permissions, and flexipages.
+- `docs/components.md` - LWC and Apex component responsibilities.
+- `docs/key-patterns.md` - UI, filtering, modal, table, and export behavior.
+- `docs/salesforce-standards.md` - Flow, Apex, SOQL, LWC, deploy, and Git standards.
+- `docs/testing-and-tooling.md` - Apex/LWC tests, tooling, destructive deploy notes, and currency behavior.
 
 ## Local Notes
 
 - Source API version: `65.0`.
-- Currency behavior is PHP-focused; check `agent-docs/testing-and-tooling.md` before changing formatting.
+- Currency behavior is PHP-focused; check `docs/testing-and-tooling.md` before changing formatting.
 - Prioritize Salesforce Lightning/SLDS styling for UI work; use custom styling only when the standard Salesforce patterns cannot reasonably cover the experience.
-- `AGENTS.md` and `agent-docs/` are local agent notes unless the user explicitly asks to commit them.
+- `docs/` is shared project documentation. Keep current guidance at its root, images in `docs/assets/`, and historical records in `docs/history/`. See [the documentation index](docs/README.md).
