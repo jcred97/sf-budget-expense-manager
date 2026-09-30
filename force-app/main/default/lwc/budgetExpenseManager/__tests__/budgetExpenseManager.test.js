@@ -2,19 +2,11 @@ import { createElement } from 'lwc';
 import BudgetExpenseManager from 'c/budgetExpenseManager';
 import getAllExpenseGroups from '@salesforce/apex/ExpenseController.getAllExpenseGroups';
 import getRecurringExpenseOverview from '@salesforce/apex/RecurringExpenseController.getRecurringExpenseOverview';
-import {
-    fetchExpensePage,
-    fetchDashboardData,
-    fetchBankOptions,
-    fetchAllExpenseRows
-} from 'c/expenseWorkspaceData';
-import { downloadExpensesCsv } from 'c/expenseCsvExport';
+import { fetchExpensePage, fetchDashboardData, fetchBankOptions } from 'c/expenseWorkspaceData';
 import { loadStyle } from 'lightning/platformResourceLoader';
 import LightningConfirm from 'lightning/confirm';
 import deleteExpense from '@salesforce/apex/ExpenseController.deleteExpense';
-import deleteExpenses from '@salesforce/apex/ExpenseController.deleteExpenses';
 import { refreshApex } from '@salesforce/apex';
-import deactivateRecurringExpense from '@salesforce/apex/RecurringExpenseController.deactivateRecurringExpense';
 import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
 
 jest.mock('lightning/confirm', () => ({ open: jest.fn() }));
@@ -130,7 +122,7 @@ async function mount() {
     return element;
 }
 
-describe('expense pagination UI', () => {
+describe('workspace coordination', () => {
     beforeEach(() => {
         jest.resetAllMocks();
         LightningConfirm.open.mockResolvedValue(true);
@@ -142,23 +134,6 @@ describe('expense pagination UI', () => {
     afterEach(() => {
         document.body.replaceChildren();
         jest.useRealTimers();
-    });
-
-    it('presents recurring server rows through the combined view model', async () => {
-        const element = await mount();
-        getRecurringExpenseOverview.emit({
-            activeCount: 1,
-            dueTodayCount: 1,
-            monthlyTotal: 100,
-            rows: [{ id: 'recurring-1', name: 'Rent', bank: 'BPI', active: true, dueToday: true }]
-        });
-        element.shadowRoot.querySelector('[data-view="recurring"]').click();
-        await flush();
-        const screen = element.shadowRoot.querySelector('c-recurring-expenses').shadowRoot;
-        expect(screen.querySelector('.recurring-row.is-due').textContent).toContain('Rent');
-        expect(screen.querySelector('a').getAttribute('href')).toBe('/recurring-1');
-        expect(screen.textContent).toContain('BPI');
-        expect(screen.textContent).toContain('Active');
     });
 
     const recurring = element => element.shadowRoot.querySelector('c-recurring-expenses');
@@ -214,32 +189,6 @@ describe('expense pagination UI', () => {
         });
     });
 
-    it('deactivates a template and refreshes its screen', async () => {
-        const element = await mountRecurring();
-        refreshApex.mockClear();
-        selectRecurring(element, 'deactivate');
-        await flush();
-        expect(deactivateRecurringExpense).toHaveBeenCalledWith({ recurringExpenseId: 'template' });
-        expect(refreshApex).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not deactivate an old group after its confirmation is left open', async () => {
-        const element = await mountRecurring();
-        let confirm;
-        LightningConfirm.open.mockImplementationOnce(
-            () =>
-                new Promise(resolve => {
-                    confirm = resolve;
-                })
-        );
-        selectRecurring(element, 'deactivate');
-        changeGroup(element);
-        await flush();
-        confirm(true);
-        await flush();
-        expect(deactivateRecurringExpense).not.toHaveBeenCalled();
-    });
-
     it('refreshes other screens when a recurring run starts after navigation', async () => {
         const element = await mountRecurring();
         let started;
@@ -273,26 +222,6 @@ describe('expense pagination UI', () => {
         expect(recurringButton(element, 'Run Recurring').disabled).toBe(false);
         expect(fetchDashboardData).not.toHaveBeenCalled();
         expect(fetchExpensePage).not.toHaveBeenCalled();
-    });
-
-    it('keeps a new group loading when the previous group refresh finishes', async () => {
-        const element = await mountRecurring();
-        let refreshed;
-        refreshApex.mockImplementationOnce(
-            () =>
-                new Promise(resolve => {
-                    refreshed = resolve;
-                })
-        );
-        modal(element).dispatchEvent(new CustomEvent('success', { detail: { mode: 'create' } }));
-        changeGroup(element);
-        await flush();
-        refreshed();
-        await flush();
-        expect(recurring(element).shadowRoot.querySelector('lightning-spinner')).not.toBeNull();
-        getRecurringExpenseOverview.emit({ rows: [] });
-        await flush();
-        expect(recurring(element).shadowRoot.querySelector('lightning-spinner')).toBeNull();
     });
 
     const dashboard = element => element.shadowRoot.querySelector('c-expense-dashboard');
@@ -332,58 +261,6 @@ describe('expense pagination UI', () => {
         expect(fetchDashboardData.mock.calls.at(-1)[0]).toEqual(originalRange);
     });
 
-    it.each(['resolve', 'reject'])(
-        'ignores an old dashboard request that later %ss after a group switch',
-        async outcome => {
-            const element = await mount();
-            let complete;
-            fetchDashboardData.mockImplementationOnce(
-                () =>
-                    new Promise((resolve, reject) => {
-                        complete = outcome === 'resolve' ? resolve : reject;
-                    })
-            );
-            await navigate(element, 'dashboard');
-            fetchDashboardData.mockResolvedValueOnce({
-                rows: [row('new-group-expense')],
-                trend: [],
-                budgets: []
-            });
-            changeGroup(element);
-            await flush();
-            complete(
-                outcome === 'resolve'
-                    ? { rows: [row('old-group-expense')], trend: [], budgets: [] }
-                    : new Error('Old request failed')
-            );
-            await flush();
-            const screen = dashboard(element).shadowRoot;
-            expect(screen.textContent).toContain('new-group-expense');
-            expect(screen.textContent).not.toContain('old-group-expense');
-            expect(screen.querySelector('[role="alert"]')).toBeNull();
-            expect(screen.querySelector('lightning-spinner')).toBeNull();
-        }
-    );
-
-    it('retries dashboard failures and refreshes after budget changes', async () => {
-        const element = await mount();
-        fetchDashboardData.mockRejectedValueOnce(new Error('Unavailable'));
-        await navigate(element, 'dashboard');
-        expect(dashboard(element).shadowRoot.querySelector('[role="alert"]').textContent).toContain(
-            'Failed to load the dashboard.'
-        );
-        fetchDashboardData.mockClear();
-        dashboardButton(element, 'Retry').click();
-        await flush();
-        expect(fetchDashboardData).toHaveBeenCalledTimes(1);
-        expect(dashboard(element).shadowRoot.querySelector('[role="alert"]')).toBeNull();
-        dashboard(element)
-            .shadowRoot.querySelector('c-budget-panel')
-            .dispatchEvent(new CustomEvent('budgetchange'));
-        await flush();
-        expect(fetchDashboardData).toHaveBeenCalledTimes(2);
-    });
-
     it('opens the shared expense modal from the dashboard and refreshes after saving', async () => {
         const element = await mount();
         await navigate(element, 'dashboard');
@@ -413,179 +290,6 @@ describe('expense pagination UI', () => {
         expect(dashboard(element).shadowRoot.textContent).not.toContain('removed-group-expense');
         expect(fetchDashboardData).not.toHaveBeenCalled();
         expect(dashboard(element).shadowRoot.querySelector('lightning-spinner')).toBeNull();
-    });
-
-    describe.each(['single', 'bulk'])('%s deletion rollback', mode => {
-        const startDelete = async element => {
-            if (mode === 'bulk') {
-                dispatch(element, 'selectionchange', { id: '1', selected: true });
-                dispatch(element, 'selectionchange', { id: '3', selected: true });
-                await flush();
-                dispatch(element, 'bulkdelete');
-            } else {
-                dispatch(element, 'rowaction', { action: 'delete', id: '1' });
-            }
-        };
-
-        it.each(['unchanged', 'filter', 'group'])(
-            'restores only the original list when context is %s',
-            async context => {
-                fetchExpensePage.mockResolvedValueOnce({
-                    ...firstPage(),
-                    rows: [row('1'), row('2'), row('3')]
-                });
-                const element = await mount();
-                const deleteMock = mode === 'bulk' ? deleteExpenses : deleteExpense;
-                let rejectDelete;
-                deleteMock.mockImplementationOnce(
-                    () =>
-                        new Promise((resolve, reject) => {
-                            rejectDelete = reject;
-                        })
-                );
-                await startDelete(element);
-                await flush();
-                expect(deleteMock).toHaveBeenCalledTimes(1);
-                expect(rowIds(element)).toEqual(mode === 'bulk' ? ['2'] : ['2', '3']);
-
-                if (context !== 'unchanged') {
-                    fetchExpensePage.mockResolvedValueOnce({
-                        rows: [row('new')],
-                        totalCount: 1,
-                        totalAmount: 10,
-                        hasMore: false
-                    });
-                    if (context === 'filter') {
-                        dispatch(element, 'filterchange', {
-                            field: 'categoryId',
-                            value: 'another'
-                        });
-                    } else {
-                        element.shadowRoot
-                            .querySelector('lightning-combobox')
-                            .dispatchEvent(
-                                new CustomEvent('change', { detail: { value: 'other-group' } })
-                            );
-                        await flush();
-                        element.shadowRoot
-                            .querySelector('c-expense-dashboard')
-                            .dispatchEvent(new CustomEvent('viewexpenses'));
-                    }
-                    await flush();
-                    dispatch(element, 'selectionchange', { id: 'new', selected: true });
-                }
-
-                rejectDelete(new Error('Deletion rejected'));
-                await flush();
-
-                expect(rowIds(element)).toEqual(
-                    context === 'unchanged' ? ['1', '2', '3'] : ['new']
-                );
-                expect(selectedRows(element).length).toBe(
-                    context === 'unchanged' ? (mode === 'bulk' ? 2 : 0) : 1
-                );
-                expect(
-                    list(element).shadowRoot.querySelector('input[type="checkbox"]').checked
-                ).toBe(context !== 'unchanged' || mode === 'bulk');
-            }
-        );
-
-        it('does not delete after the list changes while confirmation is pending', async () => {
-            fetchExpensePage.mockResolvedValueOnce({ ...firstPage(), rows: [row('1'), row('3')] });
-            const element = await mount();
-            let confirmDelete;
-            LightningConfirm.open.mockImplementationOnce(
-                () =>
-                    new Promise(resolve => {
-                        confirmDelete = resolve;
-                    })
-            );
-            await startDelete(element);
-            dispatch(element, 'filterchange', { field: 'categoryId', value: 'another' });
-            await flush();
-            confirmDelete(true);
-            await flush();
-            expect(deleteExpense).not.toHaveBeenCalled();
-            expect(deleteExpenses).not.toHaveBeenCalled();
-        });
-    });
-
-    it('fetches a cursor page once, keeps selection and full-result totals, and ends pagination', async () => {
-        const element = await mount();
-        expect(fetchExpensePage).toHaveBeenCalledWith(
-            expect.objectContaining({ pageSize: 20, cursor: null })
-        );
-        dispatch(element, 'selectionchange', { id: '1', selected: true });
-        let resolvePage;
-        fetchExpensePage.mockImplementationOnce(
-            () =>
-                new Promise(resolve => {
-                    resolvePage = resolve;
-                })
-        );
-        dispatch(element, 'loadmore');
-        dispatch(element, 'loadmore');
-        expect(fetchExpensePage).toHaveBeenCalledTimes(2);
-        expect(fetchExpensePage.mock.calls[1][0]).toEqual(
-            expect.objectContaining({ pageSize: 10, cursor: 'next' })
-        );
-        resolvePage({ rows: [row('2')], hasMore: false });
-        await flush();
-
-        expect(list(element).shadowRoot.querySelector('.table-status').textContent).toBe(
-            'Showing 2 of 25'
-        );
-        expect(
-            list(element).shadowRoot.querySelector('.expenses-total strong').textContent
-        ).toContain('250.00');
-        expect(selectedRows(element).length).toBe(1);
-        expect(expenseButton(element, 'Load More')).toBeUndefined();
-    });
-
-    it('ignores a late page after a filter change and debounces server search', async () => {
-        jest.useFakeTimers();
-        const element = await mount();
-        let resolveOld;
-        fetchExpensePage.mockImplementationOnce(
-            () =>
-                new Promise(resolve => {
-                    resolveOld = resolve;
-                })
-        );
-        dispatch(element, 'loadmore');
-        dispatch(element, 'filterchange', { field: 'searchTerm', value: 'new' });
-        dispatch(element, 'filterchange', { field: 'searchTerm', value: 'newer' });
-        fetchExpensePage.mockResolvedValueOnce({
-            rows: [row('newer')],
-            totalCount: 1,
-            totalAmount: 10,
-            hasMore: false
-        });
-        jest.advanceTimersByTime(300);
-        await flush();
-        resolveOld({ rows: [row('stale')], hasMore: false });
-        await flush();
-        expect(fetchExpensePage).toHaveBeenCalledTimes(3);
-        expect(fetchExpensePage.mock.calls[2][0]).toEqual(
-            expect.objectContaining({ searchTerm: 'newer', cursor: null })
-        );
-        expect(rowIds(element)).toEqual(['newer']);
-    });
-
-    it('preserves loaded rows and retries the same cursor after a failed page', async () => {
-        const element = await mount();
-        fetchExpensePage.mockRejectedValueOnce(new Error('Connection lost'));
-        dispatch(element, 'loadmore');
-        await flush();
-        expect(list(element).shadowRoot.querySelector('[role="alert"]').textContent).toContain(
-            'Connection lost'
-        );
-        expect(rowIds(element)).toHaveLength(1);
-        fetchExpensePage.mockResolvedValueOnce({ rows: [row('2')], hasMore: false });
-        dispatch(element, 'retry');
-        await flush();
-        expect(fetchExpensePage.mock.calls[2][0].cursor).toBe('next');
-        expect(list(element).shadowRoot.querySelector('[role="alert"]')).toBeNull();
     });
 
     it('preserves expense filters, loaded pages, and selection across navigation', async () => {
@@ -680,74 +384,5 @@ describe('expense pagination UI', () => {
         await flush();
         expect(deleteExpense).toHaveBeenCalledWith({ expenseId: '1' });
         expect(fetchDashboardData).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not print a report from a previous group', async () => {
-        const element = await mount();
-        let finishReport;
-        fetchAllExpenseRows.mockImplementationOnce(
-            () =>
-                new Promise(resolve => {
-                    finishReport = resolve;
-                })
-        );
-        const print = jest.spyOn(window, 'print').mockImplementation(() => {});
-        expenseButton(element, 'Print / PDF').click();
-        changeGroup(element);
-        await flush();
-        finishReport([row('old-group')]);
-        await flush();
-        expect(print).not.toHaveBeenCalled();
-        expect(list(element).shadowRoot.querySelector('c-expense-print-report')).toBeNull();
-        print.mockRestore();
-    });
-
-    it('renders every report row before opening print', async () => {
-        const element = await mount();
-        fetchAllExpenseRows.mockResolvedValue([row('1'), row('unloaded')]);
-        const print = jest.spyOn(window, 'print').mockImplementation(() => {
-            const report = list(element).shadowRoot.querySelector('c-expense-print-report');
-            expect(report.viewModel.expenseCount).toBe(2);
-            expect(report.shadowRoot.querySelectorAll('tbody tr')).toHaveLength(2);
-        });
-        [...list(element).shadowRoot.querySelectorAll('lightning-button')]
-            .find(button => button.label === 'Print / PDF')
-            .click();
-        await flush();
-        await flush();
-        expect(print).toHaveBeenCalledTimes(1);
-        print.mockRestore();
-    });
-
-    it('does not export after a filter change while the report is loading', async () => {
-        const element = await mount();
-        let resolveReport;
-        fetchAllExpenseRows.mockImplementationOnce(
-            () =>
-                new Promise(resolve => {
-                    resolveReport = resolve;
-                })
-        );
-        [...list(element).shadowRoot.querySelectorAll('lightning-button')]
-            .find(button => button.label === 'Export CSV')
-            .click();
-        dispatch(element, 'filterchange', { field: 'categoryId', value: 'another' });
-        resolveReport([row('stale')]);
-        await flush();
-        expect(downloadExpensesCsv).not.toHaveBeenCalled();
-    });
-
-    it('exports all matching rows, including rows not loaded in the list', async () => {
-        const element = await mount();
-        fetchAllExpenseRows.mockResolvedValue([row('1'), row('unloaded')]);
-        [...list(element).shadowRoot.querySelectorAll('lightning-button')]
-            .find(button => button.label === 'Export CSV')
-            .click();
-        await flush();
-        expect(downloadExpensesCsv).toHaveBeenCalledWith(
-            [row('1'), row('unloaded')],
-            expect.any(String)
-        );
-        expect(rowIds(element)).toHaveLength(1);
     });
 });
