@@ -46,6 +46,8 @@ The review inspected source and ran local lint/Jest checks; it did not reproduce
 
 ### F5 — Recurring overview silently truncates after 500 templates (P2)
 
+**Fixed and deployed to `mainDevOrg` on 2026-10-03:** The overview returns a bounded first page with complete aggregate counts and monthly totals. Keyset continuation pages and Load more/Retry make all matching templates reachable, with a loaded/total count and Refresh action. Deployment `0AfgK00000VH2I5SAL` passed 154/154 repository Apex tests; Jest passed 111 tests across 11 suites. The original issue below describes the previous behavior.
+
 - **Trigger:** More than 500 templates match the overview query.
 - **Impact:** Records beyond the cap are hidden; counts and monthly totals are derived only from the returned subset, without a truncation indicator.
 - **Evidence:** [query service](../force-app/main/default/classes/service/ExpenseQueryService.cls), `queryRecurringExpenses()` has `LIMIT 500`; `getRecurringExpenseOverview()` and `updateRecurringOverview()` derive all summaries from that list.

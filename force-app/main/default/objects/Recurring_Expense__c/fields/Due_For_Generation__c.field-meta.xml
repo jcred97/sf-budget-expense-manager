@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Due_For_Generation__c</fullName>
+    <description
+    >Whether an active template has a pending run due on or before today, within its End Date. Used for complete recurring overview counts.</description>
+    <formula
+    >AND(Active__c, NOT(ISBLANK(Next_Run_Date__c)), Next_Run_Date__c &lt;= TODAY(), OR(ISBLANK(End_Date__c), Next_Run_Date__c &lt;= End_Date__c))</formula>
+    <formulaTreatBlanksAs>BlankAsBlank</formulaTreatBlanksAs>
+    <label>Due for Generation</label>
+    <type>Checkbox</type>
+</CustomField>

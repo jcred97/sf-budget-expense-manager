@@ -2,6 +2,14 @@ import { buildRecurringViewModel } from 'c/recurringExpenseViewModel';
 import { formatActiveWindow, formatDate, formatPHP } from 'c/expenseFormatters';
 
 describe('recurring presentation', () => {
+    it('uses full server totals while only one page is loaded', () => {
+        const model = buildRecurringViewModel({
+            rows: [{ id: 'first' }],
+            overview: { totalCount: 501, activeCount: 480 }
+        });
+        expect(model.countLabel).toBe('1 of 501 recurring expenses');
+        expect(model.summaryCards[0]).toMatchObject({ value: 480, detail: '501 total templates' });
+    });
     it('builds rows and summaries without mutating server data', () => {
         const template = Object.freeze({
             id: 'template-1',

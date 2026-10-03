@@ -6,6 +6,12 @@
         </div>
         <div class="view-header-actions">
             <lightning-button
+                label="Refresh"
+                icon-name="utility:refresh"
+                onclick={loadRecurringExpenses}
+                disabled={isRunRecurringDisabled}
+            ></lightning-button>
+            <lightning-button
                 variant="neutral"
                 label={runRecurringLabel}
                 icon-name="utility:play"
@@ -53,6 +59,13 @@
                     alternative-text="Loading recurring expenses"
                     size="small"
                 ></lightning-spinner>
+            </div>
+        </template>
+
+        <template lwc:elseif={overviewError}>
+            <div class="slds-p-around_medium" role="alert">
+                <p class="slds-text-color_error slds-m-bottom_small">{overviewError}</p>
+                <lightning-button label="Retry" onclick={loadRecurringExpenses}></lightning-button>
             </div>
         </template>
 
@@ -135,6 +148,18 @@
             <div class="recurring-empty">
                 <lightning-icon icon-name="utility:sync" size="small"></lightning-icon>
                 <span>No recurring expenses for this group</span>
+            </div>
+        </template>
+        <template lwc:if={pageError}>
+            <div class="slds-text-color_error slds-p-around_medium" role="alert">{pageError}</div>
+        </template>
+        <template lwc:if={hasMore}>
+            <div class="slds-p-around_medium slds-align_absolute-center">
+                <lightning-button
+                    label={loadMoreLabel}
+                    onclick={handleLoadMore}
+                    disabled={isLoadMoreDisabled}
+                ></lightning-button>
             </div>
         </template>
     </section>

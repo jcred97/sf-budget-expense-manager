@@ -1,6 +1,14 @@
 # Testing And Tooling
 
-## Current Verification — 2026-09-30
+## Recurring Pagination Verification — 2026-10-03
+
+- Recurring overview pagination and complete summaries are deployed to `mainDevOrg`; deployment `0AfgK00000VH2I5SAL` succeeded with **154/154 Apex tests** across all 18 repository test classes.
+- Full check-only validation `0AfgK00000VH1U5SAL` passed **154/154 tests**. Final focused validation `0AfgK00000VH2BdSAL` passed **25/25 tests**, including traversal across 507 matching templates, null-date/active-status cursor boundaries, complete totals, ended-schedule catch-up, and invalid cursors.
+- `ExpenseQueryService` coverage is **99.47%** (187/188 executable lines); recurring controller and overview DTO coverage are **100%**.
+- Jest passed **111 tests across 11 suites**. Lint and targeted frontend formatting checks passed. Paging tests cover full-result summaries, retry, stale group/refresh responses, disconnection, duplicate rows, and looping cursors.
+- `Due_For_Generation__c` is a read-only formula; its deployment needs no record initialization. All three supplied permission sets grant read access without edit access.
+
+## Review Baseline — 2026-09-30
 
 - Reviewed application source at `6d0e13d`; the latest simplification and test-organization commits are pushed to `origin/main`.
 - `npm run lint` passed. Jest passed **66 tests in 9 suites** (workspace integration, dashboard, expense list, recurring screen, expense modal, recurring view model, expense transforms, workspace data, CSV export).

@@ -98,16 +98,121 @@ public with sharing class ExpenseQueryService {
      * @return Recurring-template overview for the requested context.
      */
     public static RecurringExpenseOverviewDto getRecurringExpenseOverview(Id expenseGroupId) {
+        return getRecurringExpensePage(expenseGroupId, null, 50);
+    }
+
+    /** Bounded keyset page; first-page totals cover all visible matching templates. */
+    public static RecurringExpenseOverviewDto getRecurringExpensePage(
+        Id expenseGroupId,
+        String cursor,
+        Integer pageSize
+    ) {
         RecurringExpenseOverviewDto overview = new RecurringExpenseOverviewDto();
+        overview.expenseGroupId = expenseGroupId;
         Date today = Date.today();
-
-        for (Recurring_Expense__c recurringExpense : queryRecurringExpenses(expenseGroupId)) {
-            RecurringExpenseRowDto row = buildRecurringExpenseRow(recurringExpense, today);
-            overview.rows.add(row);
-            updateRecurringOverview(overview, row);
+        Integer size = pageSize == null ? 50 : Math.max(1, Math.min(200, pageSize));
+        Map<String, Object> binds = new Map<String, Object>();
+        String predicate = 'WHERE Id != null ' + getRecordFilters(expenseGroupId, null, binds);
+        String scope = String.valueOf(expenseGroupId);
+        String after = '';
+        if (String.isBlank(cursor)) {
+            List<AggregateResult> totals = Database.queryWithBinds(
+                'SELECT Active__c active, Frequency__c frequency, COUNT(Id) qty, SUM(Amount__c) amount ' +
+                'FROM Recurring_Expense__c ' + predicate + 'GROUP BY Active__c, Frequency__c',
+                binds, AccessLevel.USER_MODE
+            );
+            for (AggregateResult total : totals) {
+                Integer count = (Integer) total.get('qty');
+                overview.totalCount += count;
+                if ((Boolean) total.get('active') == true) {
+                    overview.activeCount += count;
+                    overview.monthlyTotal += getMonthlyRecurringAmount(
+                        (Decimal) total.get('amount'), (String) total.get('frequency')
+                    );
+                }
+            }
+            List<AggregateResult> due = Database.queryWithBinds(
+                'SELECT COUNT(Id) qty FROM Recurring_Expense__c ' + predicate +
+                'AND Due_For_Generation__c = true', binds, AccessLevel.USER_MODE
+            );
+            overview.dueTodayCount = (Integer) due[0].get('qty');
+        } else {
+            after = recurringAfterWhere(readRecurringCursor(cursor, scope), binds);
+            overview.totalCount = null;
+            overview.activeCount = null;
+            overview.dueTodayCount = null;
+            overview.monthlyTotal = null;
         }
-
+        binds.put('rowLimit', size + 1);
+        List<Recurring_Expense__c> records = Database.queryWithBinds(
+            recurringSelect() + predicate + after +
+            'ORDER BY Active__c DESC, Next_Run_Date__c ASC NULLS LAST, Name ASC, Id ASC LIMIT :rowLimit',
+            binds, AccessLevel.USER_MODE
+        );
+        overview.hasMore = records.size() > size;
+        if (overview.hasMore) {
+            records.remove(size);
+            Recurring_Expense__c last = records[records.size() - 1];
+            RecurringCursor next = new RecurringCursor();
+            next.active = last.Active__c;
+            next.nextRunDate = last.Next_Run_Date__c;
+            next.name = last.Name;
+            next.recordId = last.Id;
+            next.scope = scope;
+            overview.nextCursor = EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(next)));
+        }
+        for (Recurring_Expense__c recurringExpense : records) {
+            overview.rows.add(buildRecurringExpenseRow(recurringExpense, today));
+        }
         return overview;
+    }
+
+    private static RecurringCursor readRecurringCursor(String cursor, String scope) {
+        try {
+            if (cursor.length() > 4096) {
+                throw new IllegalArgumentException('Invalid cursor');
+            }
+            RecurringCursor parsed = (RecurringCursor) JSON.deserializeStrict(
+                EncodingUtil.base64Decode(cursor).toString(), RecurringCursor.class
+            );
+            if (parsed == null || parsed.scope != scope || parsed.active == null ||
+                parsed.name == null || parsed.recordId == null ||
+                parsed.recordId.getSObjectType() != Recurring_Expense__c.SObjectType) {
+                throw new IllegalArgumentException('Invalid cursor');
+            }
+            return parsed;
+        } catch (Exception error) {
+            AuraHandledException handled = new AuraHandledException(
+                'This recurring page is no longer valid. Refresh the recurring list.'
+            );
+            handled.setMessage('This recurring page is no longer valid. Refresh the recurring list.');
+            throw handled;
+        }
+    }
+
+    private static String recurringAfterWhere(RecurringCursor cursor, Map<String, Object> binds) {
+        binds.put('cursorActive', cursor.active);
+        binds.put('cursorDate', cursor.nextRunDate);
+        binds.put('cursorName', cursor.name);
+        binds.put('cursorId', cursor.recordId);
+        String after = '(Name > :cursorName OR (Name = :cursorName AND Id > :cursorId))';
+        after = '(Next_Run_Date__c = :cursorDate AND ' + after + ')';
+        if (cursor.nextRunDate != null) {
+            after = '(Next_Run_Date__c > :cursorDate OR Next_Run_Date__c = null OR ' + after + ')';
+        }
+        after = '(Active__c = :cursorActive AND ' + after + ')';
+        if (cursor.active) {
+            after = '(Active__c = false OR ' + after + ')';
+        }
+        return 'AND ' + after + ' ';
+    }
+
+    private class RecurringCursor {
+        public Boolean active;
+        public Date nextRunDate;
+        public String name;
+        public Id recordId;
+        public String scope;
     }
 
     private static ExpenseFilterRequest getSafeFilters(ExpenseFilterRequest filters) {
@@ -161,24 +266,15 @@ public with sharing class ExpenseQueryService {
         return trend;
     }
 
-    private static List<Recurring_Expense__c> queryRecurringExpenses(Id expenseGroupId) {
-        Map<String, Object> bindValues = new Map<String, Object>();
-        String query =
+    private static String recurringSelect() {
+        return
             'SELECT Id, Name, Active__c, Amount__c, Bank__c, Bank_Assignment__c, ' +
             'Bank_Assignment__r.Active__c, Bank_Assignment__r.Bank__c, ' +
             'Bank_Assignment__r.Bank__r.Name, Bank_Assignment__r.Bank__r.Active__c, ' +
             'Category__c, Category__r.Name, ' +
             'Category__r.Expense_Group__r.Name, End_Date__c, Frequency__c, Next_Run_Date__c, ' +
             'Start_Date__c, Transaction_Type__c ' +
-            'FROM Recurring_Expense__c WHERE Id != null ';
-
-        if (expenseGroupId != null) {
-            query += 'AND Category__r.Expense_Group__c = :expenseGroupId ';
-            bindValues.put('expenseGroupId', expenseGroupId);
-        }
-        query += 'ORDER BY Active__c DESC, Next_Run_Date__c ASC NULLS LAST, Name ASC LIMIT 500';
-
-        return Database.queryWithBinds(query, bindValues, AccessLevel.USER_MODE);
+            'FROM Recurring_Expense__c ';
     }
 
     private static RecurringExpenseRowDto buildRecurringExpenseRow(
@@ -213,19 +309,6 @@ public with sharing class ExpenseQueryService {
             (recurringExpense.End_Date__c == null ||
             recurringExpense.Next_Run_Date__c <= recurringExpense.End_Date__c);
         return row;
-    }
-
-    private static void updateRecurringOverview(
-        RecurringExpenseOverviewDto overview,
-        RecurringExpenseRowDto row
-    ) {
-        if (row.active == true) {
-            overview.activeCount++;
-            overview.monthlyTotal += row.monthlyAmount == null ? 0 : row.monthlyAmount;
-        }
-        if (row.dueToday == true) {
-            overview.dueTodayCount++;
-        }
     }
 
     private static Decimal getMonthlyRecurringAmount(Decimal amount, String frequency) {
