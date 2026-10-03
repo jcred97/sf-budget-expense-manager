@@ -92,6 +92,7 @@ private class RecurringExpenseBatchTest {
                         Active__c = true,
                         Amount__c = 1500,
                         Bank_Assignment__c = bankAssignment.Id,
+                        Transaction_Type__c = 'Debit Card',
                         Category__c = category.Id,
                         Frequency__c = 'Monthly',
                         Next_Run_Date__c = dueDate,

@@ -25,7 +25,14 @@ function change(element, field, value) {
 
 async function openModal(
     component,
-    { edit = false, savedType = 'Bank Payment', bank = 'debit', duplicate, loading = false } = {}
+    {
+        edit = false,
+        savedType = 'Bank Payment',
+        bank = 'debit',
+        duplicate,
+        loading = false,
+        legacyBank = ''
+    } = {}
 ) {
     const element = createElement('c-payment-test', { is: component });
     element.categoryOptions = [{ label: 'Food', value: 'category' }];
@@ -33,6 +40,7 @@ async function openModal(
     element.bankOptionsLoading = loading;
     if (duplicate) element.duplicateData = duplicate;
     if (edit) element.recordId = 'record';
+    if (legacyBank && component === ExpenseModal) element.currentBank = { legacyBank };
     element.isOpen = true;
     document.body.appendChild(element);
     await flush();
@@ -43,6 +51,7 @@ async function openModal(
             Category__c: 'category',
             Bank_Assignment__c: bank,
             Transaction_Type__c: savedType,
+            Bank__c: legacyBank,
             Active__c: true,
             Next_Run_Date__c: '2026-10-03'
         }).map(([key, value]) => [key, { value }])
@@ -76,14 +85,69 @@ describe.each([
     ['expense', ExpenseModal],
     ['recurring', RecurringExpenseModal]
 ])('%s payment methods', (name, component) => {
+    it('places Bank before Transaction Type in the form', async () => {
+        const { element } = await openModal(component);
+        const fields = [...element.shadowRoot.querySelectorAll('lightning-combobox')].map(
+            input => input.dataset.field
+        );
+        expect(fields.indexOf('bank')).toBeLessThan(fields.indexOf('transaction-type'));
+    });
+
+    it('blocks a bank with no enabled methods and recovers by choosing No bank', async () => {
+        const { element, form } = await openModal(component);
+        element.bankOptions = [
+            { value: 'empty', label: 'No methods', supportedTransactionTypes: [] }
+        ];
+        change(element, 'bank', 'empty');
+        await flush();
+        const selector = element.shadowRoot.querySelector('[data-field="transaction-type"]');
+        expect(selector.value).toBe('');
+        expect(selector.options).toEqual([]);
+        expect(
+            element.shadowRoot.querySelector('[data-payment-method-error]').textContent
+        ).toContain('Choose No bank for Cash');
+        submit(form);
+        expect(form.submit).not.toHaveBeenCalled();
+        change(element, 'bank', '__NO_BANK__');
+        await flush();
+        expect(selector.value).toBe('Cash');
+        submit(form);
+        expect(form.submit).toHaveBeenCalledWith(
+            expect.objectContaining({ Transaction_Type__c: 'Cash', Bank_Assignment__c: null })
+        );
+    });
+
+    it('preserves historical Cash with a bank until the bank is changed', async () => {
+        const { element, form } = await openModal(component, { edit: true, savedType: 'Cash' });
+        const selector = element.shadowRoot.querySelector('[data-field="transaction-type"]');
+        expect(selector.value).toBe('Cash');
+        expect(selector.options.find(option => option.value === 'Cash').label).toContain('Saved');
+        submit(form);
+        expect(form.submit).toHaveBeenCalledWith(
+            expect.objectContaining({ Transaction_Type__c: 'Cash' })
+        );
+        form.dispatchEvent(new CustomEvent('error', { detail: { message: 'Retry' } }));
+        change(element, 'bank', 'credit');
+        await flush();
+        expect(selector.value).toBe('Credit Card');
+        expect(selector.options.some(option => option.value === 'Cash')).toBe(false);
+        element.bankOptions = [{ value: 'empty', supportedTransactionTypes: [] }];
+        change(element, 'bank', 'empty');
+        await flush();
+        form.submit.mockClear();
+        submit(form);
+        expect(form.submit).not.toHaveBeenCalled();
+    });
+
     it('defaults to Cash without a bank and exposes only the selected bank methods', async () => {
         const { element, form } = await openModal(component);
+        expect(element.shadowRoot.querySelector('[data-field="bank"]').value).toBe('__NO_BANK__');
         const selector = element.shadowRoot.querySelector('[data-field="transaction-type"]');
         expect(selector.value).toBe('Cash');
         expect(selector.options.map(option => option.value)).toEqual(['Cash']);
         change(element, 'bank', 'debit');
         await flush();
-        expect(selector.options.map(option => option.value)).toEqual(['Cash', 'Debit Card']);
+        expect(selector.options.map(option => option.value)).toEqual(['Debit Card']);
         change(element, 'transaction-type', 'Debit Card');
         submit(form);
         expect(form.submit).toHaveBeenCalledWith(
@@ -91,14 +155,14 @@ describe.each([
         );
     });
 
-    it('resets an unsupported method to Cash when the bank changes or is cleared', async () => {
+    it('selects the first enabled method on bank change and Cash when the bank is cleared', async () => {
         const { element } = await openModal(component);
         change(element, 'bank', 'debit');
         change(element, 'transaction-type', 'Debit Card');
         change(element, 'bank', 'credit');
         await flush();
         const selector = element.shadowRoot.querySelector('[data-field="transaction-type"]');
-        expect(selector.value).toBe('Cash');
+        expect(selector.value).toBe('Credit Card');
         change(element, 'transaction-type', 'Credit Card');
         change(element, 'bank', '__NO_BANK__');
         await flush();
@@ -121,8 +185,21 @@ describe.each([
         form.dispatchEvent(new CustomEvent('error', { detail: { message: 'Retry' } }));
         change(element, 'bank', 'credit');
         await flush();
-        expect(selector.value).toBe('Cash');
+        expect(selector.value).toBe('Credit Card');
         expect(selector.options.some(option => option.value === 'Bank Payment')).toBe(false);
+    });
+
+    it('preserves an untouched historical method even when all bank methods are disabled', async () => {
+        const { element, form } = await openModal(component, { edit: true });
+        element.bankOptions = [{ value: 'debit', supportedTransactionTypes: [] }];
+        await flush();
+        const selector = element.shadowRoot.querySelector('[data-field="transaction-type"]');
+        expect(selector.value).toBe('Bank Payment');
+        expect(selector.options.map(option => option.value)).toEqual(['Bank Payment']);
+        submit(form);
+        expect(form.submit).toHaveBeenCalledWith(
+            expect.objectContaining({ Transaction_Type__c: 'Bank Payment' })
+        );
     });
 
     it('preserves a blank historical type and a legacy noncash type without a bank', async () => {
@@ -140,6 +217,30 @@ describe.each([
         submit(legacy.form);
         expect(legacy.form.submit).toHaveBeenCalledWith(
             expect.objectContaining({ Transaction_Type__c: 'Credit Card' })
+        );
+    });
+
+    it('offers only the saved method for a legacy bank until No bank is explicitly chosen', async () => {
+        const { element, form } = await openModal(component, {
+            edit: true,
+            bank: null,
+            savedType: 'Credit Card',
+            legacyBank: 'Old bank'
+        });
+        const selector = element.shadowRoot.querySelector('[data-field="transaction-type"]');
+        expect(selector.options.map(option => option.value)).toEqual(['Credit Card']);
+        expect(selector.options[0].label).toContain('Saved');
+        change(element, 'bank', '__NO_BANK__');
+        await flush();
+        expect(selector.value).toBe('Cash');
+        expect(selector.options.map(option => option.value)).toEqual(['Cash']);
+        submit(form);
+        expect(form.submit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                Transaction_Type__c: 'Cash',
+                Bank_Assignment__c: null,
+                Bank__c: null
+            })
         );
     });
 
@@ -185,11 +286,24 @@ it('does not grandfather an unsupported method when duplicating an expense', asy
     const { element, form } = await openModal(ExpenseModal, {
         duplicate: { Bank_Assignment__c: 'debit', Transaction_Type__c: 'Credit Card' }
     });
-    expect(element.shadowRoot.querySelector('[data-field="transaction-type"]').value).toBe('Cash');
+    expect(element.shadowRoot.querySelector('[data-field="transaction-type"]').value).toBe(
+        'Debit Card'
+    );
     submit(form);
     expect(form.submit).toHaveBeenCalledWith(
-        expect.objectContaining({ Transaction_Type__c: 'Cash' })
+        expect.objectContaining({ Transaction_Type__c: 'Debit Card' })
     );
+});
+
+it('blocks a duplicate with a bank that has no enabled payment methods', async () => {
+    const { element, form } = await openModal(ExpenseModal, {
+        duplicate: { Bank_Assignment__c: 'debit', Transaction_Type__c: 'Cash' }
+    });
+    element.bankOptions = [{ value: 'debit', supportedTransactionTypes: [] }];
+    await flush();
+    expect(element.shadowRoot.querySelector('[data-field="transaction-type"]').value).toBe('');
+    submit(form);
+    expect(form.submit).not.toHaveBeenCalled();
 });
 
 it('keeps a supported duplicated method and resets Save & New to Cash', async () => {
@@ -210,10 +324,16 @@ it('keeps a supported duplicated method and resets Save & New to Cash', async ()
     expect(selector.options.map(option => option.value)).toEqual(['Cash']);
 });
 
-it('offers Cash alone for a bank whose capability list is empty or absent', () => {
-    expect(paymentMethodOptions([{ value: 'bank' }], 'bank', null, false)).toEqual([
-        { label: 'Cash', value: 'Cash' }
-    ]);
+it('offers no methods for a bank whose capability list is empty or absent', () => {
+    expect(paymentMethodOptions([{ value: 'bank' }], 'bank', null, false)).toEqual([]);
+    expect(
+        paymentMethodOptions(
+            [{ value: 'bank', supportedTransactionTypes: [] }],
+            'bank',
+            null,
+            false
+        )
+    ).toEqual([]);
 });
 
 it('reloads the saved payment method when reopening the same expense', async () => {

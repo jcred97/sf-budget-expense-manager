@@ -147,6 +147,7 @@ private class ExpensePageServiceTest {
             insert assignment;
             insert new Expense__c(
                 Name = 'Assigned bank',
+                Transaction_Type__c = 'Debit Card',
                 Category__c = category.Id,
                 Amount__c = 75,
                 Bank__c = 'BDO',

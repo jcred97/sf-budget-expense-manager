@@ -824,6 +824,7 @@ private class RecurringExpenseServiceTest {
             Date dueDate = Date.newInstance(2026, 5, 1);
             Recurring_Expense__c recurringExpense = new Recurring_Expense__c(
                 Name = 'Digital Subscription',
+                Transaction_Type__c = 'Debit Card',
                 Active__c = true,
                 Amount__c = 500,
                 Bank_Assignment__c = assignment.Id,

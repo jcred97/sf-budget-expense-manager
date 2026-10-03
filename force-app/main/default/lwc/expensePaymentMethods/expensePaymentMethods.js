@@ -4,12 +4,11 @@ const NONCASH_TYPES = ['Debit Card', 'Credit Card', 'Bank Transfer', 'Bank Payme
 export function paymentMethodOptions(bankOptions, assignmentId, savedType, preserveSavedType) {
     const bank = bankOptions.find(option => option.value === assignmentId);
     const supported = bank?.supportedTransactionTypes || [];
-    const options = [CASH, ...NONCASH_TYPES.filter(type => supported.includes(type))].map(
-        value => ({
-            label: value,
-            value
-        })
-    );
+    const methods = assignmentId ? NONCASH_TYPES.filter(type => supported.includes(type)) : [CASH];
+    const options = methods.map(value => ({
+        label: value,
+        value
+    }));
     if (preserveSavedType && savedType && !options.some(option => option.value === savedType)) {
         options.push({
             label: `${savedType} (Saved; unavailable for new payments)`,
@@ -21,5 +20,5 @@ export function paymentMethodOptions(bankOptions, assignmentId, savedType, prese
 
 export function normalizePaymentMethod(value, options, preserveBlank = false) {
     if (!value && preserveBlank) return '';
-    return options.some(option => option.value === value) ? value : CASH;
+    return options.some(option => option.value === value) ? value : options[0]?.value || '';
 }

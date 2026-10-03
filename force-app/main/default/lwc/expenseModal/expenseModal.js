@@ -75,7 +75,7 @@ export default class ExpenseModal extends LightningElement {
 
         if (isOpening && !this._recordId && !this._duplicateData) {
             this.categoryValue = '';
-            this.bankAssignmentValue = '';
+            this.bankAssignmentValue = NO_BANK_VALUE;
             this.bankSelectionTouched = false;
             this.transactionTimeValue = '';
             this.expenseDateValue = '';
@@ -116,7 +116,7 @@ export default class ExpenseModal extends LightningElement {
         this.originalTransactionType = '';
         if (!value) {
             this.categoryValue = this._duplicateData?.Category__c || '';
-            this.bankAssignmentValue = this._duplicateData?.Bank_Assignment__c || '';
+            this.bankAssignmentValue = this._duplicateData?.Bank_Assignment__c || NO_BANK_VALUE;
             this.bankSelectionTouched = false;
             this.transactionTimeValue = this.normalizeTimeForInput(
                 this._duplicateData?.Transaction_Time__c
@@ -135,7 +135,7 @@ export default class ExpenseModal extends LightningElement {
         this._duplicateData = value;
         if (!this._recordId) {
             this.categoryValue = value?.Category__c || '';
-            this.bankAssignmentValue = value?.Bank_Assignment__c || '';
+            this.bankAssignmentValue = value?.Bank_Assignment__c || NO_BANK_VALUE;
             this.bankSelectionTouched = false;
             this.transactionTimeValue = this.normalizeTimeForInput(value?.Transaction_Time__c);
             this.transactionTypeValue = value?.Transaction_Type__c || CASH;
@@ -169,7 +169,7 @@ export default class ExpenseModal extends LightningElement {
     get transactionTypeOptions() {
         return paymentMethodOptions(
             this.bankOptions,
-            this.normalizedBankAssignmentValue,
+            this.hasUntouchedLegacyBank ? '__LEGACY_BANK__' : this.normalizedBankAssignmentValue,
             this.originalTransactionType,
             this.isEditMode && !this.bankSelectionTouched
         );
@@ -187,6 +187,13 @@ export default class ExpenseModal extends LightningElement {
 
     handleTransactionTypeChange(event) {
         this.transactionTypeValue = event.detail.value;
+    }
+
+    get isTransactionTypeUnavailable() {
+        return (
+            !this.transactionTypeOptions.length &&
+            !(this.isEditMode && !this.bankSelectionTouched && !this.originalTransactionType)
+        );
     }
 
     renderedCallback() {
@@ -349,15 +356,17 @@ export default class ExpenseModal extends LightningElement {
         }
 
         if (this.isSaveBlocked) {
-            const selector = this.paymentContextError
-                ? '[data-payment-context-error]'
-                : this.formLoadError
-                  ? '[data-form-load-error]'
-                  : this.categoryOptionsError
-                    ? '[data-category-options-error]'
-                    : this.hasNoCategories
-                      ? '[data-category-empty]'
-                      : '[data-bank-options-error]';
+            const selector = this.isTransactionTypeUnavailable
+                ? '[data-payment-method-error]'
+                : this.paymentContextError
+                  ? '[data-payment-context-error]'
+                  : this.formLoadError
+                    ? '[data-form-load-error]'
+                    : this.categoryOptionsError
+                      ? '[data-category-options-error]'
+                      : this.hasNoCategories
+                        ? '[data-category-empty]'
+                        : '[data-bank-options-error]';
             this.template.querySelector(selector)?.focus();
             return;
         }
@@ -549,7 +558,7 @@ export default class ExpenseModal extends LightningElement {
                 }
             });
             this.categoryValue = '';
-            this.bankAssignmentValue = '';
+            this.bankAssignmentValue = NO_BANK_VALUE;
             this.bankSelectionTouched = false;
             this.transactionTimeValue = '';
             this.expenseDateValue = '';
@@ -816,6 +825,7 @@ export default class ExpenseModal extends LightningElement {
         return (
             Boolean(this.formLoadError) ||
             Boolean(this.paymentContextError) ||
+            this.isTransactionTypeUnavailable ||
             this.isModalContentLoading ||
             this.isSubmitting ||
             this.isExchangeRateLoading ||

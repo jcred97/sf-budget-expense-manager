@@ -205,6 +205,7 @@ private class BankAssignmentValidatorTest {
             Name = 'Legacy Expense',
             Amount__c = 100,
             Bank__c = 'BPI',
+            Transaction_Type__c = 'Debit Card',
             Category__c = category.Id,
             Expense_Date__c = Date.today()
         );
@@ -261,7 +262,7 @@ private class BankAssignmentValidatorTest {
         Test.stopTest();
         assertUnsupported(results[0]);
         System.assertEquals(true, results[1].isSuccess(), 'The same global Bank may support Credit Card in another group.');
-        System.assertEquals(true, results[2].isSuccess(), 'Cash is always supported.');
+        System.assertEquals(false, results[2].isSuccess(), 'Cash requires No bank.');
     }
 
     @IsTest
@@ -389,7 +390,7 @@ private class BankAssignmentValidatorTest {
         for (Integer index = 0; index < 4; index++) {
             assertUnsupported(results[index]);
         }
-        System.assertEquals(true, results[4].isSuccess(), 'Cash stays supported with every capability disabled.');
+        System.assertEquals(false, results[4].isSuccess(), 'Cash cannot supply a selection when a Bank has no enabled methods.');
     }
 
     @IsTest
@@ -437,7 +438,7 @@ private class BankAssignmentValidatorTest {
         legacySource.Transaction_Type__c = 'Credit Card';
         legacySource.Bank__c = 'BPI';
         Recurring_Expense__c assignedSource = recurringRecord('Assigned source', categoryId, bankAssignment.Id);
-        assignedSource.Transaction_Type__c = 'Cash';
+        assignedSource.Transaction_Type__c = 'Debit Card';
         Recurring_Expense__c deletedSource = recurringRecord('Deleted source', categoryId, null);
         insert new List<Recurring_Expense__c>{ blankSource, legacySource, assignedSource, deletedSource };
         delete deletedSource;
@@ -463,6 +464,74 @@ private class BankAssignmentValidatorTest {
         }
         System.assertEquals(false, results[3].isSuccess(), 'A deleted source cannot authorize a generated expense.');
         assertUnsupported(assignedResult);
+    }
+
+    @IsTest
+    static void testCashRequiresNoBankAndSelectedBankRequiresConfiguredMethod() {
+        Id categoryId = categoryByName('Bills').Id;
+        Id assignmentId = assignmentByGroupAndBank('Household', 'BPI').Id;
+        Expense__c bankCash = expenseRecord('Bank Cash', categoryId, assignmentId);
+        bankCash.Transaction_Type__c = 'Cash';
+        Expense__c bankBlank = expenseRecord('Bank blank', categoryId, assignmentId);
+        bankBlank.Transaction_Type__c = null;
+        Expense__c legacyCash = expenseRecord('Legacy Cash', categoryId, null);
+        legacyCash.Bank__c = 'BPI';
+        Expense__c noBankCash = expenseRecord('No bank Cash', categoryId, null);
+        Recurring_Expense__c templateCash = recurringRecord('Bank Cash template', categoryId, assignmentId);
+        templateCash.Transaction_Type__c = 'Cash';
+        Recurring_Expense__c templateBlank = recurringRecord('Bank blank template', categoryId, assignmentId);
+        templateBlank.Transaction_Type__c = null;
+        Test.startTest();
+        Database.SaveResult[] expenses = Database.insert(new List<Expense__c>{ bankCash, bankBlank, legacyCash, noBankCash }, false);
+        Database.SaveResult[] templates = Database.insert(new List<Recurring_Expense__c>{ templateCash, templateBlank }, false);
+        Test.stopTest();
+        System.assertEquals(false, expenses[0].isSuccess(), 'Cash with an assignment must fail.');
+        System.assertEquals(false, expenses[1].isSuccess(), 'Blank payment method with an assignment must fail.');
+        System.assertEquals(false, expenses[2].isSuccess(), 'Cash with a legacy Bank must fail.');
+        System.assertEquals(true, expenses[3].isSuccess(), 'Cash with No bank must remain valid.');
+        System.assertEquals(false, templates[0].isSuccess(), 'New Cash templates with assignments must fail.');
+        System.assertEquals(false, templates[1].isSuccess(), 'New blank templates with assignments must fail.');
+    }
+
+    @IsTest
+    static void testHistoricalBankCashAndBlankPreservedOnlyForUnrelatedEditsAndExactGeneration() {
+        Id categoryId = categoryByName('Bills').Id;
+        Id assignmentId = assignmentByGroupAndBank('Household', 'BPI').Id;
+        Expense__c persisted = expenseRecord('Existing card', categoryId, assignmentId);
+        Id otherAssignmentId = assignmentByGroupAndBank('Household', 'BDO').Id;
+        Recurring_Expense__c source = recurringRecord('Existing card source', categoryId, assignmentId);
+        insert persisted;
+        insert source;
+        for (String historicMethod : new List<String>{ 'Cash', null }) {
+            // Exact snapshots model records created before the Cash/No bank invariant.
+            Expense__c oldExpense = persisted.clone(true, false, false, false);
+            oldExpense.Transaction_Type__c = historicMethod;
+            Expense__c edited = oldExpense.clone(true, false, false, false);
+            edited.Name = 'Historical corrected';
+            BankAssignmentValidator.validateExpenses(new List<Expense__c>{ edited }, new Map<Id, Expense__c>{ oldExpense.Id => oldExpense });
+            System.assertEquals(false, edited.hasErrors(), 'Unrelated edits must preserve historical Cash/blank bank records.');
+            Recurring_Expense__c historicalSource = source.clone(true, false, false, false);
+            historicalSource.Transaction_Type__c = historicMethod;
+            Recurring_Expense__c pointerUpdate = historicalSource.clone(true, false, false, false);
+            pointerUpdate.Next_Run_Date__c = Date.today().addDays(1);
+            BankAssignmentValidator.validateRecurringExpenses(new List<Recurring_Expense__c>{ pointerUpdate }, new Map<Id, Recurring_Expense__c>{ historicalSource.Id => historicalSource });
+            System.assertEquals(false, pointerUpdate.hasErrors(), 'Generator pointer changes must preserve historical templates.');
+            Expense__c generated = expenseRecord('Historical generated', categoryId, assignmentId);
+            generated.Transaction_Type__c = historicMethod;
+            generated.Recurring_Expense__c = source.Id;
+            System.assertEquals(true, BankAssignmentValidator.matchesHistoricalGenerationSource(generated, historicalSource), 'Exact historical bank Cash/blank generation must remain compatible.');
+            generated.Bank_Assignment__c = otherAssignmentId;
+            System.assertEquals(false, BankAssignmentValidator.matchesHistoricalGenerationSource(generated, historicalSource), 'A different Bank must not receive the historical exemption.');
+            Expense__c changed = oldExpense.clone(true, false, false, false);
+            changed.Bank_Assignment__c = generated.Bank_Assignment__c;
+            BankAssignmentValidator.validateExpenses(new List<Expense__c>{ changed }, new Map<Id, Expense__c>{ oldExpense.Id => oldExpense });
+            System.assertEquals(true, changed.hasErrors(), 'Changing Bank must enforce the current Cash/blank rules.');
+            historicalSource.Active__c = false;
+            Recurring_Expense__c reactivated = historicalSource.clone(true, false, false, false);
+            reactivated.Active__c = true;
+            BankAssignmentValidator.validateRecurringExpenses(new List<Recurring_Expense__c>{ reactivated }, new Map<Id, Recurring_Expense__c>{ historicalSource.Id => historicalSource });
+            System.assertEquals(true, reactivated.hasErrors(), 'Reactivation must enforce the current Cash/blank rules.');
+        }
     }
 
     private static Id groupId(String name) {
@@ -495,6 +564,7 @@ private class BankAssignmentValidatorTest {
             Name = name,
             Amount__c = 100,
             Bank_Assignment__c = assignmentId,
+            Transaction_Type__c = assignmentId == null ? 'Cash' : 'Debit Card',
             Category__c = categoryId,
             Expense_Date__c = Date.today()
         );
@@ -510,6 +580,7 @@ private class BankAssignmentValidatorTest {
             Active__c = true,
             Amount__c = 100,
             Bank_Assignment__c = assignmentId,
+            Transaction_Type__c = assignmentId == null ? 'Cash' : 'Debit Card',
             Category__c = categoryId,
             Frequency__c = 'Monthly',
             Start_Date__c = Date.today()

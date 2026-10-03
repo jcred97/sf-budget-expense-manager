@@ -136,7 +136,7 @@ export default class RecurringExpenseModal extends LightningElement {
     get transactionTypeOptions() {
         return paymentMethodOptions(
             this.bankOptions,
-            this.normalizedBankAssignmentValue,
+            this.hasUntouchedLegacyBank ? '__LEGACY_BANK__' : this.normalizedBankAssignmentValue,
             this.originalTransactionType,
             this.isEditMode && !this.bankSelectionTouched
         );
@@ -154,6 +154,13 @@ export default class RecurringExpenseModal extends LightningElement {
 
     handleTransactionTypeChange(event) {
         this.transactionTypeValue = event.detail.value;
+    }
+
+    get isTransactionTypeUnavailable() {
+        return (
+            !this.transactionTypeOptions.length &&
+            !(this.isEditMode && !this.bankSelectionTouched && !this.originalTransactionType)
+        );
     }
 
     renderedCallback() {
@@ -224,7 +231,7 @@ export default class RecurringExpenseModal extends LightningElement {
         this.transactionTypeValue = CASH;
         this._latestRecordContextRetryId += 1;
         this.categoryValue = '';
-        this.bankAssignmentValue = '';
+        this.bankAssignmentValue = NO_BANK_VALUE;
         this.legacyBankValue = '';
         this.originalActive = true;
         this.nextRunDate = '';
@@ -452,15 +459,17 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     focusFirstBlockingMessage() {
-        const selector = this.formLoadError
-            ? '[data-form-load-error]'
-            : this.recordContextError
-              ? '[data-record-context-error]'
-              : this.categoryOptionsError
-                ? '[data-category-options-error]'
-                : this.bankOptionsError
-                  ? '[data-bank-options-error]'
-                  : '[data-category-empty]';
+        const selector = this.isTransactionTypeUnavailable
+            ? '[data-payment-method-error]'
+            : this.formLoadError
+              ? '[data-form-load-error]'
+              : this.recordContextError
+                ? '[data-record-context-error]'
+                : this.categoryOptionsError
+                  ? '[data-category-options-error]'
+                  : this.bankOptionsError
+                    ? '[data-bank-options-error]'
+                    : '[data-category-empty]';
         this.template.querySelector(selector)?.focus();
     }
 
@@ -617,6 +626,7 @@ export default class RecurringExpenseModal extends LightningElement {
 
     get isSaveBlocked() {
         return (
+            this.isTransactionTypeUnavailable ||
             this.isSaving ||
             Boolean(this.formLoadError) ||
             this.isRecordContextLoading ||

@@ -149,6 +149,7 @@ public inherited sharing class ExpenseGroupBankTriggerHandler {
             WITH SYSTEM_MODE
         ]) {
             if (
+                template.Transaction_Type__c != 'Cash' && !String.isBlank(template.Transaction_Type__c) &&
                 BankAssignmentValidator.supportsTransactionType(oldAssignments.get(template.Bank_Assignment__c), template.Transaction_Type__c) &&
                 !BankAssignmentValidator.supportsTransactionType(changedAssignments.get(template.Bank_Assignment__c), template.Transaction_Type__c)
             ) {

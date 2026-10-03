@@ -32,6 +32,7 @@ private class ExpenseControllerTest {
                 Amount__c = 100,
                 Bank__c = 'BDO',
                 Bank_Assignment__c = foodBpi.Id,
+                Transaction_Type__c = 'Debit Card',
                 Category__c = c1.Id,
                 Frequency__c = 'Monthly',
                 Next_Run_Date__c = Date.today(),
@@ -39,6 +40,7 @@ private class ExpenseControllerTest {
             ),
             new Recurring_Expense__c(
                 Name = 'Yearly Dining',
+                Transaction_Type__c = 'Debit Card',
                 Active__c = true,
                 Amount__c = 1200,
                 Bank__c = 'BDO',
@@ -62,6 +64,7 @@ private class ExpenseControllerTest {
         List<Expense__c> expenses = new List<Expense__c>{
             new Expense__c(
                 Name = 'Expense 1',
+                Transaction_Type__c = 'Debit Card',
                 Bank__c = 'BDO',
                 Bank_Assignment__c = foodBpi.Id,
                 Category__c = c1.Id,

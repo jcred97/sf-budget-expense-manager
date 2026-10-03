@@ -134,11 +134,12 @@ public inherited sharing class BankAssignmentValidator {
         for (Selection selection : selections) {
             if (selection.bankAssignmentId != null) {
                 assignedSelections.add(selection);
+            } else if (selection.transactionType == 'Cash' && !String.isBlank(selection.legacyBank)) {
+                if (!hasHistoricalGenerationSource(selection, generationSources)) {
+                    selection.recordToValidate.addError('Cash requires No bank. Clear the Bank selection or choose a supported payment method.');
+                }
             } else if (!isCashOrBlank(selection.transactionType) && String.isBlank(selection.legacyBank)) {
-                if (
-                    selection.generatedSourceId == null ||
-                    !matchesHistoricalGenerationSource((Expense__c) selection.recordToValidate, generationSources.get(selection.generatedSourceId))
-                ) {
+                if (!hasHistoricalGenerationSource(selection, generationSources)) {
                     selection.recordToValidate.addError('Select a Bank assignment for this transaction type, or choose Cash.');
                 }
             }
@@ -148,16 +149,22 @@ public inherited sharing class BankAssignmentValidator {
         }
         ValidationContext context = loadContext(assignedSelections);
         for (Selection selection : assignedSelections) {
-            validateSelection(selection, context);
+            validateSelection(selection, context, generationSources);
         }
+    }
+
+    private static Boolean hasHistoricalGenerationSource(Selection selection, Map<Id, Recurring_Expense__c> sources) {
+        return selection.generatedSourceId != null &&
+            matchesHistoricalGenerationSource((Expense__c) selection.recordToValidate, sources.get(selection.generatedSourceId));
     }
 
     private static Map<Id, Recurring_Expense__c> loadHistoricalGenerationSources(List<Selection> selections) {
         Set<Id> sourceIds = new Set<Id>();
         for (Selection selection : selections) {
             if (
-                selection.generatedSourceId != null && selection.bankAssignmentId == null &&
-                !isCashOrBlank(selection.transactionType) && String.isBlank(selection.legacyBank)
+                selection.generatedSourceId != null &&
+                ((selection.bankAssignmentId == null && !isCashOrBlank(selection.transactionType) && String.isBlank(selection.legacyBank)) ||
+                ((selection.bankAssignmentId != null || !String.isBlank(selection.legacyBank)) && isCashOrBlank(selection.transactionType)))
             ) {
                 sourceIds.add(selection.generatedSourceId);
             }
@@ -179,9 +186,10 @@ public inherited sharing class BankAssignmentValidator {
         return expense.Id == null && source != null && source.Id != null &&
             expense.Recurring_Expense__c == source.Id && source.Active__c == true &&
             expense.Category__c == source.Category__c && source.Category__c != null &&
-            expense.Bank_Assignment__c == null && source.Bank_Assignment__c == null &&
-            String.isBlank(expense.Bank__c) && String.isBlank(source.Bank__c) &&
-            !isCashOrBlank(expense.Transaction_Type__c) && expense.Transaction_Type__c == source.Transaction_Type__c;
+            expense.Bank_Assignment__c == source.Bank_Assignment__c && expense.Bank__c == source.Bank__c &&
+            expense.Transaction_Type__c == source.Transaction_Type__c &&
+            ((expense.Bank_Assignment__c == null && String.isBlank(expense.Bank__c) && !isCashOrBlank(expense.Transaction_Type__c)) ||
+            ((expense.Bank_Assignment__c != null || !String.isBlank(expense.Bank__c)) && isCashOrBlank(expense.Transaction_Type__c)));
     }
 
     private static ValidationContext loadContext(List<Selection> selections) {
@@ -212,7 +220,7 @@ public inherited sharing class BankAssignmentValidator {
         return new ValidationContext(assignmentsById, categoriesById);
     }
 
-    private static void validateSelection(Selection selection, ValidationContext context) {
+    private static void validateSelection(Selection selection, ValidationContext context, Map<Id, Recurring_Expense__c> generationSources) {
         Expense_Group_Bank__c assignment = context.assignmentsById.get(selection.bankAssignmentId);
         Category__c category = context.categoriesById.get(selection.categoryId);
         if (assignment == null) {
@@ -233,7 +241,14 @@ public inherited sharing class BankAssignmentValidator {
             selection.recordToValidate.addError('Select an active Bank assignment.');
             return;
         }
-        if (!supportsTransactionType(assignment, selection.transactionType)) {
+        if (isCashOrBlank(selection.transactionType) && hasHistoricalGenerationSource(selection, generationSources)) {
+            return;
+        }
+        if (selection.transactionType == 'Cash') {
+            selection.recordToValidate.addError('Cash requires No bank. Clear the Bank selection or choose a supported payment method.');
+        } else if (String.isBlank(selection.transactionType)) {
+            selection.recordToValidate.addError('Select a supported payment method for this Bank assignment.');
+        } else if (!supportsTransactionType(assignment, selection.transactionType)) {
             selection.recordToValidate.addError('The selected Bank assignment does not support ' + selection.transactionType + '.');
         }
     }
@@ -242,11 +257,8 @@ public inherited sharing class BankAssignmentValidator {
         return String.isBlank(transactionType) || transactionType == 'Cash';
     }
 
-    /** Returns whether an assignment permits a payment method; Cash and blank legacy values are always allowed. */
+    /** Returns whether an assignment permits one of the four configured Bank payment methods. */
     public static Boolean supportsTransactionType(Expense_Group_Bank__c assignment, String transactionType) {
-        if (isCashOrBlank(transactionType)) {
-            return true;
-        }
         switch on transactionType {
             when 'Credit Card' { return assignment.Supported_Credit_Card__c == true; }
             when 'Debit Card' { return assignment.Supported_Debit_Card__c == true; }
