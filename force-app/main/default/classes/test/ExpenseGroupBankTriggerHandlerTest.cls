@@ -172,6 +172,7 @@ private class ExpenseGroupBankTriggerHandlerTest {
             Active__c = true,
             Amount__c = 1000,
             Bank_Assignment__c = assignmentRecord.Id,
+            Transaction_Type__c = 'Debit Card',
             Category__c = category.Id,
             Frequency__c = 'Monthly',
             Start_Date__c = Date.today()
@@ -225,7 +226,7 @@ private class ExpenseGroupBankTriggerHandlerTest {
         Recurring_Expense__c cashTemplate = new Recurring_Expense__c(
             Name = 'Cash subscription', Active__c = true, Amount__c = 100,
             Category__c = categories[1].Id, Bank_Assignment__c = assignments[1].Id,
-            Frequency__c = 'Monthly', Start_Date__c = Date.today(), Transaction_Type__c = 'Cash'
+            Frequency__c = 'Monthly', Start_Date__c = Date.today(), Transaction_Type__c = 'Debit Card'
         );
         insert new List<Recurring_Expense__c>{ cardTemplate, cashTemplate };
         assignments[0].Supported_Credit_Card__c = false;
@@ -235,9 +236,9 @@ private class ExpenseGroupBankTriggerHandlerTest {
         Test.stopTest();
         System.assertEquals(false, results[0].isSuccess(), 'An active card template must block disabling Credit Card.');
         System.assert(results[0].getErrors()[0].getMessage().contains('active recurring expenses'), 'The error should explain how to release the method.');
-        System.assertEquals(true, results[1].isSuccess(), 'An active Cash template must not block disabling Credit Card in another group.');
+        System.assertEquals(true, results[1].isSuccess(), 'An active Debit Card template must not block disabling Credit Card in another group.');
         System.assertEquals(true, [SELECT Supported_Credit_Card__c FROM Expense_Group_Bank__c WHERE Id = :assignments[0].Id].Supported_Credit_Card__c, 'The blocked capability must remain enabled.');
-        cardTemplate.Transaction_Type__c = 'Cash';
+        cardTemplate.Transaction_Type__c = 'Debit Card';
         update cardTemplate;
         update assignments[0];
         System.assertEquals(false, [SELECT Supported_Credit_Card__c FROM Expense_Group_Bank__c WHERE Id = :assignments[0].Id].Supported_Credit_Card__c, 'Changing the active template method should release the capability.');

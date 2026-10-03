@@ -347,16 +347,6 @@
                                 </div>
                                 <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                                     <lightning-combobox
-                                        data-field="transaction-type"
-                                        label="Transaction Type"
-                                        value={transactionTypeValue}
-                                        options={transactionTypeOptions}
-                                        disabled={isBankInputDisabled}
-                                        onchange={handleTransactionTypeChange}
-                                    ></lightning-combobox>
-                                </div>
-                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                    <lightning-combobox
                                         class="slds-m-bottom_x-small"
                                         data-field="bank"
                                         label="Bank"
@@ -367,6 +357,27 @@
                                         onchange={handleBankChange}
                                     >
                                     </lightning-combobox>
+                                </div>
+                                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                    <lightning-combobox
+                                        data-field="transaction-type"
+                                        label="Transaction Type"
+                                        value={transactionTypeValue}
+                                        options={transactionTypeOptions}
+                                        disabled={isBankInputDisabled}
+                                        onchange={handleTransactionTypeChange}
+                                    ></lightning-combobox>
+                                    <template lwc:if={isTransactionTypeUnavailable}>
+                                        <p
+                                            class="slds-text-color_error slds-m-top_x-small"
+                                            role="alert"
+                                            tabindex="-1"
+                                            data-payment-method-error
+                                        >
+                                            This bank has no enabled payment methods. Choose No bank
+                                            for Cash, or a bank with an enabled payment method.
+                                        </p>
+                                    </template>
                                 </div>
                             </div>
 
