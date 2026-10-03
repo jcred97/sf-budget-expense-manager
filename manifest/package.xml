@@ -125,6 +125,7 @@
         <members>Expense_Group_Bank__c.Supported_Bank_Payment__c</members>
         <members>Expense_Group_Bank__c.Supported_Bank_Transfer__c</members>
         <members>Recurring_Expense__c.Active__c</members>
+        <members>Recurring_Expense__c.Due_For_Generation__c</members>
         <members>Recurring_Expense__c.Amount__c</members>
         <members>Recurring_Expense__c.Bank_Assignment__c</members>
         <members>Recurring_Expense__c.Bank__c</members>

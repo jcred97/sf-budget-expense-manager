@@ -11,6 +11,16 @@ public with sharing class RecurringExpenseController {
         return ExpenseQueryService.getRecurringExpenseOverview(expenseGroupId);
     }
 
+    /** Returns the next bounded page in the same Expense Group context. */
+    @AuraEnabled
+    public static RecurringExpenseOverviewDto getRecurringExpensePage(
+        Id expenseGroupId,
+        String cursor,
+        Integer pageSize
+    ) {
+        return ExpenseQueryService.getRecurringExpensePage(expenseGroupId, cursor, pageSize);
+    }
+
     /**
      * Deactivates a recurring-expense template.
      *

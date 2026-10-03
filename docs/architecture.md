@@ -163,7 +163,7 @@ entry points live under `classes/async` without changing their Salesforce metada
 - `ExpenseController.getMonthlyTrend(filters)` - delegates monthly aggregation to `ExpenseQueryService`.
 - `ExpenseController.deleteExpenses(expenseIds)` - delegates bulk user-mode deletion to `ExpenseCommandService`.
 - `ExpenseController.deleteExpense(expenseId)` - delegates the null check and scoped user-mode deletion to `ExpenseCommandService`.
-- `RecurringExpenseController.getRecurringExpenseOverview(expenseGroupId)` and `deactivateRecurringExpense(recurringExpenseId)` - normal-user recurring read/command entry points.
+- `RecurringExpenseController.getRecurringExpenseOverview(expenseGroupId)` - first recurring-template page with complete group totals. `getRecurringExpensePage(expenseGroupId, cursor, pageSize)` continues the same user-mode keyset query; `deactivateRecurringExpense(recurringExpenseId)` remains the normal-user command entry point.
 - `RecurringExpenseAutomationController.generateDueExpenses()` - creates due recurring expenses up to a bulk-safe cap, updates recurrence tracking dates, and returns a top-level generation DTO.
 - `RecurringExpenseAutomationController.runDueExpensesBatch()` - Admin/All Access entry point that starts the Batch Apex generator and returns the batch job ID.
 - `RecurringExpenseCalculator` - owns recurrence due-date checks and next-run-date calculations for daily, weekly, monthly, and yearly frequencies.
@@ -202,7 +202,7 @@ Admin and All Access currently provide effectively equivalent app capabilities, 
 - Group selection and the null-group compatibility category lookup are bounded at 2,000 records. Group-specific categories are not subject to that same explicit cap.
 - Expense listing starts with 20 rows, loads 10 more per request, and debounces search by 300 ms. Keyset ordering uses expense date, transaction time, creation time, and ID; the cursor is checked against the filter scope. Reports fetch all pages in batches of 200, deduplicate IDs, reject looping cursors, and cancel stale requests.
 - Dashboard loads matching expense rows without list pagination, alongside monthly aggregates and six-month budget history. Large matching datasets remain a scaling boundary.
-- Recurring overview retrieves at most 500 templates and computes its summaries from those rows. It has no pagination or truncation indication.
+- Recurring overview initially loads 50 templates and supports Load more with keyset pagination, ordered by active status, next run date (null last), name, and record ID. Counts and monthly estimates describe all matching templates through separate aggregates. A read-only `Due_For_Generation__c` formula preserves the due rule, including valid ended-schedule catch-up occurrences, for complete due counts.
 - Synchronous recurring generation caps output at 200 expenses; each batch transaction caps at 9,000 and processes a scope of 50 templates. Lock/reload and due-date rechecks protect generation, while retained next-run pointers allow catch-up to resume. Batch finish records aggregate results and failed-chunk status; reaching a cap is not clearly reported as unfinished catch-up.
 
 ## Open Review Findings
@@ -214,12 +214,13 @@ See the maintained [review findings](review-findings.md) for follow-up scope and
 | --- | --- |
 | Normal users see an unauthorized manual-run action | [`recurringExpenses.js`](../force-app/main/default/lwc/recurringExpenses/recurringExpenses.js) exposes the action, while the User permission set omits `RecurringExpenseAutomationController`. Gate the UI on the intended capability. |
 | Data refresh can precede batch completion | The recurring screen receives the queued job ID, then emits `generationstarted` and refreshes immediately. Track completion or provide explicit pending status and a refresh action. |
-| Recurring counts and amounts truncate above 500 templates | [`ExpenseQueryService.cls`](../force-app/main/default/classes/service/ExpenseQueryService.cls) computes the overview from its limited row query. Separate complete summary aggregation from a paginated list. |
 
 ## Source Versus Org State
+
+Recurring pagination and complete summaries are deployed to `mainDevOrg` as of 2026-10-03. Deployment `0AfgK00000VH2I5SAL` passed all 154 repository Apex tests; frontend verification passed 111 Jest tests across eleven suites. See [testing notes](testing-and-tooling.md) for coverage and regression details.
 
 Settings saves now repair missing/unusable schedules when enabled, even with an unchanged time. Valid same-time jobs retain their owner and timezone. This Apex change passed Salesforce check-only validation (19/19 tests, 93.14% service coverage) and awaits deployment; see F2 in [review findings](review-findings.md).
 
 API version is `65.0`; the project namespace is `bemgr` and `force-app` is the default package directory. This does not establish managed-package installation status. Current source has no active Flow implementation or populated Aura bundle. Eight controllers, sixteen service/interface classes, fifteen DTOs, six handlers, six triggers, two async classes, and eighteen Apex test classes implement the backend.
 
-`manifest/package.xml` is the current deployment set. Historical rebrand/destructive manifests are migration records, not an instruction to replay cleanup. Retired lookup selectors/services and presentation bundles have been removed from source; deleting files in Git does not delete their deployed counterparts. Live scheduled jobs, settings records, permission assignments, credential access, and removed metadata must be checked before the deferred deployment and cleanup. The latest source review passed 66 Jest tests in nine suites and lint; it did not rerun Apex tests or inspect the live org.
+`manifest/package.xml` is the current deployment set. Historical rebrand/destructive manifests are migration records, not an instruction to replay cleanup. Retired lookup selectors/services and presentation bundles have been removed from source; deleting files in Git does not delete their deployed counterparts. Live scheduled jobs, settings records, permission assignments, credential access, and removed metadata must be checked before the deferred deployment and cleanup. The 2026-09-30 source review passed 66 Jest tests in nine suites and lint; that review did not rerun Apex tests or inspect the live org.

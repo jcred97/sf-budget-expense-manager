@@ -2,6 +2,7 @@ import { formatActiveWindow, formatDate, formatPHP } from 'c/expenseFormatters';
 
 export function buildRecurringViewModel({ rows = [], overview = {}, expenseGroupName, isLoading }) {
     const activeCount = overview.activeCount || 0;
+    const totalCount = overview.totalCount ?? rows.length;
     const dueTodayCount = overview.dueTodayCount || 0;
     const monthlyTotal = formatPHP(overview.monthlyTotal || 0);
     const summaryCards = [
@@ -10,7 +11,7 @@ export function buildRecurringViewModel({ rows = [], overview = {}, expenseGroup
             iconName: 'utility:check',
             label: 'Active templates',
             value: activeCount,
-            detail: `${rows.length} total templates`
+            detail: `${totalCount} total templates`
         },
         {
             key: 'due',
@@ -35,7 +36,10 @@ export function buildRecurringViewModel({ rows = [], overview = {}, expenseGroup
     return {
         summaryCards,
         expenseGroupName,
-        countLabel: `${rows.length} recurring expense${rows.length === 1 ? '' : 's'}`,
+        countLabel:
+            rows.length < totalCount
+                ? `${rows.length} of ${totalCount} recurring expenses`
+                : `${totalCount} recurring expense${totalCount === 1 ? '' : 's'}`,
         isLoading,
         rows: rows.map(buildRecurringRow)
     };

@@ -62,6 +62,13 @@ The app defaults to the current month on load.
 
 ## Incremental Loading
 
+The recurring overview fetches 50 templates initially and 50 more on Load more.
+Summary cards use full-group aggregates rather than the loaded rows. The template
+count displays loaded versus total records. Failed pages preserve existing rows
+and offer Retry; the Refresh action reloads the first page and its totals. Group
+changes and refreshes invalidate outstanding page requests.
+Keyset ordering preserves active-first, next-run-date (null last), name, then ID.
+
 The expense list fetches 20 rows initially and 10 more on Load More through
 `ExpenseController.getExpensePage`. Cursor order is expense date descending
 (null last), time descending (null last), CreatedDate descending, then Id

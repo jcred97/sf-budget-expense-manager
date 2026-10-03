@@ -8,6 +8,14 @@ public class RecurringExpenseOverviewDto {
     public Integer dueTodayCount;
     @AuraEnabled
     public Decimal monthlyTotal;
+    @AuraEnabled
+    public Id expenseGroupId;
+    @AuraEnabled
+    public Integer totalCount;
+    @AuraEnabled
+    public Boolean hasMore;
+    @AuraEnabled
+    public String nextCursor;
 
     /** Creates an empty recurring-expense overview. */
     public RecurringExpenseOverviewDto() {
@@ -15,5 +23,7 @@ public class RecurringExpenseOverviewDto {
         this.activeCount = 0;
         this.dueTodayCount = 0;
         this.monthlyTotal = 0;
+        this.totalCount = 0;
+        this.hasMore = false;
     }
 }
