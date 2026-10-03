@@ -85,6 +85,7 @@ export async function fetchBankOptions(expenseGroupId) {
     const assignments = await getAvailableExpenseGroupBanks({ expenseGroupId });
     return assignments.map(assignment => ({
         label: assignment.bankName,
-        value: assignment.assignmentId
+        value: assignment.assignmentId,
+        supportedTransactionTypes: assignment.supportedTransactionTypes || []
     }));
 }

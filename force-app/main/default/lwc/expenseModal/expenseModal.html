@@ -51,6 +51,16 @@
                             </div>
                         </template>
 
+                        <template lwc:if={paymentContextError}>
+                            <p
+                                class="slds-text-color_error slds-p-around_medium"
+                                role="alert"
+                                tabindex="-1"
+                                data-payment-context-error
+                            >
+                                {paymentContextError}
+                            </p>
+                        </template>
                         <template lwc:if={formLoadError}>
                             <div
                                 class="slds-notify slds-notify_alert slds-alert_error"
@@ -336,12 +346,14 @@
                                     </lightning-input>
                                 </div>
                                 <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
-                                    <lightning-input-field
-                                        field-name="Transaction_Type__c"
-                                        value={fieldValue.Transaction_Type__c}
-                                        disabled={isSubmitting}
-                                    >
-                                    </lightning-input-field>
+                                    <lightning-combobox
+                                        data-field="transaction-type"
+                                        label="Transaction Type"
+                                        value={transactionTypeValue}
+                                        options={transactionTypeOptions}
+                                        disabled={isBankInputDisabled}
+                                        onchange={handleTransactionTypeChange}
+                                    ></lightning-combobox>
                                 </div>
                                 <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                                     <lightning-combobox

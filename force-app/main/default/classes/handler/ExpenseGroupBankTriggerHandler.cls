@@ -17,6 +17,7 @@ public inherited sharing class ExpenseGroupBankTriggerHandler {
         if (operation == System.TriggerOperation.BEFORE_UPDATE) {
             enforceImmutableRelationships(assignments, oldAssignments);
             blockDeactivationWithActiveTemplates(assignments, oldAssignments);
+            blockUnsupportedMethodsWithActiveTemplates(assignments, oldAssignments);
         }
     }
 
@@ -118,6 +119,46 @@ public inherited sharing class ExpenseGroupBankTriggerHandler {
                     'Expense Group and Bank cannot be changed. Deactivate this assignment and create another one.'
                 );
             }
+        }
+    }
+
+    private static void blockUnsupportedMethodsWithActiveTemplates(
+        List<Expense_Group_Bank__c> assignments,
+        Map<Id, Expense_Group_Bank__c> oldAssignments
+    ) {
+        Map<Id, Expense_Group_Bank__c> changedAssignments = new Map<Id, Expense_Group_Bank__c>();
+        for (Expense_Group_Bank__c assignment : assignments) {
+            Expense_Group_Bank__c oldAssignment = oldAssignments.get(assignment.Id);
+            if (
+                (oldAssignment.Supported_Credit_Card__c == true && assignment.Supported_Credit_Card__c != true) ||
+                (oldAssignment.Supported_Debit_Card__c == true && assignment.Supported_Debit_Card__c != true) ||
+                (oldAssignment.Supported_Bank_Payment__c == true && assignment.Supported_Bank_Payment__c != true) ||
+                (oldAssignment.Supported_Bank_Transfer__c == true && assignment.Supported_Bank_Transfer__c != true)
+            ) {
+                changedAssignments.put(assignment.Id, assignment);
+            }
+        }
+        if (changedAssignments.isEmpty()) {
+            return;
+        }
+        Set<Id> blockedIds = new Set<Id>();
+        for (Recurring_Expense__c template : [
+            SELECT Bank_Assignment__c, Transaction_Type__c
+            FROM Recurring_Expense__c
+            WHERE Bank_Assignment__c IN :changedAssignments.keySet() AND Active__c = TRUE
+            WITH SYSTEM_MODE
+        ]) {
+            if (
+                BankAssignmentValidator.supportsTransactionType(oldAssignments.get(template.Bank_Assignment__c), template.Transaction_Type__c) &&
+                !BankAssignmentValidator.supportsTransactionType(changedAssignments.get(template.Bank_Assignment__c), template.Transaction_Type__c)
+            ) {
+                blockedIds.add(template.Bank_Assignment__c);
+            }
+        }
+        for (Id assignmentId : blockedIds) {
+            changedAssignments.get(assignmentId).addError(
+                'Deactivate or change active recurring expenses before disabling a payment method they use.'
+            );
         }
     }
 

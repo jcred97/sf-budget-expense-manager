@@ -1,5 +1,6 @@
 import getExpensePage from '@salesforce/apex/ExpenseController.getExpensePage';
-import { fetchExpensePage, fetchAllExpenseRows } from 'c/expenseWorkspaceData';
+import getAvailableExpenseGroupBanks from '@salesforce/apex/BankController.getAvailableExpenseGroupBanks';
+import { fetchExpensePage, fetchAllExpenseRows, fetchBankOptions } from 'c/expenseWorkspaceData';
 
 jest.mock('@salesforce/apex/ExpenseController.getExpensePage', () => ({ default: jest.fn() }), {
     virtual: true
@@ -25,6 +26,21 @@ const rawRow = id => ({ Id: id, Name: id, Amount__c: 10 });
 
 describe('expense page and report requests', () => {
     beforeEach(() => jest.resetAllMocks());
+
+    it('preserves per-assignment payment capabilities from Apex', async () => {
+        getAvailableExpenseGroupBanks.mockResolvedValue([
+            {
+                assignmentId: 'bank',
+                bankName: 'Debit bank',
+                supportedTransactionTypes: ['Debit Card']
+            },
+            { assignmentId: 'cash-only', bankName: 'Cash only', supportedTransactionTypes: [] }
+        ]);
+        expect(await fetchBankOptions('group')).toEqual([
+            { value: 'bank', label: 'Debit bank', supportedTransactionTypes: ['Debit Card'] },
+            { value: 'cash-only', label: 'Cash only', supportedTransactionTypes: [] }
+        ]);
+    });
 
     it('passes filters, search, and cursor to Apex and maps the bounded response', async () => {
         getExpensePage.mockResolvedValue({

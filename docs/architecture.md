@@ -33,6 +33,8 @@ Expense_Group__c
        - Bank__c (required restricted lookup to the global Bank record)
        - Active__c
        - Expense_Group_Bank_Key__c (generated unique group/bank key)
+       - Supported_Credit_Card__c, Supported_Debit_Card__c
+       - Supported_Bank_Payment__c, Supported_Bank_Transfer__c
   -> Category__c (Expense_Group__c master-detail)
        - Display_Name__c
        - Total_Amount__c (roll-up, read-only)
@@ -81,6 +83,8 @@ Legacy `Spending__c` metadata has been removed. `Expense_Group__c` is the active
 ```
 
 `Bank__c` stores each institution once. `Expense_Group_Bank__c` is a logical junction with a master-detail relationship to the Expense Group and a deletion-restricted lookup to the global Bank. Its generated composite key prevents duplicate group/Bank assignments. Expense and recurring records reference the assignment so the database retains the selected group context; deleting a referenced assignment or an assigned global Bank is restricted. Deactivation removes a choice from new selections without changing historical labels. During the additive migration, application reads prefer the assignment relationship and fall back to the unchanged legacy picklist.
+
+Payment methods are configured per `Expense_Group_Bank__c`, so two groups can use the same Bank with different transaction types. The four supported-method checkboxes default to enabled for new assignments; existing assignments require initialization during [the staged rollout](bank-payment-methods.md). Cash is always available and is the default for new Expenses and recurring templates. The Bank selector returns the enabled methods with each assignment, and both dialogs filter their Transaction Type choices accordingly. Changing the Bank resets an unsupported type to Cash. Trigger validation also enforces supported methods for new or changed selections, while preserving unchanged historical types and the legacy Bank fallback. Disable or change active recurring templates before disabling a method they use, so generation is not stranded by a configuration change.
 
 `Budget__c` is opt-in by record presence. A group/month with no budget record keeps the original expense-only behavior. `BudgetTrigger` normalizes the month and regenerates the unique group/month key for every insert and update, so only one budget can exist for that context. Removing a budget does not remove or change expenses. The standard `Budget__c` tab provides list-view and record-level administration alongside the Dashboard budget panel.
 

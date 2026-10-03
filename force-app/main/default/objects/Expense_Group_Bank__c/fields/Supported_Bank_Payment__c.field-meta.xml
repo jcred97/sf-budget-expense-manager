@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Supported_Bank_Payment__c</fullName>
+    <defaultValue>true</defaultValue>
+    <description>Enables Bank Payment for this Bank within this Expense Group.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Pay merchants, billers, or services through the bank app using this Expense Group Bank assignment.</inlineHelpText>
+    <label>Bank Payment</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

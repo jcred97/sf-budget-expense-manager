@@ -244,6 +244,236 @@ private class BankAssignmentValidatorTest {
         System.assertNotEquals(null, expenses[1].Id, 'The travel Expense should save.');
     }
 
+    @IsTest
+    static void testMethodsAreScopedToAssignmentAndBulkRowsAreIndependent() {
+        Expense_Group_Bank__c household = assignmentByGroupAndBank('Household', 'BPI');
+        Expense_Group_Bank__c travel = assignmentByGroupAndBank('Travel', 'BPI');
+        household.Supported_Credit_Card__c = false;
+        update household;
+        Expense__c blocked = expenseRecord('Blocked card', categoryByName('Bills').Id, household.Id);
+        blocked.Transaction_Type__c = 'Credit Card';
+        Expense__c permitted = expenseRecord('Travel card', categoryByName('Flights').Id, travel.Id);
+        permitted.Transaction_Type__c = 'Credit Card';
+        Expense__c cash = expenseRecord('Cash', categoryByName('Bills').Id, household.Id);
+        cash.Transaction_Type__c = 'Cash';
+        Test.startTest();
+        Database.SaveResult[] results = Database.insert(new List<Expense__c>{ blocked, permitted, cash }, false);
+        Test.stopTest();
+        assertUnsupported(results[0]);
+        System.assertEquals(true, results[1].isSuccess(), 'The same global Bank may support Credit Card in another group.');
+        System.assertEquals(true, results[2].isSuccess(), 'Cash is always supported.');
+    }
+
+    @IsTest
+    static void testHistoricalDisabledMethodEditsAndSelectionChanges() {
+        Category__c category = categoryByName('Bills');
+        Expense_Group_Bank__c bankAssignment = assignmentByGroupAndBank('Household', 'BPI');
+        Expense__c expense = expenseRecord('Card expense', category.Id, bankAssignment.Id);
+        expense.Transaction_Type__c = 'Credit Card';
+        Recurring_Expense__c template = recurringRecord('Card template', category.Id, bankAssignment.Id);
+        template.Transaction_Type__c = 'Credit Card';
+        template.Active__c = false;
+        insert expense;
+        insert template;
+        bankAssignment.Supported_Credit_Card__c = false;
+        bankAssignment.Supported_Debit_Card__c = false;
+        update bankAssignment;
+        expense.Name = 'Corrected card expense';
+        template.Name = 'Corrected card template';
+        template.Next_Run_Date__c = Date.today().addDays(1);
+        update expense;
+        update template;
+        Expense_Group_Bank__c otherAssignment = assignmentByGroupAndBank('Household', 'BDO');
+        otherAssignment.Supported_Credit_Card__c = false;
+        update otherAssignment;
+        expense.Bank_Assignment__c = otherAssignment.Id;
+        template.Active__c = true;
+        Test.startTest();
+        Database.SaveResult changedBank = Database.update(expense, false);
+        Database.SaveResult reactivated = Database.update(template, false);
+        expense.Bank_Assignment__c = bankAssignment.Id;
+        expense.Transaction_Type__c = 'Debit Card';
+        Database.SaveResult changedType = Database.update(expense, false);
+        expense.Transaction_Type__c = 'Credit Card';
+        Category__c otherCategory = new Category__c(Name = 'Other Bills', Expense_Group__c = groupId('Household'));
+        insert otherCategory;
+        expense.Category__c = otherCategory.Id;
+        Database.SaveResult changedCategory = Database.update(expense, false);
+        Test.stopTest();
+        assertUnsupported(changedBank);
+        assertUnsupported(reactivated);
+        assertUnsupported(changedType);
+        assertUnsupported(changedCategory);
+        System.assertEquals('Corrected card expense', [SELECT Name FROM Expense__c WHERE Id = :expense.Id].Name, 'Historical edits must persist.');
+        System.assertEquals(false, [SELECT Active__c FROM Recurring_Expense__c WHERE Id = :template.Id].Active__c, 'Failed reactivation must stay inactive.');
+    }
+
+    @IsTest
+    static void testNoAssignmentRequiresCashOrLegacyBankAndRemovalIsValidated() {
+        Id categoryId = categoryByName('Bills').Id;
+        Expense__c noncash = expenseRecord('No bank card', categoryId, null);
+        noncash.Transaction_Type__c = 'Credit Card';
+        Expense__c cash = expenseRecord('No bank cash', categoryId, null);
+        cash.Transaction_Type__c = 'Cash';
+        Expense__c legacy = expenseRecord('Legacy card', categoryId, null);
+        legacy.Transaction_Type__c = 'Credit Card';
+        legacy.Bank__c = 'BPI';
+        Recurring_Expense__c template = recurringRecord('No bank template', categoryId, null);
+        template.Transaction_Type__c = 'Bank Transfer';
+        Expense__c assigned = expenseRecord('Assigned card', categoryId, assignmentByGroupAndBank('Household', 'BPI').Id);
+        assigned.Transaction_Type__c = 'Credit Card';
+        Recurring_Expense__c assignedTemplate = recurringRecord('Assigned template', categoryId, assigned.Bank_Assignment__c);
+        assignedTemplate.Transaction_Type__c = 'Debit Card';
+        insert assigned;
+        insert assignedTemplate;
+        assigned.Bank_Assignment__c = null;
+        assignedTemplate.Bank_Assignment__c = null;
+        Test.startTest();
+        Database.SaveResult[] results = Database.insert(new List<Expense__c>{ noncash, cash, legacy }, false);
+        Database.SaveResult recurringResult = Database.insert(template, false);
+        Database.SaveResult removal = Database.update(assigned, false);
+        Database.SaveResult templateRemoval = Database.update(assignedTemplate, false);
+        Test.stopTest();
+        System.assertEquals(false, results[0].isSuccess(), 'Noncash requires a Bank.');
+        System.assertEquals(true, results[1].isSuccess(), 'Cash does not require a Bank.');
+        System.assertEquals(true, results[2].isSuccess(), 'Legacy Bank remains a compatible fallback.');
+        System.assertEquals(false, recurringResult.isSuccess(), 'Noncash recurring templates require a Bank.');
+        System.assertEquals(false, removal.isSuccess(), 'Removing an assignment must revalidate the noncash method.');
+        System.assertEquals(false, templateRemoval.isSuccess(), 'Removing a template assignment must revalidate its noncash method.');
+        legacy.Bank__c = null;
+        Database.SaveResult legacyRemoval = Database.update(legacy, false);
+        System.assertEquals(false, legacyRemoval.isSuccess(), 'Removing the legacy fallback must also be validated.');
+        assigned.Transaction_Type__c = 'Cash';
+        update assigned;
+    }
+
+    @IsTest
+    static void testHistoricalNoBankNoncashUnrelatedEditsRemainValid() {
+        Expense__c prior = expenseRecord('Historical', categoryByName('Bills').Id, null);
+        insert prior;
+        prior.Transaction_Type__c = 'Credit Card';
+        // Handler-level old/new snapshots model data that predates the new invariant.
+        Expense__c edited = prior.clone(true, false, false, false);
+        edited.Name = 'Historical corrected';
+        Recurring_Expense__c oldTemplate = recurringRecord('Historical template', prior.Category__c, null);
+        insert oldTemplate;
+        oldTemplate.Transaction_Type__c = 'Bank Transfer';
+        Recurring_Expense__c editedTemplate = oldTemplate.clone(true, false, false, false);
+        editedTemplate.Next_Run_Date__c = Date.today().addDays(1);
+        Test.startTest();
+        BankAssignmentValidator.validateExpenses(new List<Expense__c>{ edited }, new Map<Id, Expense__c>{ prior.Id => prior });
+        BankAssignmentValidator.validateRecurringExpenses(new List<Recurring_Expense__c>{ editedTemplate }, new Map<Id, Recurring_Expense__c>{ oldTemplate.Id => oldTemplate });
+        Test.stopTest();
+        System.assertEquals(false, edited.hasErrors(), 'Historical no-bank noncash unrelated edits should remain valid.');
+        System.assertEquals(false, editedTemplate.hasErrors(), 'Generator pointer updates should preserve historical templates.');
+    }
+
+    @IsTest
+    static void testEachDisabledMethodRejectsNewTemplate() {
+        Expense_Group_Bank__c bankAssignment = assignmentByGroupAndBank('Household', 'BPI');
+        bankAssignment.Supported_Credit_Card__c = false;
+        bankAssignment.Supported_Debit_Card__c = false;
+        bankAssignment.Supported_Bank_Payment__c = false;
+        bankAssignment.Supported_Bank_Transfer__c = false;
+        update bankAssignment;
+        List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
+        Id categoryId = categoryByName('Bills').Id;
+        for (String method : new List<String>{ 'Credit Card', 'Debit Card', 'Bank Payment', 'Bank Transfer', 'Cash' }) {
+            Recurring_Expense__c template = recurringRecord(method, categoryId, bankAssignment.Id);
+            template.Transaction_Type__c = method;
+            templates.add(template);
+        }
+        Test.startTest();
+        Database.SaveResult[] results = Database.insert(templates, false);
+        Test.stopTest();
+        for (Integer index = 0; index < 4; index++) {
+            assertUnsupported(results[index]);
+        }
+        System.assertEquals(true, results[4].isSuccess(), 'Cash stays supported with every capability disabled.');
+    }
+
+    @IsTest
+    static void testHistoricalGenerationMatcherRequiresExactActiveSourceAndNewExpense() {
+        Id categoryId = categoryByName('Bills').Id;
+        Recurring_Expense__c source = recurringRecord('Historical source', categoryId, null);
+        insert source;
+        // Only the pure matcher receives this historical snapshot; persisted state remains valid.
+        source.Transaction_Type__c = 'Credit Card';
+        Expense__c generated = expenseRecord('Generated historical card', categoryId, null);
+        generated.Transaction_Type__c = 'Credit Card';
+        generated.Recurring_Expense__c = source.Id;
+        System.assertEquals(true, BankAssignmentValidator.matchesHistoricalGenerationSource(generated, source), 'An exact active historical source should be compatible.');
+        System.assertEquals(false, BankAssignmentValidator.matchesHistoricalGenerationSource(generated, null), 'A missing source must not bypass validation.');
+        Recurring_Expense__c changed = source.clone(true, false, false, false);
+        changed.Active__c = false;
+        System.assertEquals(false, BankAssignmentValidator.matchesHistoricalGenerationSource(generated, changed), 'Inactive sources cannot supply compatibility.');
+        changed.Active__c = true;
+        changed.Category__c = categoryByName('Flights').Id;
+        System.assertEquals(false, BankAssignmentValidator.matchesHistoricalGenerationSource(generated, changed), 'The category must match.');
+        changed.Category__c = categoryId;
+        changed.Transaction_Type__c = 'Debit Card';
+        System.assertEquals(false, BankAssignmentValidator.matchesHistoricalGenerationSource(generated, changed), 'The payment method must match.');
+        changed.Transaction_Type__c = source.Transaction_Type__c;
+        changed.Bank__c = 'BPI';
+        System.assertEquals(false, BankAssignmentValidator.matchesHistoricalGenerationSource(generated, changed), 'Legacy Bank sources cannot authorize a no-bank expense.');
+        changed.Bank__c = null;
+        changed.Bank_Assignment__c = assignmentByGroupAndBank('Household', 'BPI').Id;
+        System.assertEquals(false, BankAssignmentValidator.matchesHistoricalGenerationSource(generated, changed), 'Assigned sources cannot authorize a no-bank expense.');
+        generated.Recurring_Expense__c = null;
+        System.assertEquals(false, BankAssignmentValidator.matchesHistoricalGenerationSource(generated, source), 'The linked source ID must match.');
+        generated.Recurring_Expense__c = source.Id;
+        Expense__c existing = expenseRecord('Existing', categoryId, null);
+        insert existing;
+        generated.Id = existing.Id;
+        System.assertEquals(false, BankAssignmentValidator.matchesHistoricalGenerationSource(generated, source), 'Compatibility is restricted to new generated expenses.');
+    }
+
+    @IsTest
+    static void testPersistedSourceLinksCannotBypassNoBankOrUnsupportedMethodValidation() {
+        Id categoryId = categoryByName('Bills').Id;
+        Expense_Group_Bank__c bankAssignment = assignmentByGroupAndBank('Household', 'BPI');
+        Recurring_Expense__c blankSource = recurringRecord('Blank source', categoryId, null);
+        Recurring_Expense__c legacySource = recurringRecord('Legacy source', categoryId, null);
+        legacySource.Transaction_Type__c = 'Credit Card';
+        legacySource.Bank__c = 'BPI';
+        Recurring_Expense__c assignedSource = recurringRecord('Assigned source', categoryId, bankAssignment.Id);
+        assignedSource.Transaction_Type__c = 'Cash';
+        Recurring_Expense__c deletedSource = recurringRecord('Deleted source', categoryId, null);
+        insert new List<Recurring_Expense__c>{ blankSource, legacySource, assignedSource, deletedSource };
+        delete deletedSource;
+        bankAssignment.Supported_Credit_Card__c = false;
+        update bankAssignment;
+        List<Expense__c> expenses = new List<Expense__c>();
+        for (Id sourceId : new List<Id>{ blankSource.Id, legacySource.Id, assignedSource.Id, deletedSource.Id }) {
+            Expense__c expense = expenseRecord('Invalid source card', categoryId, null);
+            expense.Transaction_Type__c = 'Credit Card';
+            expense.Recurring_Expense__c = sourceId;
+            expenses.add(expense);
+        }
+        Expense__c assigned = expenseRecord('Unsupported generated card', categoryId, bankAssignment.Id);
+        assigned.Transaction_Type__c = 'Credit Card';
+        assigned.Recurring_Expense__c = assignedSource.Id;
+        Test.startTest();
+        Database.SaveResult[] results = Database.insert(expenses, false);
+        Database.SaveResult assignedResult = Database.insert(assigned, false);
+        Test.stopTest();
+        for (Integer index = 0; index < 3; index++) {
+            System.assertEquals(false, results[index].isSuccess(), 'A persisted mismatched source must not bypass the no-bank rule.');
+            System.assert(results[index].getErrors()[0].getMessage().contains('Select a Bank assignment'), 'The error should require a Bank selection.');
+        }
+        System.assertEquals(false, results[3].isSuccess(), 'A deleted source cannot authorize a generated expense.');
+        assertUnsupported(assignedResult);
+    }
+
+    private static Id groupId(String name) {
+        return [SELECT Id FROM Expense_Group__c WHERE Name = :name LIMIT 1].Id;
+    }
+
+    private static void assertUnsupported(Database.SaveResult result) {
+        System.assertEquals(false, result.isSuccess(), 'An unsupported payment method should fail.');
+        System.assert(result.getErrors()[0].getMessage().contains('does not support'), 'The error should explain the unsupported method.');
+    }
+
     private static void assertGroupMismatch(Database.SaveResult result) {
         System.assertEquals(false, result.isSuccess(), 'A cross-group selection should fail.');
         System.assert(
