@@ -858,6 +858,33 @@ private class RecurringExpenseServiceTest {
     }
 
     @IsTest
+    static void testGenerationPreservesSupportedAndLegacyPaymentMethods() {
+        Recurring_Expense__c supported = synchronousTemplate('Supported card', Date.today());
+        supported.Bank_Assignment__c = [SELECT Id FROM Expense_Group_Bank__c WHERE Bank__r.Name = 'BPI' LIMIT 1].Id;
+        supported.Transaction_Type__c = 'Credit Card';
+        Recurring_Expense__c legacy = synchronousTemplate('Legacy transfer', Date.today());
+        legacy.Bank__c = 'BPI';
+        legacy.Transaction_Type__c = 'Bank Transfer';
+        insert new List<Recurring_Expense__c>{ supported, legacy };
+        Test.startTest();
+        RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(Date.today());
+        Test.stopTest();
+        System.assertEquals(2, result.expensesCreated, 'Supported assignment and legacy-only noncash sources should both generate.');
+        Map<Id, Expense__c> expensesBySource = new Map<Id, Expense__c>();
+        for (Expense__c expense : [SELECT Recurring_Expense__c, Bank_Assignment__c, Bank__c, Transaction_Type__c FROM Expense__c]) {
+            expensesBySource.put(expense.Recurring_Expense__c, expense);
+        }
+        System.assertEquals(supported.Bank_Assignment__c, expensesBySource.get(supported.Id).Bank_Assignment__c, 'The supported assignment must be copied.');
+        System.assertEquals('Credit Card', expensesBySource.get(supported.Id).Transaction_Type__c, 'The supported payment method must be copied.');
+        System.assertEquals('BPI', expensesBySource.get(legacy.Id).Bank__c, 'The legacy Bank must remain compatible.');
+        System.assertEquals('Bank Transfer', expensesBySource.get(legacy.Id).Transaction_Type__c, 'The legacy payment method must be copied.');
+        Set<Id> sourceIds = new Set<Id>{ supported.Id, legacy.Id };
+        for (Recurring_Expense__c template : [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id IN :sourceIds]) {
+            System.assertEquals(Date.today().addDays(1), template.Next_Run_Date__c, 'Generation should advance both pointers.');
+        }
+    }
+
+    @IsTest
     static void testAutomationControllerGeneratesDueExpenses() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Supported_Debit_Card__c</fullName>
+    <defaultValue>true</defaultValue>
+    <description>Enables Debit Card for this Bank within this Expense Group.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Allow Debit Card for expenses and recurring expenses using this Expense Group Bank assignment.</inlineHelpText>
+    <label>Debit Card</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

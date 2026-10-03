@@ -223,11 +223,15 @@
                                     disabled={areRecordFieldsDisabled}
                                 ></lightning-input-field>
 
-                                <lightning-input-field
+                                <lightning-combobox
                                     class="slds-var-m-bottom_small"
-                                    field-name="Transaction_Type__c"
-                                    disabled={areRecordFieldsDisabled}
-                                ></lightning-input-field>
+                                    data-field="transaction-type"
+                                    label="Transaction Type"
+                                    value={transactionTypeValue}
+                                    options={transactionTypeOptions}
+                                    disabled={isBankInputDisabled}
+                                    onchange={handleTransactionTypeChange}
+                                ></lightning-combobox>
 
                                 <div class="slds-var-m-bottom_small">
                                     <template lwc:if={bankOptionsLoading}>

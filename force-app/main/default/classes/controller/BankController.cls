@@ -16,7 +16,9 @@ public with sharing class BankController {
         }
 
         for (Expense_Group_Bank__c assignment : [
-            SELECT Id, Active__c, Bank__c, Bank__r.Name, Bank__r.Active__c, Expense_Group__c
+            SELECT Id, Active__c, Bank__c, Bank__r.Name, Bank__r.Active__c, Expense_Group__c,
+                Supported_Credit_Card__c, Supported_Debit_Card__c,
+                Supported_Bank_Payment__c, Supported_Bank_Transfer__c
             FROM Expense_Group_Bank__c
             WHERE Expense_Group__c = :expenseGroupId AND Active__c = TRUE AND Bank__r.Active__c = TRUE
             WITH USER_MODE

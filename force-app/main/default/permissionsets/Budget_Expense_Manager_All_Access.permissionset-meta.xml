@@ -101,6 +101,27 @@
     <!-- Expense_Group_Bank__c Field Permissions -->
     <fieldPermissions>
         <editable>true</editable>
+        <field>Expense_Group_Bank__c.Supported_Credit_Card__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Expense_Group_Bank__c.Supported_Debit_Card__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Expense_Group_Bank__c.Supported_Bank_Payment__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Expense_Group_Bank__c.Supported_Bank_Transfer__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+
+    <fieldPermissions>
+        <editable>true</editable>
         <field>Expense_Group_Bank__c.Active__c</field>
         <readable>true</readable>
     </fieldPermissions>

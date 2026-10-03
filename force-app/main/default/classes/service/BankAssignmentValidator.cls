@@ -24,6 +24,9 @@ public inherited sharing class BankAssignmentValidator {
         public Id bankAssignmentId;
         public Id categoryId;
         public Boolean requireActive;
+        public String transactionType;
+        public String legacyBank;
+        public Id generatedSourceId;
     }
 
     /**
@@ -68,22 +71,22 @@ public inherited sharing class BankAssignmentValidator {
     }
 
     private static Boolean requiresValidation(Expense__c expense, Expense__c oldExpense) {
-        return expense.Bank_Assignment__c != null &&
-            (oldExpense == null ||
+        return oldExpense == null ||
             expense.Bank_Assignment__c != oldExpense.Bank_Assignment__c ||
-            expense.Category__c != oldExpense.Category__c);
+            expense.Category__c != oldExpense.Category__c ||
+            expense.Transaction_Type__c != oldExpense.Transaction_Type__c ||
+            expense.Bank__c != oldExpense.Bank__c;
     }
 
     private static Boolean requiresValidation(
         Recurring_Expense__c recurringExpense,
         Recurring_Expense__c oldRecurringExpense
     ) {
-        if (recurringExpense.Bank_Assignment__c == null) {
-            return false;
-        }
         return oldRecurringExpense == null ||
             recurringExpense.Bank_Assignment__c != oldRecurringExpense.Bank_Assignment__c ||
             recurringExpense.Category__c != oldRecurringExpense.Category__c ||
+            recurringExpense.Transaction_Type__c != oldRecurringExpense.Transaction_Type__c ||
+            recurringExpense.Bank__c != oldRecurringExpense.Bank__c ||
             (oldRecurringExpense.Active__c != true &&
             recurringExpense.Active__c == true);
     }
@@ -93,6 +96,11 @@ public inherited sharing class BankAssignmentValidator {
         selection.recordToValidate = expense;
         selection.bankAssignmentId = expense.Bank_Assignment__c;
         selection.categoryId = expense.Category__c;
+        selection.transactionType = expense.Transaction_Type__c;
+        selection.legacyBank = expense.Bank__c;
+        if (oldExpense == null && expense.Id == null) {
+            selection.generatedSourceId = expense.Recurring_Expense__c;
+        }
         selection.requireActive =
             oldExpense == null ||
             expense.Bank_Assignment__c != oldExpense.Bank_Assignment__c;
@@ -107,6 +115,8 @@ public inherited sharing class BankAssignmentValidator {
         selection.recordToValidate = recurringExpense;
         selection.bankAssignmentId = recurringExpense.Bank_Assignment__c;
         selection.categoryId = recurringExpense.Category__c;
+        selection.transactionType = recurringExpense.Transaction_Type__c;
+        selection.legacyBank = recurringExpense.Bank__c;
         selection.requireActive =
             oldRecurringExpense == null ||
             recurringExpense.Bank_Assignment__c != oldRecurringExpense.Bank_Assignment__c ||
@@ -119,10 +129,59 @@ public inherited sharing class BankAssignmentValidator {
         if (selections.isEmpty()) {
             return;
         }
-        ValidationContext context = loadContext(selections);
+        List<Selection> assignedSelections = new List<Selection>();
+        Map<Id, Recurring_Expense__c> generationSources = loadHistoricalGenerationSources(selections);
         for (Selection selection : selections) {
+            if (selection.bankAssignmentId != null) {
+                assignedSelections.add(selection);
+            } else if (!isCashOrBlank(selection.transactionType) && String.isBlank(selection.legacyBank)) {
+                if (
+                    selection.generatedSourceId == null ||
+                    !matchesHistoricalGenerationSource((Expense__c) selection.recordToValidate, generationSources.get(selection.generatedSourceId))
+                ) {
+                    selection.recordToValidate.addError('Select a Bank assignment for this transaction type, or choose Cash.');
+                }
+            }
+        }
+        if (assignedSelections.isEmpty()) {
+            return;
+        }
+        ValidationContext context = loadContext(assignedSelections);
+        for (Selection selection : assignedSelections) {
             validateSelection(selection, context);
         }
+    }
+
+    private static Map<Id, Recurring_Expense__c> loadHistoricalGenerationSources(List<Selection> selections) {
+        Set<Id> sourceIds = new Set<Id>();
+        for (Selection selection : selections) {
+            if (
+                selection.generatedSourceId != null && selection.bankAssignmentId == null &&
+                !isCashOrBlank(selection.transactionType) && String.isBlank(selection.legacyBank)
+            ) {
+                sourceIds.add(selection.generatedSourceId);
+            }
+        }
+        if (sourceIds.isEmpty()) {
+            return new Map<Id, Recurring_Expense__c>();
+        }
+        return new Map<Id, Recurring_Expense__c>([
+            SELECT Id, Active__c, Category__c, Bank_Assignment__c, Bank__c, Transaction_Type__c
+            FROM Recurring_Expense__c
+            WHERE Id IN :sourceIds AND Active__c = TRUE
+            WITH SYSTEM_MODE
+        ]);
+    }
+
+    // Preserve generation from pre-feature active templates without exempting new user selections.
+    @TestVisible
+    private static Boolean matchesHistoricalGenerationSource(Expense__c expense, Recurring_Expense__c source) {
+        return expense.Id == null && source != null && source.Id != null &&
+            expense.Recurring_Expense__c == source.Id && source.Active__c == true &&
+            expense.Category__c == source.Category__c && source.Category__c != null &&
+            expense.Bank_Assignment__c == null && source.Bank_Assignment__c == null &&
+            String.isBlank(expense.Bank__c) && String.isBlank(source.Bank__c) &&
+            !isCashOrBlank(expense.Transaction_Type__c) && expense.Transaction_Type__c == source.Transaction_Type__c;
     }
 
     private static ValidationContext loadContext(List<Selection> selections) {
@@ -134,7 +193,9 @@ public inherited sharing class BankAssignmentValidator {
         }
         Map<Id, Expense_Group_Bank__c> assignmentsById = new Map<Id, Expense_Group_Bank__c>(
             [
-                SELECT Id, Active__c, Bank__r.Active__c, Expense_Group__c
+                SELECT Id, Active__c, Bank__r.Active__c, Expense_Group__c,
+                    Supported_Credit_Card__c, Supported_Debit_Card__c,
+                    Supported_Bank_Payment__c, Supported_Bank_Transfer__c
                 FROM Expense_Group_Bank__c
                 WHERE Id IN :assignmentIds
                 WITH SYSTEM_MODE
@@ -170,6 +231,28 @@ public inherited sharing class BankAssignmentValidator {
             assignment.Bank__r?.Active__c != true)
         ) {
             selection.recordToValidate.addError('Select an active Bank assignment.');
+            return;
+        }
+        if (!supportsTransactionType(assignment, selection.transactionType)) {
+            selection.recordToValidate.addError('The selected Bank assignment does not support ' + selection.transactionType + '.');
+        }
+    }
+
+    private static Boolean isCashOrBlank(String transactionType) {
+        return String.isBlank(transactionType) || transactionType == 'Cash';
+    }
+
+    /** Returns whether an assignment permits a payment method; Cash and blank legacy values are always allowed. */
+    public static Boolean supportsTransactionType(Expense_Group_Bank__c assignment, String transactionType) {
+        if (isCashOrBlank(transactionType)) {
+            return true;
+        }
+        switch on transactionType {
+            when 'Credit Card' { return assignment.Supported_Credit_Card__c == true; }
+            when 'Debit Card' { return assignment.Supported_Debit_Card__c == true; }
+            when 'Bank Payment' { return assignment.Supported_Bank_Payment__c == true; }
+            when 'Bank Transfer' { return assignment.Supported_Bank_Transfer__c == true; }
+            when else { return false; }
         }
     }
 }

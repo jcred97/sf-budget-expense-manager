@@ -7,6 +7,8 @@ import BANK_ASSIGNMENT_FIELD from '@salesforce/schema/Recurring_Expense__c.Bank_
 import LEGACY_BANK_FIELD from '@salesforce/schema/Recurring_Expense__c.Bank__c';
 import CATEGORY_FIELD from '@salesforce/schema/Recurring_Expense__c.Category__c';
 import NEXT_RUN_DATE_FIELD from '@salesforce/schema/Recurring_Expense__c.Next_Run_Date__c';
+import TRANSACTION_TYPE_FIELD from '@salesforce/schema/Recurring_Expense__c.Transaction_Type__c';
+import { CASH, paymentMethodOptions, normalizePaymentMethod } from 'c/expensePaymentMethods';
 
 import { getErrorMessage } from 'c/expenseErrorUtils';
 import { formatDate, formatDateISO } from 'c/expenseFormatters';
@@ -20,6 +22,7 @@ import {
 const NO_BANK_VALUE = '__NO_BANK__';
 const RECORD_CONTEXT_FIELDS = [
     ACTIVE_FIELD,
+    TRANSACTION_TYPE_FIELD,
     BANK_ASSIGNMENT_FIELD,
     LEGACY_BANK_FIELD,
     CATEGORY_FIELD,
@@ -38,6 +41,9 @@ export default class RecurringExpenseModal extends LightningElement {
 
     recurringExpenseObject = RECURRING_EXPENSE_OBJECT;
     categoryValue = '';
+    transactionTypeValue = CASH;
+    originalTransactionType = '';
+    _paymentContextRecordId;
     bankAssignmentValue = '';
     legacyBankValue = '';
     originalActive = true;
@@ -104,12 +110,17 @@ export default class RecurringExpenseModal extends LightningElement {
     @wire(getRecord, { recordId: '$recordIdForWire', fields: RECORD_CONTEXT_FIELDS })
     wiredRecordContext({ error, data }) {
         if (data && data.id === this.recordId) {
-            this.categoryValue = getFieldValue(data, CATEGORY_FIELD) || '';
-            this.bankAssignmentValue = getFieldValue(data, BANK_ASSIGNMENT_FIELD) || '';
-            this.legacyBankValue = getFieldValue(data, LEGACY_BANK_FIELD) || '';
-            this.originalActive = Boolean(getFieldValue(data, ACTIVE_FIELD));
+            if (this._paymentContextRecordId !== data.id) {
+                this.originalTransactionType = getFieldValue(data, TRANSACTION_TYPE_FIELD) || '';
+                this.transactionTypeValue = this.originalTransactionType;
+                this._paymentContextRecordId = data.id;
+                this.categoryValue = getFieldValue(data, CATEGORY_FIELD) || '';
+                this.bankAssignmentValue = getFieldValue(data, BANK_ASSIGNMENT_FIELD) || '';
+                this.legacyBankValue = getFieldValue(data, LEGACY_BANK_FIELD) || '';
+                this.originalActive = Boolean(getFieldValue(data, ACTIVE_FIELD));
+                this.bankSelectionTouched = false;
+            }
             this.nextRunDate = getFieldValue(data, NEXT_RUN_DATE_FIELD) || '';
-            this.bankSelectionTouched = false;
             this.recordContextError = '';
             this.isRecordContextLoading = false;
         } else if (error && this.recordIdForWire) {
@@ -122,7 +133,31 @@ export default class RecurringExpenseModal extends LightningElement {
         }
     }
 
+    get transactionTypeOptions() {
+        return paymentMethodOptions(
+            this.bankOptions,
+            this.normalizedBankAssignmentValue,
+            this.originalTransactionType,
+            this.isEditMode && !this.bankSelectionTouched
+        );
+    }
+
+    reconcileTransactionType() {
+        if (!this.bankOptionsLoading && !this.bankOptionsError && !this.isRecordContextLoading) {
+            this.transactionTypeValue = normalizePaymentMethod(
+                this.transactionTypeValue,
+                this.transactionTypeOptions,
+                this.isEditMode && !this.bankSelectionTouched && !this.originalTransactionType
+            );
+        }
+    }
+
+    handleTransactionTypeChange(event) {
+        this.transactionTypeValue = event.detail.value;
+    }
+
     renderedCallback() {
+        this.reconcileTransactionType();
         if (!this.isOpen) {
             return;
         }
@@ -184,6 +219,9 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     resetRecordContext() {
+        this._paymentContextRecordId = undefined;
+        this.originalTransactionType = '';
+        this.transactionTypeValue = CASH;
         this._latestRecordContextRetryId += 1;
         this.categoryValue = '';
         this.bankAssignmentValue = '';
@@ -303,6 +341,8 @@ export default class RecurringExpenseModal extends LightningElement {
         }
 
         fields.Category__c = this.categoryValue;
+        this.reconcileTransactionType();
+        fields.Transaction_Type__c = this.transactionTypeValue || null;
         if (!this.hasUntouchedLegacyBank) {
             fields.Bank_Assignment__c = this.normalizedBankAssignmentValue;
         }
@@ -352,6 +392,7 @@ export default class RecurringExpenseModal extends LightningElement {
     handleBankChange(event) {
         this.bankAssignmentValue = event.detail.value;
         this.bankSelectionTouched = true;
+        this.reconcileTransactionType();
         this.formError = '';
     }
 

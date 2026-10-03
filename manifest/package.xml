@@ -120,6 +120,10 @@
         <members>Expense_Group_Bank__c.Bank__c</members>
         <members>Expense_Group_Bank__c.Expense_Group__c</members>
         <members>Expense_Group_Bank__c.Expense_Group_Bank_Key__c</members>
+        <members>Expense_Group_Bank__c.Supported_Credit_Card__c</members>
+        <members>Expense_Group_Bank__c.Supported_Debit_Card__c</members>
+        <members>Expense_Group_Bank__c.Supported_Bank_Payment__c</members>
+        <members>Expense_Group_Bank__c.Supported_Bank_Transfer__c</members>
         <members>Recurring_Expense__c.Active__c</members>
         <members>Recurring_Expense__c.Amount__c</members>
         <members>Recurring_Expense__c.Bank_Assignment__c</members>
@@ -197,6 +201,7 @@
         <members>expenseListViewModel</members>
         <members>expenseModal</members>
         <members>expenseMonthNavigator</members>
+        <members>expensePaymentMethods</members>
         <members>expensePrintReport</members>
         <members>expenseSummaryCards</members>
         <members>expenseTransforms</members>

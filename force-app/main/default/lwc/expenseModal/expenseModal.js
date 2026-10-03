@@ -1,4 +1,7 @@
-import { LightningElement, api, track } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
+import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
+import TRANSACTION_TYPE_FIELD from '@salesforce/schema/Expense__c.Transaction_Type__c';
+import { CASH, paymentMethodOptions, normalizePaymentMethod } from 'c/expensePaymentMethods';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 import { multiplyDecimalHalfUp } from 'c/expenseCurrencyMath';
@@ -50,6 +53,11 @@ export default class ExpenseModal extends LightningElement {
     _hasFocusedInitialField = false;
     _exchangeRateRequestId = 0;
     categoryValue = '';
+    transactionTypeValue = CASH;
+    originalTransactionType = '';
+    _paymentContextRecordId;
+    isPaymentContextLoading = false;
+    paymentContextError = '';
     bankAssignmentValue = '';
     bankSelectionTouched = false;
     transactionTimeValue = '';
@@ -71,9 +79,16 @@ export default class ExpenseModal extends LightningElement {
             this.bankSelectionTouched = false;
             this.transactionTimeValue = '';
             this.expenseDateValue = '';
+            this.transactionTypeValue = CASH;
             this.resetForeignCurrencyState();
         }
         if (isOpening) {
+            if (this._recordId) {
+                this._paymentContextRecordId = undefined;
+                this.originalTransactionType = '';
+                this.isPaymentContextLoading = true;
+                this.paymentContextError = '';
+            }
             this._saveAndNew = false;
             this.isFormLoaded = false;
             this.formLoadError = '';
@@ -90,7 +105,15 @@ export default class ExpenseModal extends LightningElement {
     }
 
     set recordId(value) {
-        this._recordId = value;
+        const normalizedValue = value || null;
+        if (normalizedValue === this._recordId) {
+            return;
+        }
+        this._recordId = normalizedValue;
+        this._paymentContextRecordId = undefined;
+        this.isPaymentContextLoading = Boolean(value);
+        this.paymentContextError = '';
+        this.originalTransactionType = '';
         if (!value) {
             this.categoryValue = this._duplicateData?.Category__c || '';
             this.bankAssignmentValue = this._duplicateData?.Bank_Assignment__c || '';
@@ -98,6 +121,7 @@ export default class ExpenseModal extends LightningElement {
             this.transactionTimeValue = this.normalizeTimeForInput(
                 this._duplicateData?.Transaction_Time__c
             );
+            this.transactionTypeValue = this._duplicateData?.Transaction_Type__c || CASH;
             this.initializeCurrencyState(this._duplicateData);
         }
     }
@@ -114,11 +138,59 @@ export default class ExpenseModal extends LightningElement {
             this.bankAssignmentValue = value?.Bank_Assignment__c || '';
             this.bankSelectionTouched = false;
             this.transactionTimeValue = this.normalizeTimeForInput(value?.Transaction_Time__c);
+            this.transactionTypeValue = value?.Transaction_Type__c || CASH;
             this.initializeCurrencyState(value);
         }
     }
 
+    get paymentRecordId() {
+        return this.isOpen && this.recordId ? this.recordId : undefined;
+    }
+
+    @wire(getRecord, { recordId: '$paymentRecordId', fields: [TRANSACTION_TYPE_FIELD] })
+    wiredPaymentContext({ data, error }) {
+        if (data && data.id === this.recordId) {
+            if (this._paymentContextRecordId !== data.id) {
+                this.originalTransactionType = getFieldValue(data, TRANSACTION_TYPE_FIELD) || '';
+                this.transactionTypeValue = this.originalTransactionType;
+                this._paymentContextRecordId = data.id;
+            }
+            this.isPaymentContextLoading = false;
+            this.paymentContextError = '';
+        } else if (error && this.paymentRecordId) {
+            this.isPaymentContextLoading = false;
+            this.paymentContextError = getErrorMessage(
+                error,
+                'Failed to load the saved payment method. Close this dialog and try again.'
+            );
+        }
+    }
+
+    get transactionTypeOptions() {
+        return paymentMethodOptions(
+            this.bankOptions,
+            this.normalizedBankAssignmentValue,
+            this.originalTransactionType,
+            this.isEditMode && !this.bankSelectionTouched
+        );
+    }
+
+    reconcileTransactionType() {
+        if (!this.bankOptionsLoading && !this.bankOptionsError && !this.isPaymentContextLoading) {
+            this.transactionTypeValue = normalizePaymentMethod(
+                this.transactionTypeValue,
+                this.transactionTypeOptions,
+                this.isEditMode && !this.bankSelectionTouched && !this.originalTransactionType
+            );
+        }
+    }
+
+    handleTransactionTypeChange(event) {
+        this.transactionTypeValue = event.detail.value;
+    }
+
     renderedCallback() {
+        this.reconcileTransactionType();
         if (this.isOpen && !this.isRendered) {
             this.isRendered = true;
 
@@ -240,7 +312,7 @@ export default class ExpenseModal extends LightningElement {
     handleLoad(event) {
         this.formLoadError = '';
         this.isSubmitting = false;
-        if (this.isEditMode) {
+        if (this.isEditMode && !this.isFormLoaded) {
             const record = event.detail.records?.[this.recordId];
             this.categoryValue = record?.fields?.Category__c?.value || '';
             this.bankAssignmentValue =
@@ -277,13 +349,15 @@ export default class ExpenseModal extends LightningElement {
         }
 
         if (this.isSaveBlocked) {
-            const selector = this.formLoadError
-                ? '[data-form-load-error]'
-                : this.categoryOptionsError
-                  ? '[data-category-options-error]'
-                  : this.hasNoCategories
-                    ? '[data-category-empty]'
-                    : '[data-bank-options-error]';
+            const selector = this.paymentContextError
+                ? '[data-payment-context-error]'
+                : this.formLoadError
+                  ? '[data-form-load-error]'
+                  : this.categoryOptionsError
+                    ? '[data-category-options-error]'
+                    : this.hasNoCategories
+                      ? '[data-category-empty]'
+                      : '[data-bank-options-error]';
             this.template.querySelector(selector)?.focus();
             return;
         }
@@ -303,6 +377,8 @@ export default class ExpenseModal extends LightningElement {
         }
 
         const fields = { ...event.detail.fields };
+        this.reconcileTransactionType();
+        fields.Transaction_Type__c = this.transactionTypeValue || null;
         fields.Category__c = this.categoryValue;
         fields.Transaction_Time__c = this.normalizeTimeForSubmit(this.transactionTimeValue);
 
@@ -451,6 +527,7 @@ export default class ExpenseModal extends LightningElement {
     handleBankChange(event) {
         this.bankAssignmentValue = event.detail.value;
         this.bankSelectionTouched = true;
+        this.reconcileTransactionType();
     }
 
     handleRetryBanks() {
@@ -476,6 +553,7 @@ export default class ExpenseModal extends LightningElement {
             this.bankSelectionTouched = false;
             this.transactionTimeValue = '';
             this.expenseDateValue = '';
+            this.transactionTypeValue = CASH;
             this.resetForeignCurrencyState();
             this._saveAndNew = false;
             this._hasFocusedInitialField = false;
@@ -737,6 +815,7 @@ export default class ExpenseModal extends LightningElement {
     get isSaveBlocked() {
         return (
             Boolean(this.formLoadError) ||
+            Boolean(this.paymentContextError) ||
             this.isModalContentLoading ||
             this.isSubmitting ||
             this.isExchangeRateLoading ||
@@ -787,14 +866,23 @@ export default class ExpenseModal extends LightningElement {
     }
 
     get isModalContentLoading() {
-        if (this.formLoadError) {
+        if (this.formLoadError || this.paymentContextError) {
             return false;
         }
-        return !this.isFormLoaded || this.categoryOptionsLoading || this.bankOptionsLoading;
+        return (
+            !this.isFormLoaded ||
+            this.isPaymentContextLoading ||
+            this.categoryOptionsLoading ||
+            this.bankOptionsLoading
+        );
     }
 
     get isFormUnavailable() {
-        return this.isModalContentLoading || Boolean(this.formLoadError);
+        return (
+            this.isModalContentLoading ||
+            Boolean(this.formLoadError) ||
+            Boolean(this.paymentContextError)
+        );
     }
 
     get formFieldsClass() {
@@ -806,6 +894,9 @@ export default class ExpenseModal extends LightningElement {
     }
 
     get initialFocusSelector() {
+        if (this.paymentContextError) {
+            return '[data-payment-context-error]';
+        }
         if (this.formLoadError) {
             return '[data-form-load-error]';
         }

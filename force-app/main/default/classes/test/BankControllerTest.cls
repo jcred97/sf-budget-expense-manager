@@ -48,6 +48,11 @@ private class BankControllerTest {
         System.assertNotEquals(null, options[0].assignmentId, 'The selector must return its ID.');
         System.assertNotEquals(null, options[0].bankId, 'The selector must return the Bank ID.');
         System.assertEquals(
+            new List<String>{ 'Credit Card', 'Debit Card', 'Bank Payment', 'Bank Transfer' },
+            options[0].supportedTransactionTypes,
+            'New assignments should preserve all existing Bank methods by default.'
+        );
+        System.assertEquals(
             expenseGroup.Id,
             options[0].expenseGroupId,
             'The selector should retain the owning Expense Group.'
@@ -64,6 +69,66 @@ private class BankControllerTest {
         Test.stopTest();
 
         System.assertEquals(0, options.size(), 'A missing Expense Group should return no options.');
+    }
+
+    @IsTest
+    static void testPaymentMethodsAreConfiguredPerExpenseGroup() {
+        Expense_Group__c household = [SELECT Id FROM Expense_Group__c WHERE Name = 'Household' LIMIT 1];
+        Expense_Group__c travel = new Expense_Group__c(Name = 'Travel');
+        insert travel;
+        Bank__c bpi = [SELECT Id FROM Bank__c WHERE Name = 'BPI' LIMIT 1];
+        Expense_Group_Bank__c householdBank = [
+            SELECT Id FROM Expense_Group_Bank__c
+            WHERE Expense_Group__c = :household.Id AND Bank__c = :bpi.Id LIMIT 1
+        ];
+        householdBank.Supported_Credit_Card__c = true;
+        householdBank.Supported_Debit_Card__c = false;
+        householdBank.Supported_Bank_Payment__c = false;
+        householdBank.Supported_Bank_Transfer__c = false;
+        update householdBank;
+        Expense_Group_Bank__c travelBank = assignment(travel.Id, bpi.Id, true);
+        travelBank.Supported_Credit_Card__c = false;
+        travelBank.Supported_Debit_Card__c = true;
+        travelBank.Supported_Bank_Payment__c = false;
+        travelBank.Supported_Bank_Transfer__c = true;
+        insert travelBank;
+
+        Test.startTest();
+        List<ExpenseGroupBankOptionDto> householdOptions =
+            BankController.getAvailableExpenseGroupBanks(household.Id);
+        List<ExpenseGroupBankOptionDto> travelOptions =
+            BankController.getAvailableExpenseGroupBanks(travel.Id);
+        Test.stopTest();
+
+        System.assertEquals(bpi.Id, householdOptions[0].bankId, 'Household should return the global Bank.');
+        System.assertEquals(bpi.Id, travelOptions[0].bankId, 'Travel should return the same global Bank.');
+        System.assertEquals(new List<String>{ 'Credit Card' }, householdOptions[0].supportedTransactionTypes,
+            'Household should expose only its supported method.');
+        System.assertEquals(new List<String>{ 'Debit Card', 'Bank Transfer' }, travelOptions[0].supportedTransactionTypes,
+            'Travel should expose its own supported methods for the same Bank.');
+    }
+
+    @IsTest
+    static void testAssignmentWithNoBankMethodsReturnsEmptyList() {
+        Expense_Group__c household = [SELECT Id FROM Expense_Group__c WHERE Name = 'Household' LIMIT 1];
+        Bank__c bpi = [SELECT Id FROM Bank__c WHERE Name = 'BPI' LIMIT 1];
+        Expense_Group_Bank__c householdBank = [
+            SELECT Id FROM Expense_Group_Bank__c
+            WHERE Expense_Group__c = :household.Id AND Bank__c = :bpi.Id LIMIT 1
+        ];
+        householdBank.Supported_Credit_Card__c = false;
+        householdBank.Supported_Debit_Card__c = false;
+        householdBank.Supported_Bank_Payment__c = false;
+        householdBank.Supported_Bank_Transfer__c = false;
+        update householdBank;
+
+        Test.startTest();
+        List<ExpenseGroupBankOptionDto> options = BankController.getAvailableExpenseGroupBanks(household.Id);
+        Test.stopTest();
+
+        System.assertEquals(bpi.Id, options[0].bankId, 'The Bank should still be available as an assignment.');
+        System.assertEquals(new List<String>(), options[0].supportedTransactionTypes,
+            'No checked methods should produce an empty Bank-method list; Cash is a separate UI option.');
     }
 
     private static Expense_Group_Bank__c assignment(Id expenseGroupId, Id bankId, Boolean active) {

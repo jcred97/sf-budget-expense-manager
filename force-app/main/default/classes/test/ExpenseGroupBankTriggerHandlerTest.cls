@@ -202,6 +202,78 @@ private class ExpenseGroupBankTriggerHandlerTest {
         );
     }
 
+    @IsTest
+    static void testDisablingMethodsProtectsOnlyAssignmentsWithActiveTemplatesUsingThem() {
+        Expense_Group__c household = groupByName('Household');
+        Expense_Group__c travel = groupByName('Travel');
+        Bank__c bank = bankByName('BPI');
+        List<Expense_Group_Bank__c> assignments = new List<Expense_Group_Bank__c>{
+            assignment(household.Id, bank.Id, true),
+            assignment(travel.Id, bank.Id, true)
+        };
+        insert assignments;
+        List<Category__c> categories = new List<Category__c>{
+            new Category__c(Name = 'Bills', Expense_Group__c = household.Id),
+            new Category__c(Name = 'Flights', Expense_Group__c = travel.Id)
+        };
+        insert categories;
+        Recurring_Expense__c cardTemplate = new Recurring_Expense__c(
+            Name = 'Card subscription', Active__c = true, Amount__c = 100,
+            Category__c = categories[0].Id, Bank_Assignment__c = assignments[0].Id,
+            Frequency__c = 'Monthly', Start_Date__c = Date.today(), Transaction_Type__c = 'Credit Card'
+        );
+        Recurring_Expense__c cashTemplate = new Recurring_Expense__c(
+            Name = 'Cash subscription', Active__c = true, Amount__c = 100,
+            Category__c = categories[1].Id, Bank_Assignment__c = assignments[1].Id,
+            Frequency__c = 'Monthly', Start_Date__c = Date.today(), Transaction_Type__c = 'Cash'
+        );
+        insert new List<Recurring_Expense__c>{ cardTemplate, cashTemplate };
+        assignments[0].Supported_Credit_Card__c = false;
+        assignments[1].Supported_Credit_Card__c = false;
+        Test.startTest();
+        Database.SaveResult[] results = Database.update(assignments, false);
+        Test.stopTest();
+        System.assertEquals(false, results[0].isSuccess(), 'An active card template must block disabling Credit Card.');
+        System.assert(results[0].getErrors()[0].getMessage().contains('active recurring expenses'), 'The error should explain how to release the method.');
+        System.assertEquals(true, results[1].isSuccess(), 'An active Cash template must not block disabling Credit Card in another group.');
+        System.assertEquals(true, [SELECT Supported_Credit_Card__c FROM Expense_Group_Bank__c WHERE Id = :assignments[0].Id].Supported_Credit_Card__c, 'The blocked capability must remain enabled.');
+        cardTemplate.Transaction_Type__c = 'Cash';
+        update cardTemplate;
+        update assignments[0];
+        System.assertEquals(false, [SELECT Supported_Credit_Card__c FROM Expense_Group_Bank__c WHERE Id = :assignments[0].Id].Supported_Credit_Card__c, 'Changing the active template method should release the capability.');
+    }
+
+    @IsTest
+    static void testEachActiveMethodBlocksDisableUntilTemplatesAreInactive() {
+        Expense_Group__c household = groupByName('Household');
+        Expense_Group_Bank__c bankAssignment = assignment(household.Id, bankByName('BPI').Id, true);
+        insert bankAssignment;
+        Category__c category = new Category__c(Name = 'Bills', Expense_Group__c = household.Id);
+        insert category;
+        List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
+        for (String method : new List<String>{ 'Credit Card', 'Debit Card', 'Bank Payment', 'Bank Transfer' }) {
+            templates.add(new Recurring_Expense__c(
+                Name = method, Active__c = true, Amount__c = 100, Category__c = category.Id,
+                Bank_Assignment__c = bankAssignment.Id, Frequency__c = 'Monthly', Start_Date__c = Date.today(), Transaction_Type__c = method
+            ));
+        }
+        insert templates;
+        bankAssignment.Supported_Credit_Card__c = false;
+        bankAssignment.Supported_Debit_Card__c = false;
+        bankAssignment.Supported_Bank_Payment__c = false;
+        bankAssignment.Supported_Bank_Transfer__c = false;
+        Test.startTest();
+        Database.SaveResult blocked = Database.update(bankAssignment, false);
+        System.assertEquals(false, blocked.isSuccess(), 'Active templates using disabled methods must block the change.');
+        for (Recurring_Expense__c template : templates) {
+            template.Active__c = false;
+        }
+        update templates;
+        update bankAssignment;
+        Test.stopTest();
+        System.assertEquals(false, [SELECT Supported_Debit_Card__c FROM Expense_Group_Bank__c WHERE Id = :bankAssignment.Id].Supported_Debit_Card__c, 'Inactive templates must not prevent method changes.');
+    }
+
     private static Expense_Group_Bank__c assignment(Id groupId, Id bankId, Boolean active) {
         return new Expense_Group_Bank__c(
             Expense_Group__c = groupId,
