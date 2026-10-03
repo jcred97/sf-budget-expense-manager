@@ -50,7 +50,7 @@ public inherited sharing class ExpenseGroupBankTriggerHandler {
                 WITH SYSTEM_MODE
             ]
         );
-        applyInactiveBankErrors(assignments, bankIdsToValidate, banksById);
+        applyInactiveBankErrors(assignments, oldAssignments, banksById);
     }
 
     private static Set<Id> getBankIdsToValidate(
@@ -60,15 +60,20 @@ public inherited sharing class ExpenseGroupBankTriggerHandler {
         Set<Id> bankIds = new Set<Id>();
         for (Expense_Group_Bank__c assignment : assignments) {
             Expense_Group_Bank__c oldAssignment = oldAssignments?.get(assignment.Id);
-            if (
-                isNewOrReactivated(assignment, oldAssignment) &&
-                assignment.Active__c == true &&
-                assignment.Bank__c != null
-            ) {
+            if (requiresActiveBankValidation(assignment, oldAssignment)) {
                 bankIds.add(assignment.Bank__c);
             }
         }
         return bankIds;
+    }
+
+    private static Boolean requiresActiveBankValidation(
+        Expense_Group_Bank__c assignment,
+        Expense_Group_Bank__c oldAssignment
+    ) {
+        return isNewOrReactivated(assignment, oldAssignment) &&
+            assignment.Active__c == true &&
+            assignment.Bank__c != null;
     }
 
     private static Boolean isNewOrReactivated(
@@ -82,11 +87,12 @@ public inherited sharing class ExpenseGroupBankTriggerHandler {
 
     private static void applyInactiveBankErrors(
         List<Expense_Group_Bank__c> assignments,
-        Set<Id> bankIdsToValidate,
+        Map<Id, Expense_Group_Bank__c> oldAssignments,
         Map<Id, Bank__c> banksById
     ) {
         for (Expense_Group_Bank__c assignment : assignments) {
-            if (!bankIdsToValidate.contains(assignment.Bank__c)) {
+            Expense_Group_Bank__c oldAssignment = oldAssignments?.get(assignment.Id);
+            if (!requiresActiveBankValidation(assignment, oldAssignment)) {
                 continue;
             }
             Bank__c bank = banksById.get(assignment.Bank__c);

@@ -105,6 +105,58 @@ private class ExpenseGroupBankTriggerHandlerTest {
     }
 
     @IsTest
+    static void testMixedInsertValidatesOnlyActiveAssignment() {
+        Bank__c bank = bankByName('Closed Bank');
+        List<Expense_Group_Bank__c> assignments = new List<Expense_Group_Bank__c>{
+            assignment(groupByName('Household').Id, bank.Id, true),
+            assignment(groupByName('Travel').Id, bank.Id, false)
+        };
+
+        Test.startTest();
+        Database.SaveResult[] results = Database.insert(assignments, false);
+        Test.stopTest();
+
+        System.assertEquals(false, results[0].isSuccess(), 'An active assignment must reject an inactive Bank.');
+        System.assert(
+            results[0].getErrors()[0].getMessage().contains('active global Bank'),
+            'The invalid row should explain the active Bank requirement.'
+        );
+        System.assertEquals(true, results[1].isSuccess(), 'An inactive assignment to the same Bank must succeed.');
+        System.assertEquals(
+            false,
+            [SELECT Active__c FROM Expense_Group_Bank__c WHERE Id = :assignments[1].Id].Active__c,
+            'The valid inactive assignment should be persisted.'
+        );
+    }
+
+    @IsTest
+    static void testMixedUpdateValidatesOnlyReactivatedAssignment() {
+        Bank__c bank = bankByName('Closed Bank');
+        List<Expense_Group_Bank__c> assignments = new List<Expense_Group_Bank__c>{
+            assignment(groupByName('Household').Id, bank.Id, false),
+            assignment(groupByName('Travel').Id, bank.Id, false)
+        };
+        insert assignments;
+        assignments[0].Active__c = true;
+
+        Test.startTest();
+        Database.SaveResult[] results = Database.update(assignments, false);
+        Test.stopTest();
+
+        System.assertEquals(false, results[0].isSuccess(), 'Reactivation must reject an inactive Bank.');
+        System.assert(
+            results[0].getErrors()[0].getMessage().contains('active global Bank'),
+            'The reactivated row should explain the active Bank requirement.'
+        );
+        System.assertEquals(true, results[1].isSuccess(), 'An unchanged inactive assignment to the same Bank must succeed.');
+        Map<Id, Expense_Group_Bank__c> savedAssignments = new Map<Id, Expense_Group_Bank__c>([
+            SELECT Id, Active__c FROM Expense_Group_Bank__c WHERE Bank__c = :bank.Id
+        ]);
+        System.assertEquals(false, savedAssignments.get(assignments[0].Id).Active__c, 'The failed reactivation must remain inactive.');
+        System.assertEquals(false, savedAssignments.get(assignments[1].Id).Active__c, 'The unchanged inactive assignment should remain inactive.');
+    }
+
+    @IsTest
     static void testDeactivationBlockedUntilRecurringTemplateInactive() {
         Expense_Group__c groupRecord = groupByName('Household');
         Bank__c bank = bankByName('BPI');
