@@ -79,6 +79,10 @@ Budget_Expense_Manager_Setting__c
   - Last_Recurring_Run_Status__c
   - Last_Recurring_Run_Message__c
 
+Recurring_Expense_Run__c (internal, Private)
+  - Job_Id__c (unique Salesforce batch job ID)
+  - Has_Catch_Up_Remaining__c (generation-limit snapshot for that job)
+
 Legacy `Spending__c` metadata has been removed. `Expense_Group__c` is the active top-level object.
 ```
 
@@ -167,7 +171,7 @@ entry points live under `classes/async` without changing their Salesforce metada
 - `RecurringExpenseController.getRecurringExpenseOverview(expenseGroupId)` - first recurring-template page with complete group totals. `getRecurringExpensePage(expenseGroupId, cursor, pageSize)` continues the same user-mode keyset query; `deactivateRecurringExpense(recurringExpenseId)` remains the normal-user command entry point.
 - `RecurringExpenseAutomationController.generateDueExpenses()` - creates due recurring expenses up to a bulk-safe cap, updates recurrence tracking dates, and returns a top-level generation DTO.
 - `RecurringExpenseAutomationController.runDueExpensesBatch()` - Admin/All Access entry point that starts the Batch Apex generator and returns the batch job ID.
-- `RecurringExpenseAutomationController.getRecurringRunStatus(jobId)` - non-cacheable status read restricted to the current user's `RecurringExpenseBatch` batch jobs. Returns job status, terminal flag, error count, and progress counters without exposing arbitrary job details.
+- `RecurringExpenseAutomationController.getRecurringRunStatus(jobId)` - non-cacheable status read restricted to the current user's `RecurringExpenseBatch` batch jobs. Returns job status, terminal flag, error count, progress counters, and an available job-specific generation-limit outcome without exposing arbitrary job details. After validating job ownership and class, automation-owned outcomes are read in system mode; no direct object-edit permission is granted.
 - `RecurringExpenseCalculator` - owns recurrence due-date checks and next-run-date calculations for daily, weekly, monthly, and yearly frequencies.
 - `RecurringExpenseBatch` - Batch Apex processor for due recurring expenses. Each batch chunk creates expenses and advances `Next_Run_Date__c`.
 - `RecurringExpenseScheduler.execute(context)` - scheduled Apex wrapper that starts `RecurringExpenseBatch`.
@@ -205,7 +209,8 @@ Admin and All Access provide effectively equivalent app capabilities, including 
 - Expense listing starts with 20 rows, loads 10 more per request, and debounces search by 300 ms. Keyset ordering uses expense date, transaction time, creation time, and ID; the cursor is checked against the filter scope. Reports fetch all pages in batches of 200, deduplicate IDs, reject looping cursors, and cancel stale requests.
 - Dashboard summaries use server aggregates across the matching filter scope. Expense-detail payload is bounded to five recent rows and one largest row; category charts return the top six labels and bank charts retain all aggregate labels. Six-month trend and budget history remain separate bounded-period reads. Aggregate group cardinality and Salesforce query governor limits still apply.
 - Recurring overview initially loads 50 templates and supports Load more with keyset pagination, ordered by active status, next run date (null last), name, and record ID. Counts and monthly estimates describe all matching templates through separate aggregates. A read-only `Due_For_Generation__c` formula preserves the due rule, including valid ended-schedule catch-up occurrences, for complete due counts.
-- Synchronous recurring generation caps output at 200 expenses; each batch transaction caps at 9,000 and processes a scope of 50 templates. Lock/reload and due-date rechecks protect generation, while retained next-run pointers allow catch-up to resume. Batch finish records aggregate results and failed-chunk status; reaching a cap is not clearly reported as unfinished catch-up.
+- Synchronous recurring generation caps output at 200 expenses; each batch transaction caps at 9,000 and processes a scope of 50 templates. Lock/reload and due-date rechecks protect generation, while retained next-run pointers allow catch-up to resume. Batch finish retains generation-limit flags across chunks and records an outcome keyed to the job, alongside the latest settings summary. Failed chunks take precedence over catch-up warnings. A limit flag describes that run; overlapping or later runs may already have cleared the backlog. No automatic follow-up batch is queued.
+- Internal recurring outcomes create one record per finished job. Automated retention cleanup is not implemented.
 
 ## Review Follow-ups
 
@@ -214,6 +219,8 @@ The confirmed functional findings have source fixes. Deployment status and remai
 Both manual-run screens use the shared `recurringRunMonitor` to retain the submitted job ID, display queued/running/terminal state, and block repeated submissions while pending. Sequential status polling is bounded; a failed check or exhausted polling window retains the busy state and offers Retry status. With no mounted subscribers, timers stop and stale replies are ignored; reconnecting resumes pending tracking. State is held in page memory and does not recover across a full browser reload or another browser tab.
 
 ## Source Versus Org State
+
+Recurring generation-limit warnings and per-job outcomes were deployed to `mainDevOrg` on 2026-10-04 (`0AfgK00000VJrl7SAD`), with 55 Apex tests and 138 Jest tests passing. Validation is recorded in [testing notes](testing-and-tooling.md).
 
 Dashboard aggregation was deployed to `mainDevOrg` on 2026-10-04 (`0AfgK00000VJZufSAH`), with 43 Apex tests and 132 Jest tests passing. See [testing notes](testing-and-tooling.md) for completeness checks and query boundaries.
 

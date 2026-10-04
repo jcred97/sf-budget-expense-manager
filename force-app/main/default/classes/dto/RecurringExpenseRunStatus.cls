@@ -12,4 +12,8 @@ public class RecurringExpenseRunStatus {
     public Integer jobItemsProcessed;
     @AuraEnabled
     public Integer totalJobItems;
+    @AuraEnabled
+    public Boolean outcomeAvailable = false;
+    @AuraEnabled
+    public Boolean hasCatchUpRemaining = false;
 }

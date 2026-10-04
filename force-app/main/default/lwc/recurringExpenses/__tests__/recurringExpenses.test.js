@@ -135,6 +135,41 @@ describe('recurring screen', () => {
         expect(completed).not.toHaveBeenCalled();
         keepMonitorConnected();
     });
+    it('warns when a completed run reached the cap, refreshes once, and permits explicit rerun', async () => {
+        const element = await mountRecurring();
+        refreshApex.mockClear();
+        runDueExpensesBatch.mockResolvedValue('batch-job');
+        getRecurringRunStatus.mockResolvedValueOnce({
+            jobId: 'batch-job',
+            status: 'Completed',
+            isTerminal: true,
+            numberOfErrors: 0,
+            outcomeAvailable: true,
+            hasCatchUpRemaining: true
+        });
+        const completed = jest.fn();
+        const toast = jest.fn();
+        element.addEventListener('generationcompleted', completed);
+        element.addEventListener('lightning__showtoast', toast);
+        findButton(element, 'Run Recurring').click();
+        await flush();
+        await flush();
+        const status = element.shadowRoot.querySelector('[role="status"]');
+        expect(status.textContent).toContain('Catch-up may remain');
+        expect(status.classList.contains('slds-theme_warning')).toBe(true);
+        expect(toast.mock.calls[0][0].detail.variant).toBe('warning');
+        expect(refreshApex).toHaveBeenCalledTimes(1);
+        expect(completed).toHaveBeenCalledTimes(1);
+        expect(findButton(element, 'Run again').disabled).toBe(false);
+        expect(runDueExpensesBatch).toHaveBeenCalledTimes(1);
+        findButton(element, 'Run again').click();
+        await flush();
+        await flush();
+        expect(runDueExpensesBatch).toHaveBeenCalledTimes(2);
+        expect(element.shadowRoot.querySelector('[role="status"]').textContent).not.toContain(
+            'Catch-up may remain'
+        );
+    });
 
     it('presents recurring server rows through the combined view model', async () => {
         const element = await mount();

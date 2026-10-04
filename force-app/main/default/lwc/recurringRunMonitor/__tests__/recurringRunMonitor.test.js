@@ -81,6 +81,88 @@ it('retains job and run lock on check failure, then retries the same job', async
     expect(getRecurringRunStatus).toHaveBeenLastCalledWith({ jobId: 'job' });
     expect(listener.mock.calls.at(-1)[0].terminal).toBe(true);
 });
+it('reports a limited completed run without chaining and clears its warning on explicit rerun', async () => {
+    getRecurringRunStatus.mockResolvedValueOnce({
+        ...result('Completed', true),
+        outcomeAvailable: true,
+        hasCatchUpRemaining: true
+    });
+    await startRecurringRun();
+    await flush();
+    expect(listener.mock.calls.at(-1)[0]).toMatchObject({
+        busy: false,
+        terminal: true,
+        hasCatchUpRemaining: true,
+        label: 'Completed; catch-up may remain'
+    });
+    expect(listener.mock.calls.at(-1)[0].message).toContain('run again if needed');
+    jest.advanceTimersByTime(20000);
+    await flush();
+    expect(runDueExpensesBatch).toHaveBeenCalledTimes(1);
+    getRecurringRunStatus.mockResolvedValue({
+        ...result('Completed', true),
+        outcomeAvailable: true,
+        hasCatchUpRemaining: false
+    });
+    await startRecurringRun();
+    await flush();
+    expect(runDueExpensesBatch).toHaveBeenCalledTimes(2);
+    expect(listener.mock.calls.at(-1)[0]).toMatchObject({
+        label: 'Completed',
+        hasCatchUpRemaining: false,
+        message: ''
+    });
+});
+it('does not claim catch-up completion when the exact job outcome is unavailable', async () => {
+    getRecurringRunStatus.mockResolvedValue({
+        ...result('Completed', true),
+        outcomeAvailable: false,
+        hasCatchUpRemaining: false
+    });
+    await startRecurringRun();
+    await flush();
+    expect(listener.mock.calls.at(-1)[0]).toMatchObject({
+        busy: false,
+        label: 'Completed; catch-up status unavailable',
+        hasCatchUpRemaining: false
+    });
+});
+it('rejects another job outcome and keeps the requested run locked until its status is verified', async () => {
+    getRecurringRunStatus.mockResolvedValueOnce({
+        ...result('Completed', true),
+        jobId: 'another-job',
+        outcomeAvailable: true,
+        hasCatchUpRemaining: true
+    });
+    await startRecurringRun();
+    await flush();
+    expect(listener.mock.calls.at(-1)[0]).toMatchObject({
+        busy: true,
+        jobId: 'job',
+        retry: true,
+        label: 'Queued'
+    });
+    expect(listener.mock.calls.at(-1)[0].hasCatchUpRemaining).not.toBe(true);
+    await startRecurringRun();
+    expect(runDueExpensesBatch).toHaveBeenCalledTimes(1);
+    retryRecurringRun();
+    await flush();
+    expect(getRecurringRunStatus).toHaveBeenLastCalledWith({ jobId: 'job' });
+    expect(listener.mock.calls.at(-1)[0]).toMatchObject({ busy: false, label: 'Completed' });
+});
+it('prioritizes transaction errors over the generation-limit warning', async () => {
+    getRecurringRunStatus.mockResolvedValue({
+        ...result('Completed', true, 1),
+        outcomeAvailable: true,
+        hasCatchUpRemaining: true
+    });
+    await startRecurringRun();
+    await flush();
+    expect(listener.mock.calls.at(-1)[0]).toMatchObject({
+        label: 'Completed with errors',
+        hasCatchUpRemaining: false
+    });
+});
 it('bounds polling and requires explicit retry while retaining the pending run', async () => {
     getRecurringRunStatus.mockResolvedValue(result('Processing'));
     await startRecurringRun();

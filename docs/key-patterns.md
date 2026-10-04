@@ -265,6 +265,13 @@ default record when missing. The `budgetExpenseSettings` LWC enters Apex through
 Lightning entry points. The page lets authorized users enable or disable recurring expense
 generation, manually queue a recurring run, and view the most recent run status.
 
+Capped recurring runs preserve the first ungenerated date and expose a catch-up warning
+after completion. Both manual-run screens use the outcome for their submitted job,
+rather than borrowing the latest global settings result. Failed chunks retain error
+priority. The limit flag is a snapshot: a later run may already have caught up, so the
+message asks users to review due templates and run again if needed. Run becomes available
+again after terminal completion; the scheduler remains daily and does not chain batches.
+
 Save, inputs, and manual run remain disabled until settings load successfully. Failed loads
 show an inline error and Retry. Save and Refresh handlers reject overlapping operations;
 a failed refresh locks the form until a successful retry. This source fix is not yet deployed.

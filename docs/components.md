@@ -48,7 +48,8 @@
 | `classes/service/FrankfurterExchangeRateProvider.cls`         | HTTP and JSON boundary for ECB-pinned Frankfurter v2 reference rates                                                                         |
 | `classes/service/ExpenseCurrencyService.cls`                  | Bulk-safe optional FX snapshot normalization, validation, and canonical PHP calculation                                                      |
 | `classes/service/`                                            | Non-Lightning business/query services for bank validation, budgets, expenses, recurring generation, currency, and settings behavior                                 |
-| `classes/async/`                                              | Batch and Schedulable recurring-expense execution entry points                                                                               |
+| `classes/async/`                                              | Batch and Schedulable recurring-expense execution entry points; batch completion persists job-specific generation-limit outcomes |
+| `objects/Recurring_Expense_Run__c/`                           | Private automation-owned outcome keyed to a recurring batch job; no direct app object access grants |
 | `classes/test/`                                               | Apex tests grouped separately from production classes                                                                                        |
 
 ## Screen Lifetime And Events

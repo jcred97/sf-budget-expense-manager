@@ -6,6 +6,10 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
     @TestVisible
     private Integer totalExpensesCreated = 0;
     private Integer totalRecurringExpensesProcessed = 0;
+    @TestVisible
+    private Boolean hasCatchUpRemaining = false;
+    @TestVisible
+    private Integer generationLimit = 9000;
 
     /** Creates a recurring-expense batch for the current date. */
     public RecurringExpenseBatch() {
@@ -69,7 +73,13 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
             return;
         }
 
-        RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(recurringExpenses, runDate);
+        RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(recurringExpenses, runDate, generationLimit);
+        recordGenerationResult(result);
+    }
+
+    @TestVisible
+    private void recordGenerationResult(RecurringExpenseGenerationResult result) {
+        hasCatchUpRemaining = hasCatchUpRemaining || result.hitGenerationLimit;
         totalExpensesCreated += result.expensesCreated;
         totalRecurringExpensesProcessed += result.recurringExpensesProcessed;
     }
@@ -86,10 +96,20 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
 
     @TestVisible
     private void finishWithJob(AsyncApexJob job) {
+        // Automation owns these outcomes; app users do not receive object write access.
+        Database.upsert(
+            new Recurring_Expense_Run__c(Job_Id__c = String.valueOf(job.Id), Has_Catch_Up_Remaining__c = hasCatchUpRemaining),
+            Recurring_Expense_Run__c.Job_Id__c,
+            AccessLevel.SYSTEM_MODE
+        );
         if (job.NumberOfErrors > 0) {
-            BudgetExpenseSettingsService.markRecurringRunFailed(totalExpensesCreated > 0 ? 'Completed with errors' : 'Failed', totalExpensesCreated, job);
+            BudgetExpenseSettingsService.markRecurringRunFailed(
+                totalExpensesCreated > 0 ? 'Completed with errors' : 'Failed',
+                totalExpensesCreated,
+                job
+            );
             return;
         }
-        BudgetExpenseSettingsService.markRecurringRunCompleted(totalExpensesCreated, totalRecurringExpensesProcessed);
+        BudgetExpenseSettingsService.markRecurringRunCompleted(totalExpensesCreated, totalRecurringExpensesProcessed, hasCatchUpRemaining);
     }
 }

@@ -35,6 +35,8 @@
                 <default>false</default>
                 <label>Completed with errors</label>
             </value>
+            <value><fullName>Completed; catch-up may remain</fullName><default>false</default><label
+                >Completed; catch-up may remain</label></value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

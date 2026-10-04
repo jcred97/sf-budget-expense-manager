@@ -93,7 +93,8 @@ public with sharing class RecurringExpenseService {
         return generateDueExpenses(dueRecurringExpenses, runDate, MAX_BATCH_EXPENSES);
     }
 
-    private static RecurringExpenseGenerationResult generateDueExpenses(
+    /** Generates a batch scope with a cap no greater than the transaction-safe maximum. */
+    public static RecurringExpenseGenerationResult generateDueExpenses(
         List<Recurring_Expense__c> dueRecurringExpenses,
         Date runDate,
         Integer maxExpenses
@@ -103,7 +104,10 @@ public with sharing class RecurringExpenseService {
         }
         RecurringExpenseGenerator.GenerationOptions options = new RecurringExpenseGenerator.GenerationOptions();
         options.runDate = runDate;
-        options.maxExpenses = maxExpenses;
+        if (maxExpenses == null || maxExpenses < 1) {
+            throw new AuraHandledException('Generation limit must be positive.');
+        }
+        options.maxExpenses = Math.min(maxExpenses, MAX_BATCH_EXPENSES);
         options.generatedTransactionTime = getCurrentUserTime();
         return RecurringExpenseGenerator.generate(dueRecurringExpenses, options);
     }

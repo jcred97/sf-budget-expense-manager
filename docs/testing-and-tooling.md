@@ -1,5 +1,15 @@
 # Testing And Tooling
 
+## Recurring Catch-up Warning Verification — 2026-10-04
+
+- Source retains generation-limit flags across batch chunks and persists an internal outcome keyed to the exact Salesforce job. Both manual-run screens warn that catch-up may remain and offer an explicit rerun; the daily scheduler does not chain more batches. Failed chunks retain priority over warnings, and missing historical outcomes are reported as unknown.
+- Combined check-only validation `0AfgK00000VJj7eSAD` against `mainDevOrg` passed **55/55 Apex tests** and all **14 components**. Batch, automation controller, and run-status DTO coverage is **100%**; recurring service coverage is **96.30%** (52/54), and settings service coverage is **94.48%** (154/163).
+- Actual generation tests lower the cap to two expenses, verify the first ungenerated pointer, resume from a stale candidate without duplicate dates, and distinguish exact-cap completion from unfinished catch-up. Outcome tests cover job isolation from latest settings, missing historical outcomes, and rejection of another user's job even when its outcome exists. Tests do not establish concurrent multi-transaction behavior.
+- Jest passed **138 tests across 15 suites**; lint, targeted formatting, and diff checks passed. UI regressions cover both warning screens, terminal refresh, explicit reruns, unknown outcomes, errors taking precedence, and rejection of mismatched job replies.
+- Initial check-only validation `0AfgK00000VJnj8SAD` was blocked by the existing daily scheduled job. The previously authorized temporary Deployment Settings option was enabled for validation and restored to disabled afterward. The original schedule `08egK00000hRaZiQAK` retained its ID, owner, `Asia/Manila` timezone, and `0 0 8 * * ?` cron.
+- Deployment to `mainDevOrg` succeeded on 2026-10-04 (`0AfgK00000VJrl7SAD`): all **14 components** deployed and **55/55 Apex tests** passed. The temporary Deployment Settings option was restored to disabled, and the original daily schedule retained its identity, owner, timezone, and cron.
+- This change adds one private outcome record per finished job; automated retention cleanup is not implemented.
+
 ## Dashboard Aggregate Verification — 2026-10-04
 
 - Source replaces the dashboard's full matching expense-row read with `ExpenseController.getDashboardSummary()`. Complete summary aggregates drive totals, counts, charts, insights, empty states, and budget spending; detail payload contains at most five recent expenses and one largest expense. Six-month trend and budget history remain separate reads.

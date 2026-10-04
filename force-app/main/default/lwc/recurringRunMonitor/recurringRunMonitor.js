@@ -25,15 +25,41 @@ async function poll() {
         if (requestVersion !== version) return;
         if (!result || result.jobId !== state.jobId) throw new Error('Unable to verify this run.');
         const terminal = result.isTerminal === true;
+        const completedWithoutErrors = result.status === 'Completed' && !result.numberOfErrors;
+        const hasCatchUpRemaining =
+            terminal &&
+            completedWithoutErrors &&
+            result.outcomeAvailable === true &&
+            result.hasCatchUpRemaining === true;
+        const outcomeUnknown =
+            terminal && completedWithoutErrors && result.outcomeAvailable === false;
+        const message = hasCatchUpRemaining
+            ? 'Run reached the generation limit. Catch-up may remain; review due templates and run again if needed, or wait for the next scheduled run.'
+            : outcomeUnknown
+              ? 'Run completed. Catch-up status is unavailable for this run. Refresh the recurring overview to check remaining due templates.'
+              : '';
         const label =
             result.status === 'Completed' && result.numberOfErrors > 0
                 ? 'Completed with errors'
-                : ['Processing', 'Preparing'].includes(result.status)
-                  ? 'Running'
-                  : ['Holding', 'Queued'].includes(result.status)
-                    ? 'Queued'
-                    : result.status;
-        state = { ...state, busy: !terminal, terminal, label, retry: false, error: '' };
+                : hasCatchUpRemaining
+                  ? 'Completed; catch-up may remain'
+                  : outcomeUnknown
+                    ? 'Completed; catch-up status unavailable'
+                    : ['Processing', 'Preparing'].includes(result.status)
+                      ? 'Running'
+                      : ['Holding', 'Queued'].includes(result.status)
+                        ? 'Queued'
+                        : result.status;
+        state = {
+            ...state,
+            busy: !terminal,
+            terminal,
+            label,
+            message,
+            hasCatchUpRemaining,
+            retry: false,
+            error: ''
+        };
         if (!terminal && attempts >= 150) {
             state = {
                 ...state,

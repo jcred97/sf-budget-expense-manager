@@ -16,6 +16,8 @@ private class RecurringExpenseAutomationControllerTest {
         System.assertEquals(true, completed.isTerminal);
         System.assertEquals(0, completed.numberOfErrors);
         System.assertEquals(completed.totalJobItems, completed.jobItemsProcessed);
+        System.assertEquals(true, completed.outcomeAvailable);
+        System.assertEquals(false, completed.hasCatchUpRemaining);
     }
 
     @IsTest
@@ -24,6 +26,29 @@ private class RecurringExpenseAutomationControllerTest {
         Expense_Group__c groupRecord = new Expense_Group__c(Name = 'Wrong object');
         insert groupRecord;
         assertUnavailable(groupRecord.Id);
+    }
+
+    @IsTest
+    static void testJobOutcomeIgnoresOtherRunsAndMissingLegacyOutcome() {
+        Test.startTest();
+        Id jobId = Database.executeBatch(new RecurringExpenseBatch(), 1);
+        Test.stopTest();
+        Recurring_Expense_Run__c ownOutcome = [
+            SELECT Id, Has_Catch_Up_Remaining__c
+            FROM Recurring_Expense_Run__c
+            WHERE Job_Id__c = :String.valueOf(jobId)
+        ];
+        ownOutcome.Has_Catch_Up_Remaining__c = true;
+        update ownOutcome;
+        BudgetExpenseSettingsService.markRecurringRunCompleted(1, 1);
+        insert new Recurring_Expense_Run__c(Job_Id__c = 'another-run', Has_Catch_Up_Remaining__c = false);
+        RecurringExpenseRunStatus status = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
+        System.assertEquals(true, status.outcomeAvailable);
+        System.assertEquals(true, status.hasCatchUpRemaining, 'A newer singleton summary or another job must not hide this job cap.');
+        delete ownOutcome;
+        status = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
+        System.assertEquals(false, status.outcomeAvailable, 'Older jobs without a durable outcome have an unknown catch-up result.');
+        System.assertEquals(false, status.hasCatchUpRemaining);
     }
 
     @IsTest
@@ -46,6 +71,10 @@ private class RecurringExpenseAutomationControllerTest {
             assertUnavailable(jobId);
         }
         Test.stopTest();
+        System.assertEquals(1, [SELECT COUNT() FROM Recurring_Expense_Run__c WHERE Job_Id__c = :String.valueOf(jobId)]);
+        System.runAs(otherUser) {
+            assertUnavailable(jobId);
+        }
     }
 
     @IsTest

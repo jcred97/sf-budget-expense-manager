@@ -71,6 +71,14 @@ export default class BudgetExpenseSettings extends LightningElement {
     get runStatusLabel() {
         return this.runState.label;
     }
+    get runStatusMessage() {
+        return this.runState.message;
+    }
+    get runStatusClass() {
+        return this.runState.hasCatchUpRemaining
+            ? 'slds-box slds-theme_warning slds-m-bottom_medium'
+            : 'slds-box slds-theme_default slds-m-bottom_medium';
+    }
     get runStatusError() {
         return this.runState.error;
     }
@@ -88,14 +96,19 @@ export default class BudgetExpenseSettings extends LightningElement {
                 : 'Recurring run needs attention',
             state.label === 'Completed'
                 ? 'Recurring expenses have finished generating.'
-                : `Run status: ${state.label}. Some expenses may have been generated.`,
+                : state.message ||
+                      `Run status: ${state.label}. Some expenses may have been generated.`,
             state.label === 'Completed' ? 'success' : 'warning'
         );
         await this.loadSettings();
     }
 
     get runButtonLabel() {
-        return this.isRunning ? 'Running...' : 'Run Recurring';
+        return this.isRunning
+            ? 'Running...'
+            : this.runState.hasCatchUpRemaining
+              ? 'Run again'
+              : 'Run Recurring';
     }
 
     get canRunRecurringExpenses() {

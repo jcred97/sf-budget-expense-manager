@@ -37,7 +37,22 @@ public with sharing class RecurringExpenseAutomationController {
         if (jobs.isEmpty()) {
             throw unavailableRun();
         }
-        return statusForJob(jobs[0]);
+        RecurringExpenseRunStatus result = statusForJob(jobs[0]);
+        if (result.isTerminal) {
+            // Authorize the exact job above before reading its internal outcome in system mode.
+            String requestedJobId = String.valueOf(jobId);
+            List<Recurring_Expense_Run__c> outcomes = [
+                SELECT Has_Catch_Up_Remaining__c
+                FROM Recurring_Expense_Run__c
+                WHERE Job_Id__c = :requestedJobId
+                LIMIT 1
+            ];
+            if (!outcomes.isEmpty()) {
+                result.outcomeAvailable = true;
+                result.hasCatchUpRemaining = outcomes[0].Has_Catch_Up_Remaining__c;
+            }
+        }
+        return result;
     }
 
     @TestVisible

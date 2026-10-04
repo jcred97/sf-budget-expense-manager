@@ -97,6 +97,37 @@ describe('settings loading protection', () => {
         expect(getSettings).toHaveBeenCalledTimes(2);
         jest.useRealTimers();
     });
+    it('shows a catch-up warning, refreshes saved status, and offers a permitted explicit rerun', async () => {
+        getSettings.mockResolvedValue({ ...settings, recurringExpensesEnabled: true });
+        runDueExpensesBatch.mockResolvedValue('job-id');
+        getRecurringRunStatus.mockResolvedValueOnce({
+            jobId: 'job-id',
+            status: 'Completed',
+            isTerminal: true,
+            numberOfErrors: 0,
+            outcomeAvailable: true,
+            hasCatchUpRemaining: true
+        });
+        const element = mount();
+        const toast = jest.fn();
+        element.addEventListener('lightning__showtoast', toast);
+        await flush();
+        click(element, 'Run Recurring');
+        await flush();
+        await flush();
+        expect(element.shadowRoot.querySelector('[role="status"]').textContent).toContain(
+            'Catch-up may remain'
+        );
+        expect(toast.mock.calls[0][0].detail.variant).toBe('warning');
+        expect(getSettings).toHaveBeenCalledTimes(2);
+        expect(button(element, 'Run again').disabled).toBe(false);
+        expect(runDueExpensesBatch).toHaveBeenCalledTimes(1);
+        click(element, 'Run again');
+        await flush();
+        await flush();
+        expect(runDueExpensesBatch).toHaveBeenCalledTimes(2);
+        expect(button(element, 'Run Recurring').disabled).toBe(false);
+    });
 
     it('shows status retry without unlocking the job and resumes that job', async () => {
         getSettings.mockResolvedValue({ ...settings, recurringExpensesEnabled: true });

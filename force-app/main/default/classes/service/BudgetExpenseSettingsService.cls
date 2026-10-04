@@ -23,9 +23,7 @@ public with sharing class BudgetExpenseSettingsService {
      * @param request Updated enablement and daily run-time values.
      * @return Persisted settings and current scheduler state.
      */
-    public static BudgetExpenseSettingsState saveSettings(
-        BudgetExpenseSettingsUpdateRequest request
-    ) {
+    public static BudgetExpenseSettingsState saveSettings(BudgetExpenseSettingsUpdateRequest request) {
         Budget_Expense_Manager_Setting__c settings = getOrCreateSettings();
         initializeBaseCurrency(settings);
         BudgetExpenseSettingsUpdateRequest safeRequest = getSafeSettingsUpdate(request, settings);
@@ -78,10 +76,12 @@ public with sharing class BudgetExpenseSettingsService {
      * @param expensesCreated Number of expenses created.
      * @param recurringExpensesProcessed Number of recurring templates processed.
      */
-    public static void markRecurringRunCompleted(
-        Integer expensesCreated,
-        Integer recurringExpensesProcessed
-    ) {
+    public static void markRecurringRunCompleted(Integer expensesCreated, Integer recurringExpensesProcessed) {
+        markRecurringRunCompleted(expensesCreated, recurringExpensesProcessed, false);
+    }
+
+    /** Records generation that stopped at the transaction cap with due work. */
+    public static void markRecurringRunCompleted(Integer expensesCreated, Integer recurringExpensesProcessed, Boolean hasCatchUpRemaining) {
         Integer expenseCount = expensesCreated == null ? 0 : expensesCreated;
         Integer templateCount = recurringExpensesProcessed == null ? 0 : recurringExpensesProcessed;
         String message = expenseCount == 0
@@ -96,7 +96,10 @@ public with sharing class BudgetExpenseSettingsService {
               pluralize('template', templateCount) +
               '.';
 
-        updateRecurringRunStatus('Completed', message);
+        if (hasCatchUpRemaining == true) {
+            message += ' Generation limit reached; review due templates and run again if needed, or wait for the next scheduled run.';
+        }
+        updateRecurringRunStatus(hasCatchUpRemaining == true ? 'Completed; catch-up may remain' : 'Completed', message);
     }
 
     /**
@@ -114,11 +117,7 @@ public with sharing class BudgetExpenseSettingsService {
      * @param expensesCreated Number of expenses created by successful chunks.
      * @param job Job with failed chunk count and ID for Setup Apex Jobs.
      */
-    public static void markRecurringRunFailed(
-        String status,
-        Integer expensesCreated,
-        AsyncApexJob job
-    ) {
+    public static void markRecurringRunFailed(String status, Integer expensesCreated, AsyncApexJob job) {
         String message =
             'Created ' +
             expensesCreated +
@@ -177,9 +176,7 @@ public with sharing class BudgetExpenseSettingsService {
             FOR UPDATE
         ];
         if (currencySettings.isEmpty()) {
-            throw new CurrencyContextService.CurrencyContextException(
-                'The app base currency settings record is not accessible.'
-            );
+            throw new CurrencyContextService.CurrencyContextException('The app base currency settings record is not accessible.');
         }
 
         String baseCurrencyCode = currencySettings[0].Base_Currency_Code__c;
@@ -217,38 +214,26 @@ public with sharing class BudgetExpenseSettingsService {
             return request;
         }
         BudgetExpenseSettingsUpdateRequest defaultRequest = new BudgetExpenseSettingsUpdateRequest();
-        defaultRequest.recurringExpensesEnabled = String.valueOf(
-            settings.Recurring_Expenses_Enabled__c
-        );
-        defaultRequest.globalRecurringRunTime = formatRunTime(
-            getEffectiveRunTime(settings.Global_Recurring_Run_Time__c)
-        );
+        defaultRequest.recurringExpensesEnabled = String.valueOf(settings.Recurring_Expenses_Enabled__c);
+        defaultRequest.globalRecurringRunTime = formatRunTime(getEffectiveRunTime(settings.Global_Recurring_Run_Time__c));
         return defaultRequest;
     }
 
-    private static BudgetExpenseSettingsState buildSettingsState(
-        Budget_Expense_Manager_Setting__c settings
-    ) {
+    private static BudgetExpenseSettingsState buildSettingsState(Budget_Expense_Manager_Setting__c settings) {
         BudgetExpenseSettingsState state = new BudgetExpenseSettingsState();
         state.settingsId = settings.Id;
         state.baseCurrencyCode = settings.Base_Currency_Code__c;
         state.recurringExpensesEnabled = settings.Recurring_Expenses_Enabled__c;
-        state.globalRecurringRunTime = formatRunTime(
-            getEffectiveRunTime(settings.Global_Recurring_Run_Time__c)
-        );
+        state.globalRecurringRunTime = formatRunTime(getEffectiveRunTime(settings.Global_Recurring_Run_Time__c));
         state.lastRecurringRunDateTime = settings.Last_Recurring_Run_DateTime__c;
         state.lastRecurringRunStatus = settings.Last_Recurring_Run_Status__c;
         state.lastRecurringRunMessage = settings.Last_Recurring_Run_Message__c;
 
         CronTrigger recurringSchedule = getRecurringSchedule();
         state.recurringScheduleActive = isUsableSchedule(recurringSchedule);
-        state.recurringScheduleState = recurringSchedule == null
-            ? 'Not scheduled'
-            : recurringSchedule.State;
+        state.recurringScheduleState = recurringSchedule == null ? 'Not scheduled' : recurringSchedule.State;
         state.recurringScheduleNextRunDateTime = recurringSchedule?.NextFireTime;
-        state.recurringScheduleTimeZone = recurringSchedule == null
-            ? UserInfo.getTimeZone().getID()
-            : recurringSchedule.TimeZoneSidKey;
+        state.recurringScheduleTimeZone = recurringSchedule == null ? UserInfo.getTimeZone().getID() : recurringSchedule.TimeZoneSidKey;
         state.recurringScheduleCronExpression = recurringSchedule?.CronExpression;
         return state;
     }
@@ -265,18 +250,12 @@ public with sharing class BudgetExpenseSettingsService {
     }
 
     private static String formatRunTime(Time runTime) {
-        return String.valueOf(runTime.hour()).leftPad(2, '0') +
-            ':' +
-            String.valueOf(runTime.minute()).leftPad(2, '0');
+        return String.valueOf(runTime.hour()).leftPad(2, '0') + ':' + String.valueOf(runTime.minute()).leftPad(2, '0');
     }
 
     private static String buildDailyCron(Time runTime) {
         Time effectiveRunTime = getEffectiveRunTime(runTime);
-        return '0 ' +
-            String.valueOf(effectiveRunTime.minute()) +
-            ' ' +
-            String.valueOf(effectiveRunTime.hour()) +
-            ' * * ?';
+        return '0 ' + String.valueOf(effectiveRunTime.minute()) + ' ' + String.valueOf(effectiveRunTime.hour()) + ' * * ?';
     }
 
     private static String pluralize(String singularValue, Integer count) {
@@ -285,7 +264,8 @@ public with sharing class BudgetExpenseSettingsService {
 
     @TestVisible
     private static Boolean isUsableSchedule(CronTrigger schedule) {
-        return schedule != null && schedule.NextFireTime != null &&
+        return schedule != null &&
+            schedule.NextFireTime != null &&
             new Set<String>{ 'WAITING', 'ACQUIRED', 'EXECUTING', 'BLOCKED' }.contains(schedule.State);
     }
 
@@ -314,11 +294,7 @@ public with sharing class BudgetExpenseSettingsService {
             System.abortJob(existingJob.Id);
         }
 
-        System.schedule(
-            RECURRING_SCHEDULE_NAME,
-            buildDailyCron(runTime),
-            new RecurringExpenseScheduler()
-        );
+        System.schedule(RECURRING_SCHEDULE_NAME, buildDailyCron(runTime), new RecurringExpenseScheduler());
     }
 
     private static void updateRecurringRunStatus(String status, String message) {
