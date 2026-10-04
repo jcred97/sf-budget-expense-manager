@@ -1,5 +1,11 @@
 # Testing And Tooling
 
+## Recurring No Bank Selection Verification — 2026-10-04
+
+- Recurring bank options and the inactive-bank notice now use the normalized assignment value. Selecting No bank produces one option, clears the inactive-bank notice, and submits Cash with both bank fields cleared. Actual inactive assignments retain their historical edit behavior and reactivation guard.
+- Before the fix, three new cases failed for active, inactive, and legacy banks. After the fix, all **34 payment-method tests** passed, including untouched inactive-bank saves and blocked reactivation. These tests inspect mocked Lightning form submissions; they do not replace live browser testing.
+- Full Jest passed **203 tests across 20 suites**; lint and targeted formatting passed. Salesforce check-only validation `0AfgK00000VLMuwSAH` compiled the `recurringExpenseModal` LWC successfully. No Apex tests were run for this LWC-only validation.
+
 ## FX Regression Coverage Verification — 2026-10-04
 
 - Added **52 regression tests across four suites** without changing runtime code: 12 quote-lifecycle cases, eight modal snapshot cases, 27 decimal conversion cases, and five exchange-rate request cases. The existing three Save & New tests remain.

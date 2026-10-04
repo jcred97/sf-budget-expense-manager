@@ -31,7 +31,8 @@ async function openModal(
         bank = 'debit',
         duplicate,
         loading = false,
-        legacyBank = ''
+        legacyBank = '',
+        active = true
     } = {}
 ) {
     const element = createElement('c-payment-test', { is: component });
@@ -52,7 +53,7 @@ async function openModal(
             Bank_Assignment__c: bank,
             Transaction_Type__c: savedType,
             Bank__c: legacyBank,
-            Active__c: true,
+            Active__c: active,
             Next_Run_Date__c: '2026-10-03'
         }).map(([key, value]) => [key, { value }])
     );
@@ -79,6 +80,79 @@ function submit(form) {
 afterEach(() => {
     document.body.replaceChildren();
     jest.clearAllMocks();
+});
+
+describe('recurring No bank selection', () => {
+    it.each([
+        ['an active assignment', 'debit', '', true],
+        ['an inactive assignment', 'archived', '', false],
+        ['a legacy bank', null, 'Old bank', true]
+    ])('clears %s without adding a fake inactive bank', async (name, bank, legacyBank, active) => {
+        const { element, form } = await openModal(RecurringExpenseModal, {
+            edit: true,
+            bank,
+            legacyBank,
+            active,
+            savedType: 'Debit Card'
+        });
+        change(element, 'bank', '__NO_BANK__');
+        await flush();
+        const bankInput = element.shadowRoot.querySelector('[data-field="bank"]');
+        expect(bankInput.value).toBe('__NO_BANK__');
+        expect(bankInput.options.filter(option => option.value === '__NO_BANK__')).toEqual([
+            { label: 'No bank', value: '__NO_BANK__' }
+        ]);
+        expect(bankInput.options.some(option => option.inactive)).toBe(false);
+        expect(element.shadowRoot.textContent).not.toContain('is inactive');
+        expect(element.shadowRoot.textContent).not.toContain('Legacy bank:');
+        const typeInput = element.shadowRoot.querySelector('[data-field="transaction-type"]');
+        expect(typeInput.value).toBe('Cash');
+        submit(form);
+        expect(form.submit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                Active__c: true,
+                Bank_Assignment__c: null,
+                Bank__c: null,
+                Transaction_Type__c: 'Cash'
+            })
+        );
+    });
+
+    it('retains an untouched inactive assignment and blocks reactivation until it is changed', async () => {
+        const { element, form } = await openModal(RecurringExpenseModal, {
+            edit: true,
+            bank: 'archived',
+            active: false,
+            savedType: 'Debit Card'
+        });
+        const bankInput = element.shadowRoot.querySelector('[data-field="bank"]');
+        expect(bankInput.options.filter(option => option.value === '__NO_BANK__')).toHaveLength(1);
+        expect(bankInput.options.find(option => option.value === 'archived')).toEqual(
+            expect.objectContaining({ value: 'archived', inactive: true })
+        );
+        expect(element.shadowRoot.textContent).toContain('is inactive');
+        form.dispatchEvent(
+            new CustomEvent('submit', {
+                cancelable: true,
+                detail: { fields: { Name: 'Historical template', Active__c: false } }
+            })
+        );
+        expect(form.submit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                Active__c: false,
+                Bank_Assignment__c: 'archived',
+                Transaction_Type__c: 'Debit Card'
+            })
+        );
+        form.dispatchEvent(new CustomEvent('error', { detail: { message: 'Retry' } }));
+        form.submit.mockClear();
+        submit(form);
+        await flush();
+        expect(form.submit).not.toHaveBeenCalled();
+        expect(element.shadowRoot.querySelector('[data-form-error]').textContent).toContain(
+            'Choose an active bank or No bank before reactivating'
+        );
+    });
 });
 
 describe.each([

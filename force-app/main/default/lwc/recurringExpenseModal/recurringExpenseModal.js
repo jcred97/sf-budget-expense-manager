@@ -504,16 +504,17 @@ export default class RecurringExpenseModal extends LightningElement {
 
     get bankComboboxOptions() {
         const options = [...this.bankOptions];
+        const assignmentId = this.normalizedBankAssignmentValue;
         if (
             this.isEditMode &&
-            this.bankAssignmentValue &&
+            assignmentId &&
             !this.bankOptionsLoading &&
             !this.bankOptionsError &&
-            !options.some(option => option.value === this.bankAssignmentValue)
+            !options.some(option => option.value === assignmentId)
         ) {
             options.push({
                 label: `${this.currentBankLabel || 'Unavailable bank'} (Inactive)`,
-                value: this.bankAssignmentValue,
+                value: assignmentId,
                 inactive: true
             });
         }
@@ -537,14 +538,15 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     get isCurrentBankInactive() {
-        if (!this.isEditMode || !this.bankAssignmentValue) {
+        const assignmentId = this.normalizedBankAssignmentValue;
+        if (!this.isEditMode || !assignmentId) {
             return false;
         }
 
         return (
             !this.bankOptionsLoading &&
             !this.bankOptionsError &&
-            !this.bankOptions.some(option => option.value === this.bankAssignmentValue)
+            !this.bankOptions.some(option => option.value === assignmentId)
         );
     }
 
