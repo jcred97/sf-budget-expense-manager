@@ -28,6 +28,11 @@ export default class BudgetPanel extends LightningElement {
     _budgetMonth;
     _budgetWireResult;
     _restoreFocusSelector;
+    _retryVersion = 0;
+
+    disconnectedCallback() {
+        this._retryVersion += 1;
+    }
 
     @api
     get expenseGroupId() {
@@ -84,6 +89,8 @@ export default class BudgetPanel extends LightningElement {
     }
 
     prepareForContextChange() {
+        this._retryVersion += 1;
+        this._budgetWireResult = undefined;
         this.budget = undefined;
         this.loadError = '';
         this.isLoading = this.hasContext;
@@ -197,21 +204,30 @@ export default class BudgetPanel extends LightningElement {
     }
 
     async handleRetry() {
+        if (!this.hasContext || !this._budgetWireResult || this.isLoading) {
+            return;
+        }
+        const retryVersion = ++this._retryVersion;
+        const wireResult = this._budgetWireResult;
         this.isLoading = true;
         this.loadError = '';
 
         try {
-            await this.refreshBudget();
+            await this.refreshBudget(wireResult);
         } catch (error) {
-            this.loadError = getErrorMessage(error, 'Failed to load the monthly budget.');
+            if (retryVersion === this._retryVersion) {
+                this.loadError = getErrorMessage(error, 'Failed to load the monthly budget.');
+            }
         } finally {
-            this.isLoading = false;
+            if (retryVersion === this._retryVersion) {
+                this.isLoading = false;
+            }
         }
     }
 
-    async refreshBudget() {
-        if (this._budgetWireResult) {
-            await refreshApex(this._budgetWireResult);
+    async refreshBudget(wireResult = this._budgetWireResult) {
+        if (wireResult) {
+            await refreshApex(wireResult);
         }
     }
 

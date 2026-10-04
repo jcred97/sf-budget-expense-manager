@@ -1,5 +1,12 @@
 # Testing And Tooling
 
+## Budget Retry Isolation Verification — 2026-10-04
+
+- Budget retry responses now require the current request version. Selection changes and disconnect invalidate older retries; each retry captures its original wire result. The change preserves current errors and loading state, blocks duplicate pending retries, and handles switching away and back to the same group/month.
+- Before the fix, seven stale-response regression cases failed and the current-selection recovery case passed. After the fix, all **nine budget-panel tests** passed, including duplicate retry protection, group/month switches, stale success/failure, a newer pending retry, and disconnect/reconnect.
+- Full Jest passed **147 tests across 16 suites**. Lint, targeted formatting, and diff checks passed. Salesforce check-only validation `0AfgK00000VKeSTSA1` compiled the `budgetPanel` LWC successfully; no Apex tests were run for this LWC-only change.
+- Deployment to `mainDevOrg` succeeded on 2026-10-04 (`0AfgK00000VKfJhSAL`), updating only the `budgetPanel` LWC. No Apex tests were run for this LWC-only deployment. Existing budget save/delete behavior is outside this fix.
+
 ## Recurring Catch-up Warning Verification — 2026-10-04
 
 - Source retains generation-limit flags across batch chunks and persists an internal outcome keyed to the exact Salesforce job. Both manual-run screens warn that catch-up may remain and offer an explicit rerun; the daily scheduler does not chain more batches. Failed chunks retain priority over warnings, and missing historical outcomes are reported as unknown.

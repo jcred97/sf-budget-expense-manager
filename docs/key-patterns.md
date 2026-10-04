@@ -108,6 +108,11 @@ expense row display labels, such as `No bank` for blank bank values.
 
 The Dashboard also requests a bounded six-month budget history alongside its existing monthly expense trend. `expenseDashboardViewModel` joins both sources by calendar month, and `budgetHistory` renders Budget, Spent, Variance, and Usage without treating an absent budget as zero. Successful budget mutations emit an explicit change event so the comparison refreshes immediately.
 
+Budget retries capture the selected wire result and a request version. Changing group or
+month, starting a newer retry, or disconnecting invalidates older replies. Stale success
+and failure cannot replace the current error or stop its loading spinner, including when
+the user switches away and back to the same selection. Duplicate pending retries are ignored.
+
 ## Record-Based Banks
 
 `Bank__c` is the global catalog; `Expense_Group_Bank__c` assigns reusable Banks to Expense Groups. New selectors query only active assignments whose global Bank is also active. Expense and recurring records store `Bank_Assignment__c`, while row transformation keeps one canonical `bank` display value so search, charts, summaries, print, and CSV do not need separate migration logic.
