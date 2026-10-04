@@ -1,5 +1,13 @@
 # Testing And Tooling
 
+## FX Regression Coverage Verification — 2026-10-04
+
+- Added **52 regression tests across four suites** without changing runtime code: 12 quote-lifecycle cases, eight modal snapshot cases, 27 decimal conversion cases, and five exchange-rate request cases. The existing three Save & New tests remain.
+- Quote tests verify stale success/failure after date/currency changes, manual-rate precedence, close/reopen and disconnect cancellation, FX toggle cancellation, Save blocking while fetching, and incomplete/network quote recovery. Some queued-input cases dispatch synthetic changes while controls are disabled, exercising cancellation guards rather than claiming those changes are available during a normal fetch.
+- Snapshot tests inspect the actual record-form submission fields, including `1 × 1.005 → PHP 1.01`, complete rate/date/source data, PHP toggle clearing all five FX fields while retaining the converted amount, edit/duplicate snapshot preservation, and invalid/incomplete FX blocking. Lightning validation and Apex calls are mocked; these are frontend regressions, not live-org validation.
+- Decimal tests cover half-cent ties, values just below a tie, carry into whole pesos, high precision, scientific notation, zero, and invalid inputs. Request tests verify the original currency/date, omitted-date normalization, and server result/error preservation using the actual Apex quote field names.
+- Full Jest passed **199 tests across 20 suites**; lint, targeted formatting, and diff checks passed. No FX defect was reproduced. No runtime source or metadata changed, so no deployment or fresh Apex execution was required.
+
 ## Budget Retry Isolation Verification — 2026-10-04
 
 - Budget retry responses now require the current request version. Selection changes and disconnect invalidate older retries; each retry captures its original wire result. The change preserves current errors and loading state, blocks duplicate pending retries, and handles switching away and back to the same group/month.

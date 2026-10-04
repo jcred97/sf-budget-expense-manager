@@ -74,9 +74,12 @@ not a fourth workspace view.
 
 ## Verification Boundaries
 
-Nine Jest suites cover manager integration, dashboard, expense list, recurring screen,
+Jest suites cover manager integration, dashboard, expense list, recurring screen,
 expense modal, recurring view model, expense transforms, workspace data, and CSV output.
 An additional settings suite covers load failures, retry, and save/refresh exclusion.
+Expense modal FX suites cover quote cancellation and error recovery, Save blocking,
+complete snapshot submission, PHP cleanup, and edit/duplicate preservation. Direct
+currency-math and exchange-rate adapter suites cover decimal rounding and request contracts.
 A direct budget-panel suite covers retry failure/recovery, pending retries, group/month
 changes, stale completion, switching away and back, and disconnect/reconnect. There are
 no direct suites for budget modal or recurring modal, and mocked
