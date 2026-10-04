@@ -139,7 +139,12 @@ describe('workspace coordination', () => {
         LightningConfirm.open.mockResolvedValue(true);
         loadStyle.mockResolvedValue();
         fetchExpensePage.mockResolvedValue(firstPage());
-        fetchDashboardData.mockResolvedValue({ rows: [], trend: [], budgets: [] });
+        fetchDashboardData.mockResolvedValue({
+            summary: { expenseCount: 0 },
+            rows: [],
+            trend: [],
+            budgets: []
+        });
         fetchBankOptions.mockResolvedValue([]);
     });
     afterEach(() => {
@@ -309,6 +314,7 @@ describe('workspace coordination', () => {
 
     it('clears dashboard data when the selected group disappears', async () => {
         fetchDashboardData.mockResolvedValueOnce({
+            summary: { expenseCount: 1, totalAmount: 10 },
             rows: [row('removed-group-expense')],
             trend: [],
             budgets: []

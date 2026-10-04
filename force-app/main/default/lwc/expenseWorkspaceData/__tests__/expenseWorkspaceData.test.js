@@ -1,12 +1,20 @@
 import getExpensePage from '@salesforce/apex/ExpenseController.getExpensePage';
+import getDashboardSummary from '@salesforce/apex/ExpenseController.getDashboardSummary';
+import getMonthlyTrend from '@salesforce/apex/ExpenseController.getMonthlyTrend';
+import getBudgetHistory from '@salesforce/apex/BudgetController.getBudgetHistory';
 import getAvailableExpenseGroupBanks from '@salesforce/apex/BankController.getAvailableExpenseGroupBanks';
-import { fetchExpensePage, fetchAllExpenseRows, fetchBankOptions } from 'c/expenseWorkspaceData';
+import {
+    fetchExpensePage,
+    fetchAllExpenseRows,
+    fetchBankOptions,
+    fetchDashboardData
+} from 'c/expenseWorkspaceData';
 
 jest.mock('@salesforce/apex/ExpenseController.getExpensePage', () => ({ default: jest.fn() }), {
     virtual: true
 });
 jest.mock(
-    '@salesforce/apex/ExpenseController.getExpensesByFilters',
+    '@salesforce/apex/ExpenseController.getDashboardSummary',
     () => ({ default: jest.fn() }),
     { virtual: true }
 );
@@ -26,6 +34,64 @@ const rawRow = id => ({ Id: id, Name: id, Amount__c: 10 });
 
 describe('expense page and report requests', () => {
     beforeEach(() => jest.resetAllMocks());
+
+    it('requests aggregate summaries and maps only bounded recent and largest expenses', async () => {
+        const summary = {
+            totalAmount: 25000,
+            expenseCount: 500,
+            recentExpenses: [rawRow('recent')],
+            largestExpense: {
+                ...rawRow('largest'),
+                Amount__c: 5000,
+                Bank_Assignment__c: 'assignment',
+                Bank_Assignment__r: {
+                    Active__c: false,
+                    Bank__r: { Name: 'Inactive bank', Active__c: false }
+                },
+                Original_Amount__c: 100,
+                Original_Currency_Code__c: 'USD',
+                Exchange_Rate_To_PHP__c: 50
+            }
+        };
+        getDashboardSummary.mockResolvedValue(summary);
+        getMonthlyTrend.mockResolvedValue([{ year: 2026, monthNum: 9, total: 25000 }]);
+        getBudgetHistory.mockResolvedValue([]);
+        const data = await fetchDashboardData({
+            expenseGroupId: 'group',
+            startDate: '2026-09-01',
+            endDate: '2026-09-30'
+        });
+        expect(getDashboardSummary).toHaveBeenCalledWith({
+            filters: {
+                expenseGroupId: 'group',
+                categoryId: null,
+                startDate: '2026-09-01',
+                endDate: '2026-09-30'
+            }
+        });
+        expect(getMonthlyTrend).toHaveBeenCalledWith({
+            filters: {
+                expenseGroupId: 'group',
+                categoryId: null,
+                startDate: '2026-04-01',
+                endDate: '2026-09-30'
+            }
+        });
+        expect(getBudgetHistory).toHaveBeenCalledWith({
+            expenseGroupId: 'group',
+            endMonth: '2026-09-30'
+        });
+        expect(data.rows.map(row => row.id)).toEqual(['recent']);
+        expect(data.summary.expenseCount).toBe(500);
+        expect(data.summary.largestExpense).toEqual(
+            expect.objectContaining({
+                id: 'largest',
+                bankDisplay: 'Inactive bank',
+                bankAssignmentActive: false,
+                hasForeignCurrency: true
+            })
+        );
+    });
 
     it('preserves per-assignment payment capabilities from Apex', async () => {
         getAvailableExpenseGroupBanks.mockResolvedValue([

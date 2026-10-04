@@ -14,7 +14,7 @@
 | `lwc/expenseMonthNavigator`                                   | Non-exposed reusable previous/current/next month control used by Dashboard and Expenses                                                      |
 | `lwc/expensePrintReport`                                      | Non-exposed print-only expense summary and detail table                                                                                      |
 | `lwc/expenseDashboard`                                        | Owns dashboard data loading, month navigation, loading/error states, view-model assembly, and budget refresh; exposes refresh() for workspace changes and emits Add Expense/View All events |
-| `lwc/expenseDashboardViewModel`                               | Non-exposed pure builder for dashboard totals, summaries, charts, trends, budget variance history, recent rows, and insight data             |
+| `lwc/expenseDashboardViewModel`                               | Non-exposed presentation builder for server dashboard summaries, charts, trends, budget variance history, bounded recent rows, and insights |
 | `lwc/budgetPanel`                                             | Non-exposed optional monthly budget card: load, opt-in state, spent/remaining/over status, edit, remove, retry, and toasts                   |
 | `lwc/budgetModal`                                             | Non-exposed accessible create/edit dialog for a positive PHP budget amount and optional description                                          |
 | `lwc/budgetHistory`                                           | Non-exposed SLDS table comparing six months of optional budgets, spending, variance, and percentage used                                     |
@@ -35,6 +35,7 @@
 | `classes/controller/CurrencyContextController.cls`            | Lightning-facing cacheable façade over the initialized app reporting currency                                                                |
 | `classes/controller/ExchangeRateController.cls`               | Lightning-facing read-only PHP exchange-rate façade with sanitized client errors                                                             |
 | `classes/controller/ExpenseController.cls`                    | Expense entry points and direct user-mode Expense Group/Category lookups                                                            |
+| `classes/service/ExpenseDashboardService.cls`                 | User-mode dashboard aggregates with complete summaries and bounded recent/largest expense details |
 | `classes/controller/RecurringExpenseController.cls`           | Lightning-facing recurring-template overview/deactivate façade available to normal app users                                                 |
 | `classes/controller/RecurringExpenseAutomationController.cls` | Admin-only Lightning façade for synchronous or Batch Apex recurring generation                                                               |
 | `classes/controller/SettingsController.cls`                   | Admin-only Lightning façade for singleton settings reads and updates                                                                         |

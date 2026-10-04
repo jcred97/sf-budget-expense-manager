@@ -27,6 +27,11 @@
         <members>ExpenseCommandService</members>
         <members>ExpenseController</members>
         <members>ExpenseControllerTest</members>
+        <members>ExpenseDashboardService</members>
+        <members>ExpenseDashboardServiceTest</members>
+        <members>ExpenseDashboardSummary</members>
+        <members>ExpenseDashboardGroup</members>
+        <members>ExpenseDashboardDay</members>
         <members>ExchangeRateController</members>
         <members>ExchangeRateControllerTest</members>
         <members>ExchangeRateProvider</members>

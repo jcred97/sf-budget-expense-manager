@@ -1,5 +1,14 @@
 # Testing And Tooling
 
+## Dashboard Aggregate Verification — 2026-10-04
+
+- Source replaces the dashboard's full matching expense-row read with `ExpenseController.getDashboardSummary()`. Complete summary aggregates drive totals, counts, charts, insights, empty states, and budget spending; detail payload contains at most five recent expenses and one largest expense. Six-month trend and budget history remain separate reads.
+- Final combined check-only validation `0AfgK00000VJUOjSAP` compiled all nine components and passed **43/43 Apex tests** across dashboard service, expense controller, expense pagination, and budgets. `ExpenseDashboardService` coverage is **93.46%** (100/107 executable lines); controller and all three new DTOs are **100%**.
+- Regression fixtures include **1,006 matching expenses**, complete totals independent of five recent rows, group/category/month predicates, merged category/bank names, inactive historical assignments, top-bank count ranking and ties, highest day, null/negative amounts, undated buckets, empty scopes, and deterministic recent/largest ordering.
+- Jest passed **132 tests across 15 suites**, including aggregate summary presentation and budget spending, bounded detail mapping with FX/inactive-bank context, stale group replies, summary memoization, and unchanged report/list/recurring behavior. Lint, targeted formatting, and diff checks passed.
+- Deployment to `mainDevOrg` succeeded on 2026-10-04 (`0AfgK00000VJZufSAH`): all nine components deployed and **43/43 Apex tests** passed.
+- Dashboard expense-detail payload is bounded; Salesforce aggregate-group/query governors and full bank-chart cardinality remain limits.
+
 ## Recurring Batch Tracking Verification — 2026-10-04
 
 - Both manual-run screens share job-specific progress tracking. Terminal jobs refresh results once; failed/aborted jobs also refresh partial writes. Polling failures and the 150-check limit preserve the pending job and run guard, with an explicit Retry status check.

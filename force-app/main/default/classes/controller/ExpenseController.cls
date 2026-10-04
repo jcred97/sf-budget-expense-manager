@@ -2,6 +2,12 @@
 public with sharing class ExpenseController {
     private static final Integer MAX_WORKSPACE_RESULTS = 2000;
 
+    /** Complete dashboard aggregates with only five recent expense detail rows. */
+    @AuraEnabled
+    public static ExpenseDashboardSummary getDashboardSummary(ExpenseFilterRequest filters) {
+        return ExpenseDashboardService.getSummary(filters);
+    }
+
     /**
      * Loads one expense page, enforcing sharing and field access in the service.
      * @param filters Expense group, category and date constraints.

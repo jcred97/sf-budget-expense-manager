@@ -159,6 +159,7 @@ entry points live under `classes/async` without changing their Salesforce metada
 - `ExpenseCurrencyService` - bulk-safe before-trigger authority for optional FX completeness, normalization, date validation, and canonical PHP calculation.
 - `ExpenseController.getCategoriesByExpenseGroup(expenseGroupId)` - cacheable user-mode lookup; a null ID returns the bounded compatibility list.
 - `ExpenseController.getExpensesByFilters(filters)` - delegates dynamic user-mode querying to `ExpenseQueryService`; filter DTO group/category values are `Id` or null.
+- `ExpenseController.getDashboardSummary(filters)` - non-cacheable user-mode dashboard aggregates through `ExpenseDashboardService`: complete totals/counts, category/bank summaries, highest day, five recent expenses, and one largest expense.
 - `ExpenseController.getExpensePage(filters, pagination)` - delegates keyset pagination and full-filter first-page totals to `ExpensePageService`; `ExpensePageRequest` and `ExpensePageDto` hold the paging contract.
 - `ExpenseController.getMonthlyTrend(filters)` - delegates monthly aggregation to `ExpenseQueryService`.
 - `ExpenseController.deleteExpenses(expenseIds)` - delegates bulk user-mode deletion to `ExpenseCommandService`.
@@ -202,7 +203,7 @@ Admin and All Access provide effectively equivalent app capabilities, including 
 
 - Group selection and the null-group compatibility category lookup are bounded at 2,000 records. Group-specific categories are not subject to that same explicit cap.
 - Expense listing starts with 20 rows, loads 10 more per request, and debounces search by 300 ms. Keyset ordering uses expense date, transaction time, creation time, and ID; the cursor is checked against the filter scope. Reports fetch all pages in batches of 200, deduplicate IDs, reject looping cursors, and cancel stale requests.
-- Dashboard loads matching expense rows without list pagination, alongside monthly aggregates and six-month budget history. Large matching datasets remain a scaling boundary.
+- Dashboard summaries use server aggregates across the matching filter scope. Expense-detail payload is bounded to five recent rows and one largest row; category charts return the top six labels and bank charts retain all aggregate labels. Six-month trend and budget history remain separate bounded-period reads. Aggregate group cardinality and Salesforce query governor limits still apply.
 - Recurring overview initially loads 50 templates and supports Load more with keyset pagination, ordered by active status, next run date (null last), name, and record ID. Counts and monthly estimates describe all matching templates through separate aggregates. A read-only `Due_For_Generation__c` formula preserves the due rule, including valid ended-schedule catch-up occurrences, for complete due counts.
 - Synchronous recurring generation caps output at 200 expenses; each batch transaction caps at 9,000 and processes a scope of 50 templates. Lock/reload and due-date rechecks protect generation, while retained next-run pointers allow catch-up to resume. Batch finish records aggregate results and failed-chunk status; reaching a cap is not clearly reported as unfinished catch-up.
 
@@ -214,12 +215,14 @@ Both manual-run screens use the shared `recurringRunMonitor` to retain the submi
 
 ## Source Versus Org State
 
+Dashboard aggregation was deployed to `mainDevOrg` on 2026-10-04 (`0AfgK00000VJZufSAH`), with 43 Apex tests and 132 Jest tests passing. See [testing notes](testing-and-tooling.md) for completeness checks and query boundaries.
+
 Job completion tracking is deployed to `mainDevOrg` as of 2026-10-04. Deployment `0AfgK00000VJSunSAH` passed 35 Apex tests; local frontend verification passed 128 Jest tests. See [testing notes](testing-and-tooling.md) for coverage and lifecycle boundaries.
 
 Recurring pagination and complete summaries are deployed to `mainDevOrg` as of 2026-10-03. Deployment `0AfgK00000VH2I5SAL` passed all 154 repository Apex tests; frontend verification passed 111 Jest tests across eleven suites. See [testing notes](testing-and-tooling.md) for coverage and regression details.
 
 Settings saves repair missing/unusable schedules when enabled, even with an unchanged time. Valid same-time jobs retain their owner and timezone. This Apex change is deployed to `mainDevOrg` as of 2026-10-04: deployment `0AfgK00000VJEF7SAP` passed 25/25 tests with 93.14% service coverage. The existing daily schedule was preserved; see F2 in [review findings](review-findings.md).
 
-API version is `65.0`; the project namespace is `bemgr` and `force-app` is the default package directory. This does not establish managed-package installation status. Current source has no active Flow implementation or populated Aura bundle. Eight controllers, sixteen service/interface classes, sixteen DTOs, six handlers, six triggers, two async classes, and nineteen Apex test classes implement the backend.
+API version is `65.0`; the project namespace is `bemgr` and `force-app` is the default package directory. This does not establish managed-package installation status. Current source has no active Flow implementation or populated Aura bundle. Eight controllers, seventeen service/interface classes, nineteen DTOs, six handlers, six triggers, two async classes, and twenty Apex test classes implement the backend.
 
 `manifest/package.xml` is the current deployment set. Historical rebrand/destructive manifests are migration records, not an instruction to replay cleanup. Retired lookup selectors/services and presentation bundles have been removed from source; deleting files in Git does not delete their deployed counterparts. Live scheduled jobs, settings records, permission assignments, credential access, and removed metadata must be checked before the deferred deployment and cleanup. The 2026-09-30 source review passed 66 Jest tests in nine suites and lint; that review did not rerun Apex tests or inspect the live org.

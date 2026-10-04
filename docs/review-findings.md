@@ -60,7 +60,7 @@ The review inspected source and ran local lint/Jest checks; it did not reproduce
 
 ## Separate Limits and Follow-up Questions
 
-- **Dashboard scale:** Full matching expense rows are read for client-side summaries. There is no explicit row cap in `getExpensesByFilters()`; governor, heap and payload limits still apply. This is separate from the paginated expense list.
+- **Dashboard scale — deployed to mainDevOrg on 2026-10-04:** Dashboard reads complete user-mode aggregates and returns only five recent expenses plus one largest expense. Browser summaries and budget spending use those aggregates. Salesforce aggregate/query governor limits and bank-chart cardinality still apply. The existing full-row API remains for compatibility but is no longer used by the dashboard.
 - **Report scale:** CSV/print deliberately fetch all matching pages and retain them in browser memory. Pagination does not make the final report memory-bounded or transactionally frozen.
 - **Recurring catch-up status:** Generation preserves remaining pointers when its 9,000-expense batch-transaction cap is reached, but batch completion does not clearly advertise remaining backlog.
 - **Singleton concurrency:** Settings singleton enforcement is check-before-insert without a unique singleton key. Concurrent first initialization is a robustness concern; it was not reproduced in an org during this review.

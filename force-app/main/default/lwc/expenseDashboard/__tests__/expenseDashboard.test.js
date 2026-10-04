@@ -26,7 +26,12 @@ const dashboardButton = (element, label) =>
 describe('dashboard screen', () => {
     beforeEach(() => {
         jest.resetAllMocks();
-        fetchDashboardData.mockResolvedValue({ rows: [], trend: [], budgets: [] });
+        fetchDashboardData.mockResolvedValue({
+            summary: { expenseCount: 0 },
+            rows: [],
+            trend: [],
+            budgets: []
+        });
     });
     afterEach(() => {
         document.body.replaceChildren();
@@ -46,6 +51,7 @@ describe('dashboard screen', () => {
             element.refresh();
             await flush();
             fetchDashboardData.mockResolvedValueOnce({
+                summary: { expenseCount: 500, totalAmount: 25000 },
                 rows: [row('new-group-expense')],
                 trend: [],
                 budgets: []
@@ -54,13 +60,20 @@ describe('dashboard screen', () => {
             await flush();
             complete(
                 outcome === 'resolve'
-                    ? { rows: [row('old-group-expense')], trend: [], budgets: [] }
+                    ? {
+                          summary: { expenseCount: 2, totalAmount: 20 },
+                          rows: [row('old-group-expense')],
+                          trend: [],
+                          budgets: []
+                      }
                     : new Error('Old request failed')
             );
             await flush();
             const screen = element.shadowRoot;
             expect(screen.textContent).toContain('new-group-expense');
             expect(screen.textContent).not.toContain('old-group-expense');
+            expect(screen.textContent).toContain('500 expenses');
+            expect(screen.querySelector('c-budget-panel').spentAmount).toBe(25000);
             expect(screen.querySelector('[role="alert"]')).toBeNull();
             expect(screen.querySelector('lightning-spinner')).toBeNull();
         }

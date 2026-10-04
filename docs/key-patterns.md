@@ -86,7 +86,15 @@ Print/PDF button to prepare the report before opening the print dialog.
 Expense-list count and amount come from a user-mode aggregate query for the full
 filter/search result on the first page. Subsequent pages reuse those totals.
 `formattedTotal` uses PHP currency formatting via `Intl.NumberFormat`.
-Dashboard calculations retain their existing complete-row data path.
+Dashboard reads `ExpenseController.getDashboardSummary()` for complete server-calculated
+totals/counts, category/bank totals, active-day count, and highest-day insight. Only five
+recent expenses and one largest expense are returned as detail rows. Budget spending and
+empty states use the full summary, never the recent-row count. Bank grouping retains
+assignment-name, legacy-name, and `No bank` fallbacks, including inactive historical
+assignments. Top Bank ranks by expense count, then amount, then alphabetical name;
+equal category/bank spending ranks alphabetically. Highest-day ties use the latest date.
+Six-month trend and budget-history reads remain unchanged. Salesforce aggregate/query
+limits still apply; this bounds expense-detail payload rather than every possible chart.
 
 Summary cards show total amount, expense count, average expense, top
 category, and top bank. Dashboard chart and summary fallbacks should match the
@@ -225,10 +233,12 @@ access remains limited to Admin and All Access. Generation automation uses Batch
 more than 100 due templates can be processed without hitting per-transaction governor
 limits.
 
-Current limitation: the UI refreshes other screens and recurring data immediately after the
-batch is queued, not after it completes. It does not track the returned job ID; a delayed job
-needs a later refresh before generated records appear. The Run button is currently visible
-to normal users even though automation Apex access is restricted; this is an open review finding.
+Manual-run visibility and handlers require `Manage_Recurring_Expense_Automation`, granted
+by Admin and All Access. Both manual-run screens share a page-memory tracker for the
+returned job ID and show queued/running/terminal status. Terminal completion refreshes
+the affected screens; status failures or polling limits keep Run disabled and offer Retry
+status check. Disconnect cancels polling and reconnect resumes pending tracking. Full
+browser reloads and separate tabs do not recover a pending run.
 
 Generation catches up from `Next_Run_Date__c` through the run date and stops at
 `End_Date__c`. Reaching the transaction cap persists the first ungenerated date so a

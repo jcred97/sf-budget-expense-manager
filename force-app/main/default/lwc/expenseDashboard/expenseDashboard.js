@@ -15,6 +15,7 @@ export default class ExpenseDashboard extends LightningElement {
     _active = false;
     _latestDashboardLoadRequestId = 0;
     dashboardRows = [];
+    dashboardSummary = null;
     dashboardTrend = [];
     dashboardBudgets = [];
     isDashboardLoading = false;
@@ -85,7 +86,7 @@ export default class ExpenseDashboard extends LightningElement {
         this.dashboardLoadError = '';
 
         try {
-            const { rows, trend, budgets } = await fetchDashboardData({
+            const { summary, rows, trend, budgets } = await fetchDashboardData({
                 expenseGroupId: this.expenseGroupId,
                 startDate: this.dashboardStartDate,
                 endDate: this.dashboardEndDate
@@ -95,6 +96,7 @@ export default class ExpenseDashboard extends LightningElement {
                 return;
             }
 
+            this.dashboardSummary = summary;
             this.dashboardRows = rows;
             this.dashboardTrend = trend;
             this.dashboardBudgets = budgets;
@@ -102,6 +104,7 @@ export default class ExpenseDashboard extends LightningElement {
             if (requestId !== this._latestDashboardLoadRequestId) {
                 return;
             }
+            this.dashboardSummary = null;
             this.dashboardRows = [];
             this.dashboardTrend = [];
             this.dashboardBudgets = [];
@@ -116,6 +119,7 @@ export default class ExpenseDashboard extends LightningElement {
 
     clearDashboardData() {
         this._latestDashboardLoadRequestId += 1;
+        this.dashboardSummary = null;
         this.dashboardRows = [];
         this.dashboardTrend = [];
         this.dashboardBudgets = [];
@@ -126,6 +130,7 @@ export default class ExpenseDashboard extends LightningElement {
     get viewModel() {
         const isLoading = this.isDashboardLoading;
         return getDashboardViewModel(this, {
+            summary: this.dashboardSummary,
             rows: this.dashboardRows,
             trend: this.dashboardTrend,
             budgets: this.dashboardBudgets,
@@ -137,7 +142,7 @@ export default class ExpenseDashboard extends LightningElement {
             periodLabel: this.dashboardPeriodLabel,
             isLoading,
             loadError: this.dashboardLoadError,
-            showEmptyState: this.dashboardRows.length === 0 && !isLoading
+            showEmptyState: !this.dashboardSummary?.expenseCount && !isLoading
         });
     }
 

@@ -1,13 +1,5 @@
-import { formatCompactPHP, formatPHP, parseDateString } from 'c/expenseFormatters';
-import {
-    CHART_COLORS,
-    buildBarChartData,
-    formatExpenseCount,
-    getTopAmountSummary,
-    getTopCountSummary,
-    groupByAmount,
-    sumExpenseAmounts
-} from 'c/expenseTransforms';
+import { formatCompactPHP, formatDate, formatPHP, parseDateString } from 'c/expenseFormatters';
+import { CHART_COLORS, buildBarChartData, formatExpenseCount } from 'c/expenseTransforms';
 
 const MONTH_NAMES = [
     'Jan',
@@ -25,6 +17,7 @@ const MONTH_NAMES = [
 ];
 
 export function buildDashboardViewModel({
+    summary,
     rows = [],
     trend = [],
     budgets = [],
@@ -38,15 +31,25 @@ export function buildDashboardViewModel({
     loadError,
     showEmptyState
 }) {
-    const totalAmount = sumExpenseAmounts(rows);
-    const expenseCount = rows.length;
+    const totalAmount = Number(summary?.totalAmount) || 0;
+    const expenseCount = summary?.expenseCount || 0;
     const formattedTotal = formatPHP(totalAmount);
     const averageExpense = expenseCount ? formatPHP(totalAmount / expenseCount) : 'PHP 0.00';
-    const topCategory = getTopAmountSummary(rows, 'category', 'Uncategorized');
-    const topBank = getTopCountSummary(rows, 'bank', 'No bank');
-    const largestExpense = getLargestExpense(rows);
-    const topDay = getTopDay(rows);
-    const dailyAverage = getDailyAverage(rows, totalAmount);
+    const category = summary?.categoryTotals?.[0];
+    const topCategory = { name: category?.name || '-', amount: formatPHP(category?.total || 0) };
+    const topBank = { name: summary?.topBank?.name || '-', count: summary?.topBank?.count || 0 };
+    const largestExpense = {
+        name: summary?.largestExpense?.name || (expenseCount ? 'Untitled expense' : '-'),
+        amount: formatPHP(summary?.largestExpense?.amount || 0)
+    };
+    const topDay = {
+        label: formatDate(summary?.topDay?.expenseDate),
+        amount: formatPHP(summary?.topDay?.total || 0),
+        countLabel: summary?.topDay ? formatExpenseCount(summary.topDay.count) : 'No activity'
+    };
+    const dailyAverage = summary?.activeDayCount
+        ? formatPHP(totalAmount / summary.activeDayCount)
+        : 'PHP 0.00';
 
     return {
         totalAmount,
@@ -74,10 +77,16 @@ export function buildDashboardViewModel({
             topCategory,
             topBank
         }),
-        categoryChartData: buildCategoryChartData(rows),
+        categoryChartData: buildBarChartData(
+            (summary?.categoryTotals || []).map(({ name, total }) => [name, total]),
+            'cat'
+        ),
         monthlyTrendData: buildMonthlyTrendData(trend, endDate),
         budgetHistoryData: buildBudgetHistoryData(trend, budgets, endDate),
-        bankChartData: buildBankChartData(rows),
+        bankChartData: buildBarChartData(
+            (summary?.bankTotals || []).map(({ name, total }) => [name, total]),
+            'bank'
+        ),
         recentRows: rows.slice(0, 5).map(row => ({
             ...row,
             metaLine: `${row.categoryDisplay} / ${row.bankDisplay}`
@@ -150,21 +159,6 @@ function buildInsights({ largestExpense, topDay, dailyAverage, topCategory }) {
             detail: topCategory.amount
         }
     ];
-}
-
-function buildCategoryChartData(rows) {
-    if (!rows.length) {
-        return [];
-    }
-    const entries = groupByAmount(rows, 'category', 'Uncategorized').slice(0, 6);
-    return buildBarChartData(entries, 'cat');
-}
-
-function buildBankChartData(rows) {
-    if (!rows.length) {
-        return [];
-    }
-    return buildBarChartData(groupByAmount(rows, 'bank', 'No bank'), 'bank');
 }
 
 function buildMonthlyTrendData(trend, endDate) {
@@ -253,41 +247,4 @@ function getVarianceDisplay(hasBudget, varianceAmount) {
 
 function formatPercentage(value) {
     return new Intl.NumberFormat('en-PH', { maximumFractionDigits: 2 }).format(value);
-}
-
-function getLargestExpense(rows) {
-    if (!rows.length) {
-        return { name: '-', amount: 'PHP 0.00' };
-    }
-    const row = [...rows].sort((a, b) => (b.amount || 0) - (a.amount || 0))[0];
-    return { name: row.name || 'Untitled expense', amount: formatPHP(row.amount || 0) };
-}
-
-function getTopDay(rows) {
-    if (!rows.length) {
-        return { label: '-', amount: 'PHP 0.00', countLabel: 'No activity' };
-    }
-
-    const days = new Map();
-    rows.forEach(row => {
-        const key = row.expenseDate || 'no-date';
-        const day = days.get(key) || { label: row.expenseDateFormatted, total: 0, count: 0 };
-        day.total += row.amount || 0;
-        day.count += 1;
-        days.set(key, day);
-    });
-    const top = [...days.values()].sort((a, b) => b.total - a.total)[0];
-    return {
-        label: top.label,
-        amount: formatPHP(top.total),
-        countLabel: formatExpenseCount(top.count)
-    };
-}
-
-function getDailyAverage(rows, totalAmount) {
-    if (!rows.length) {
-        return 'PHP 0.00';
-    }
-    const activeDays = new Set(rows.map(row => row.expenseDate || 'no-date')).size || 1;
-    return formatPHP(totalAmount / activeDays);
 }
