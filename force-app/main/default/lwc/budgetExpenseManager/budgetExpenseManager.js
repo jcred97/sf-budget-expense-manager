@@ -267,7 +267,8 @@ export default class BudgetExpenseManager extends LightningElement {
         this.loadBankOptions();
     }
 
-    handleRecurringGenerationStarted() {
+    handleRecurringGenerationCompleted() {
+        this.refreshCategoryOptions();
         this.refreshDashboard();
         this.template.querySelector('c-expense-list')?.refresh();
     }

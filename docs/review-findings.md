@@ -1,6 +1,6 @@
 # Architecture Review Findings
 
-Reviewed on **2026-09-30**, against application commit `6d0e13d`, with separate frontend, Apex, and metadata reviews. F1 and F2 are fixed in source; F2 passed Salesforce check-only validation. F3–F5 remain open. Deployment remains deferred.
+Reviewed on **2026-09-30**, against application commit `6d0e13d`, with separate frontend, Apex, and metadata reviews. Later source fixes and deployments are recorded under each finding; the original review evidence remains historical.
 
 The review inspected source and ran local lint/Jest checks; it did not reproduce issues in the live org, rerun Apex tests, or deploy metadata. P2 denotes a normal-priority functional issue, not a claim of an outage in the current org.
 
@@ -39,6 +39,8 @@ The review inspected source and ran local lint/Jest checks; it did not reproduce
 - **Required regression checks:** Regular-user visibility, admin availability, and server authorization remaining enforced.
 
 ### F4 — Recurring results refresh on enqueue rather than completion (P2)
+
+**Fixed and deployed to `mainDevOrg` on 2026-10-04:** Both manual-run screens retain the queued job ID in a shared page-memory tracker and read its non-cacheable status. Run remains disabled until a terminal status is known; polling failures or limits expose Retry status without releasing the guard. Terminal completion, errors, failure, or abort refresh the overview, settings, and mounted workspace dashboard/list/category data. Disconnect cancels timers and stale replies; reconnect resumes pending tracking. Deployment `0AfgK00000VJSunSAH` passed 35/35 Apex tests; local Jest passed 128 tests. The evidence below describes the original issue.
 
 - **Trigger:** Batch execution starts after the immediate refresh requests have finished.
 - **Impact:** Template pointers, due counts, expense rows and dashboard data can remain stale after generation finishes. This is not evidence that the batch failed.

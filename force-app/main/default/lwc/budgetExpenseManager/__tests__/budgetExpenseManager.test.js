@@ -8,6 +8,12 @@ import LightningConfirm from 'lightning/confirm';
 import deleteExpense from '@salesforce/apex/ExpenseController.deleteExpense';
 import { refreshApex } from '@salesforce/apex';
 import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
+import getRecurringRunStatus from '@salesforce/apex/RecurringExpenseAutomationController.getRecurringRunStatus';
+jest.mock(
+    '@salesforce/apex/RecurringExpenseAutomationController.getRecurringRunStatus',
+    () => ({ default: jest.fn() }),
+    { virtual: true }
+);
 jest.mock(
     '@salesforce/customPermission/Manage_Recurring_Expense_Automation',
     () => ({ default: true }),
@@ -194,8 +200,17 @@ describe('workspace coordination', () => {
         });
     });
 
-    it('refreshes other screens when a recurring run starts after navigation', async () => {
+    it('refreshes other screens only when a recurring run completes after navigation', async () => {
+        jest.useFakeTimers();
         const element = await mountRecurring();
+        getRecurringRunStatus
+            .mockResolvedValueOnce({ jobId: 'batch-job', status: 'Queued', isTerminal: false })
+            .mockResolvedValue({
+                jobId: 'batch-job',
+                status: 'Completed',
+                isTerminal: true,
+                numberOfErrors: 0
+            });
         let started;
         runDueExpensesBatch.mockImplementationOnce(
             () =>
@@ -210,11 +225,22 @@ describe('workspace coordination', () => {
         await flush();
         fetchDashboardData.mockClear();
         fetchExpensePage.mockClear();
-        started();
+        started('batch-job');
+        await flush();
+        expect(fetchDashboardData).not.toHaveBeenCalled();
+        expect(fetchExpensePage).not.toHaveBeenCalled();
+        expect(recurringButton(element, 'Running...').disabled).toBe(true);
+        jest.advanceTimersByTime(2000);
+        await flush();
         await flush();
         expect(fetchDashboardData).toHaveBeenCalledTimes(1);
         expect(fetchExpensePage).toHaveBeenCalledTimes(1);
         expect(recurringButton(element, 'Run Recurring').disabled).toBe(false);
+        jest.advanceTimersByTime(20000);
+        await flush();
+        expect(fetchDashboardData).toHaveBeenCalledTimes(1);
+        expect(fetchExpensePage).toHaveBeenCalledTimes(1);
+        jest.useRealTimers();
     });
 
     it('re-enables generation after a failed start without refreshing other screens', async () => {

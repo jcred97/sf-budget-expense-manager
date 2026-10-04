@@ -20,7 +20,7 @@
 | `lwc/budgetHistory`                                           | Non-exposed SLDS table comparing six months of optional budgets, spending, variance, and percentage used                                     |
 | `lwc/expenseList`                                             | Owns expense filters, paginated loading, selection, mutations, Add/Edit/Duplicate modal, and CSV/print reporting; exposes refresh() and openExpenseModal() for shared workspace actions |
 | `lwc/expenseListViewModel`                                    | Non-exposed pure builder for server-filtered expense rows, date groups, full-result totals, empty states, pagination, and print data                                 |
-| `lwc/recurringExpenses`                                       | Owns recurring first-page loading and Load more/retry state, complete summary/list presentation, Add/Edit modal state, deactivation, and run actions; receives shared lookup options and notifies the manager when generation starts |
+| `lwc/recurringExpenses`                                       | Owns recurring pages, summaries, modal state, deactivation, and manual-run status; receives shared lookup options and notifies the manager after terminal generation status |
 | `lwc/recurringExpenseModal`                                   | Non-exposed LDS Add/Edit dialog with atomic loading, group-scoped Category/Bank selectors, legacy handling, and focus management             |
 | `lwc/recurringExpenseViewModel`                               | Non-exposed pure builder for recurring row display values, summary cards, counts, and totals                                                           |
 | `lwc/expenseBarChart`                                         | Reusable horizontal bar chart                                                                                                                |
@@ -59,8 +59,10 @@ actions. A group change resets each screen's scoped data and closes expense/recu
 
 The manager supplies category and bank options with loading/error state. Expense actions
 request bank refreshes and emit `expenseschanged` to refresh the dashboard. Recurring dialog
-opening requests both category and bank refreshes; `generationstarted` refreshes the other
-screens. Dashboard emits `addexpense` and `viewexpenses`; Add Expense calls the list's public
+opening requests both category and bank refreshes; `generationcompleted` refreshes the other
+screens and category lookup after terminal batch status. `recurringRunMonitor` shares pending
+job tracking between both manual-run screens, including bounded polling and status retries.
+Dashboard emits `addexpense` and `viewexpenses`; Add Expense calls the list's public
 modal opener even while the list screen is hidden. Budget changes stay within the dashboard.
 
 `expenseModal` and `recurringExpenseModal` save through Lightning Data Service record forms.

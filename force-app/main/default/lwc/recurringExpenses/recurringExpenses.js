@@ -7,7 +7,7 @@ import { buildRecurringViewModel } from 'c/recurringExpenseViewModel';
 import getRecurringExpenseOverview from '@salesforce/apex/RecurringExpenseController.getRecurringExpenseOverview';
 import getRecurringExpensePage from '@salesforce/apex/RecurringExpenseController.getRecurringExpensePage';
 import deactivateRecurringExpense from '@salesforce/apex/RecurringExpenseController.deactivateRecurringExpense';
-import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
+import { subscribeRecurringRun, startRecurringRun, retryRecurringRun } from 'c/recurringRunMonitor';
 import hasRecurringAutomationPermission from '@salesforce/customPermission/Manage_Recurring_Expense_Automation';
 
 export default class RecurringExpenses extends LightningElement {
@@ -80,9 +80,30 @@ export default class RecurringExpenses extends LightningElement {
         return this.recurringRows.length > 0;
     }
     connectedCallback() {
-        if (this._firstPageOverview && this._active) this.loadRecurringExpenses();
+        let initialState = true;
+        this._unsubscribeRun = subscribeRecurringRun(state => {
+            this.runState = state;
+            this.isRunningRecurring = state.busy;
+            if (initialState && state.terminal) this._refreshAfterWire = true;
+            if (state.busy && state.jobId) this._observedRunId = state.jobId;
+            if (
+                !initialState &&
+                state.terminal &&
+                this._observedRunId === state.jobId &&
+                this._completedRunId !== state.jobId
+            ) {
+                this._completedRunId = state.jobId;
+                this.onRecurringRunCompleted(state);
+            }
+            initialState = false;
+        });
+        if (this._refreshAfterWire && this._wiredRecurringResult) {
+            this._refreshAfterWire = false;
+            this.loadRecurringExpenses();
+        } else if (this._firstPageOverview && this._active) this.loadRecurringExpenses();
     }
     disconnectedCallback() {
+        this._unsubscribeRun?.();
         this._contextVersion += 1;
         this.resetPagination();
     }
@@ -192,6 +213,10 @@ export default class RecurringExpenses extends LightningElement {
         } else if (this.expenseGroupId) {
             this.isRecurringLoading = true;
         }
+        if (this._refreshAfterWire && (data || error)) {
+            this._refreshAfterWire = false;
+            this.loadRecurringExpenses();
+        }
     }
 
     async loadRecurringExpenses() {
@@ -259,26 +284,52 @@ export default class RecurringExpenses extends LightningElement {
         return this.isRunningRecurring || this.isRecurringLoading;
     }
 
+    runState = {};
+    _unsubscribeRun;
+    _completedRunId;
+    _observedRunId;
+    _refreshAfterWire = false;
+    get runStatusLabel() {
+        return this.runState.label;
+    }
+    get runStatusError() {
+        return this.runState.error;
+    }
+    get showRunRetry() {
+        return this.runState.retry;
+    }
+    handleRetryRunStatus() {
+        retryRecurringRun();
+    }
+
+    async onRecurringRunCompleted(state) {
+        this.showToast(
+            state.label === 'Completed'
+                ? 'Recurring run completed'
+                : 'Recurring run needs attention',
+            state.label === 'Completed'
+                ? 'Recurring expenses have finished generating.'
+                : `Run status: ${state.label}. Some expenses may have been generated.`,
+            state.label === 'Completed' ? 'success' : 'warning'
+        );
+        this.dispatchEvent(
+            new CustomEvent('generationcompleted', {
+                detail: { jobId: state.jobId, status: state.label }
+            })
+        );
+        await this.loadRecurringExpenses();
+    }
+
     async handleRunRecurringExpenses() {
         if (this.isRunRecurringDisabled) return;
-        this.isRunningRecurring = true;
         try {
-            await runDueExpensesBatch();
-            this.showToast(
-                'Recurring run started',
-                'Due recurring expenses are being generated.',
-                'success'
-            );
-            this.dispatchEvent(new CustomEvent('generationstarted'));
-            await this.loadRecurringExpenses();
+            await startRecurringRun();
         } catch (error) {
             this.showToast(
                 'Error',
                 getErrorMessage(error, 'Failed to start recurring expense generation.'),
                 'error'
             );
-        } finally {
-            this.isRunningRecurring = false;
         }
     }
 

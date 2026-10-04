@@ -3,7 +3,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 import getSettings from '@salesforce/apex/SettingsController.getSettings';
 import saveSettings from '@salesforce/apex/SettingsController.saveSettings';
-import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
+import { subscribeRecurringRun, startRecurringRun, retryRecurringRun } from 'c/recurringRunMonitor';
 import manageRecurringExpenseAutomation from '@salesforce/customPermission/Manage_Recurring_Expense_Automation';
 
 import { getErrorMessage } from 'c/expenseErrorUtils';
@@ -40,7 +40,58 @@ export default class BudgetExpenseSettings extends LightningElement {
     loadError;
 
     connectedCallback() {
+        let initialState = true;
+        this._unsubscribeRun = subscribeRecurringRun(state => {
+            this.runState = state;
+            this.isRunning = state.busy;
+            if (state.busy && state.jobId) this._observedRunId = state.jobId;
+            if (
+                !initialState &&
+                state.terminal &&
+                this._observedRunId === state.jobId &&
+                this._completedRunId !== state.jobId
+            ) {
+                this._completedRunId = state.jobId;
+                this.onRecurringRunCompleted(state);
+            }
+            initialState = false;
+        });
         this.loadSettings();
+    }
+
+    disconnectedCallback() {
+        this._unsubscribeRun?.();
+        this._loadVersion += 1;
+    }
+    _loadVersion = 0;
+    runState = {};
+    _unsubscribeRun;
+    _completedRunId;
+    _observedRunId;
+    get runStatusLabel() {
+        return this.runState.label;
+    }
+    get runStatusError() {
+        return this.runState.error;
+    }
+    get showRunRetry() {
+        return this.runState.retry;
+    }
+    handleRetryRunStatus() {
+        retryRecurringRun();
+    }
+
+    async onRecurringRunCompleted(state) {
+        this.showToast(
+            state.label === 'Completed'
+                ? 'Recurring run completed'
+                : 'Recurring run needs attention',
+            state.label === 'Completed'
+                ? 'Recurring expenses have finished generating.'
+                : `Run status: ${state.label}. Some expenses may have been generated.`,
+            state.label === 'Completed' ? 'success' : 'warning'
+        );
+        await this.loadSettings();
     }
 
     get runButtonLabel() {
@@ -143,21 +194,24 @@ export default class BudgetExpenseSettings extends LightningElement {
     }
 
     async loadSettings() {
+        const version = ++this._loadVersion;
         this.isLoading = true;
         this.hasLoadedSettings = false;
         this.loadError = undefined;
         try {
             const settings = await getSettings();
+            if (!this.isConnected || version !== this._loadVersion) return;
             if (!settings) {
                 throw new Error('Failed to load settings.');
             }
             this.applySettings(settings);
             this.hasLoadedSettings = true;
         } catch (error) {
+            if (!this.isConnected || version !== this._loadVersion) return;
             this.loadError = getErrorMessage(error, 'Failed to load settings.');
             this.showToast('Error', this.loadError, 'error');
         } finally {
-            this.isLoading = false;
+            if (this.isConnected && version === this._loadVersion) this.isLoading = false;
         }
     }
 
@@ -195,23 +249,14 @@ export default class BudgetExpenseSettings extends LightningElement {
 
     async handleRunRecurringExpenses() {
         if (this.isRunDisabled) return;
-        this.isRunning = true;
         try {
-            await runDueExpensesBatch();
-            this.showToast(
-                'Recurring run started',
-                'Due recurring expenses are being generated.',
-                'success'
-            );
-            await this.loadSettings();
+            await startRecurringRun();
         } catch (error) {
             this.showToast(
                 'Error',
                 getErrorMessage(error, 'Failed to start recurring expense generation.'),
                 'error'
             );
-        } finally {
-            this.isRunning = false;
         }
     }
 

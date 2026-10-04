@@ -30,6 +30,21 @@
             </lightning-button>
         </div>
     </div>
+    <template lwc:if={runStatusLabel}>
+        <div
+            class="slds-box slds-theme_default slds-m-bottom_medium"
+            role="status"
+            aria-live="polite"
+        >
+            <p>Recurring run: {runStatusLabel}</p>
+            <template lwc:if={runStatusError}><p>{runStatusError}</p></template>
+            <lightning-button
+                lwc:if={showRunRetry}
+                label="Retry status check"
+                onclick={handleRetryRunStatus}
+            ></lightning-button>
+        </div>
+    </template>
     <div class="recurring-summary-grid">
         <template for:each={viewModel.summaryCards} for:item="card">
             <section key={card.key} class="recurring-summary-card slds-box slds-theme_default">

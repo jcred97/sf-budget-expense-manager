@@ -6,6 +6,13 @@ import deactivateRecurringExpense from '@salesforce/apex/RecurringExpenseControl
 import { refreshApex } from '@salesforce/apex';
 import LightningConfirm from 'lightning/confirm';
 import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
+import getRecurringRunStatus from '@salesforce/apex/RecurringExpenseAutomationController.getRecurringRunStatus';
+import { subscribeRecurringRun, startRecurringRun } from 'c/recurringRunMonitor';
+jest.mock(
+    '@salesforce/apex/RecurringExpenseAutomationController.getRecurringRunStatus',
+    () => ({ default: jest.fn() }),
+    { virtual: true }
+);
 jest.mock(
     '@salesforce/customPermission/Manage_Recurring_Expense_Automation',
     () => ({ default: true }),
@@ -53,6 +60,12 @@ async function mount() {
 describe('recurring screen', () => {
     beforeEach(() => {
         jest.resetAllMocks();
+        getRecurringRunStatus.mockResolvedValue({
+            jobId: 'batch-job',
+            status: 'Completed',
+            isTerminal: true,
+            numberOfErrors: 0
+        });
         LightningConfirm.open.mockResolvedValue(true);
     });
     afterEach(() => {
@@ -91,7 +104,7 @@ describe('recurring screen', () => {
                 })
         );
         const generationStarted = jest.fn();
-        element.addEventListener('generationstarted', generationStarted);
+        element.addEventListener('generationcompleted', generationStarted);
         findButton(element, 'Run Recurring').click();
         await flush();
         expect(findButton(element, 'Running...').disabled).toBe(true);
@@ -100,8 +113,27 @@ describe('recurring screen', () => {
         expect(runDueExpensesBatch).toHaveBeenCalledTimes(1);
         complete('batch-job');
         await flush();
+        await flush();
         expect(generationStarted).toHaveBeenCalledTimes(1);
         expect(findButton(element, 'Run Recurring').disabled).toBe(false);
+    });
+
+    it('silently refreshes a cached overview once when mounting after another entry point completed', async () => {
+        const keepMonitorConnected = subscribeRecurringRun(jest.fn());
+        runDueExpensesBatch.mockResolvedValue('batch-job');
+        await startRecurringRun();
+        await flush();
+        const element = await mount();
+        const completed = jest.fn();
+        element.addEventListener('generationcompleted', completed);
+        getRecurringExpenseOverview.emit({ rows: [], dueTodayCount: 3 });
+        await flush();
+        expect(refreshApex).toHaveBeenCalledTimes(1);
+        getRecurringExpenseOverview.emit({ rows: [], dueTodayCount: 0 });
+        await flush();
+        expect(refreshApex).toHaveBeenCalledTimes(1);
+        expect(completed).not.toHaveBeenCalled();
+        keepMonitorConnected();
     });
 
     it('presents recurring server rows through the combined view model', async () => {

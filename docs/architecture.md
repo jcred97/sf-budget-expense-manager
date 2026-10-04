@@ -16,7 +16,7 @@ This is a Salesforce-native app: LWC screens call Apex or Lightning Data Service
 | `recurringExpenses` | Overview wire and refresh, template state, recurring modal, deactivation, and batch launch |
 | `budgetExpenseSettings` | Separate settings tab, configuration load/save, scheduler status, and manual run action |
 
-The three workspace screens stay mounted across navigation, preserving local state and pending work. Group changes reset their context. The expense modal is outside the expense screen's hidden section so Dashboard can open it without navigating away. Dashboard emits `addexpense` and `viewexpenses`; the list emits `expenseschanged`; recurring emits `generationstarted`. The manager routes these events and refreshes sibling screens through their public `refresh()` methods. Shared lookup refresh/retry requests return to the manager. Generation-start refresh is currently enqueue-time, not completion-time (see open findings below).
+The three workspace screens stay mounted across navigation, preserving local state and pending work. Group changes reset their scoped data while retaining a tracked global recurring run. The expense modal is outside the expense screen's hidden section so Dashboard can open it without navigating away. Dashboard emits `addexpense` and `viewexpenses`; the list emits `expenseschanged`; recurring emits `generationcompleted` after the batch reaches a terminal state. The manager refreshes the dashboard, expense list, and category lookup after completion, including failed or aborted runs that may have partial writes. Shared lookup refresh/retry requests return to the manager.
 
 `expenseWorkspaceData` wraps imperative reads and report pagination. Each screen owns its request guards and applies results only for its current context; the manager guards its shared lookups. Pure `expenseDashboardViewModel`, `expenseListViewModel`, and `recurringExpenseViewModel` builders derive presentation data. `expenseWorkspaceViewModels` memoizes only dashboard/list view models. Expense and recurring dialogs save through Lightning Data Service record forms; `budgetPanel` performs budget mutations through Apex.
 
@@ -166,6 +166,7 @@ entry points live under `classes/async` without changing their Salesforce metada
 - `RecurringExpenseController.getRecurringExpenseOverview(expenseGroupId)` - first recurring-template page with complete group totals. `getRecurringExpensePage(expenseGroupId, cursor, pageSize)` continues the same user-mode keyset query; `deactivateRecurringExpense(recurringExpenseId)` remains the normal-user command entry point.
 - `RecurringExpenseAutomationController.generateDueExpenses()` - creates due recurring expenses up to a bulk-safe cap, updates recurrence tracking dates, and returns a top-level generation DTO.
 - `RecurringExpenseAutomationController.runDueExpensesBatch()` - Admin/All Access entry point that starts the Batch Apex generator and returns the batch job ID.
+- `RecurringExpenseAutomationController.getRecurringRunStatus(jobId)` - non-cacheable status read restricted to the current user's `RecurringExpenseBatch` batch jobs. Returns job status, terminal flag, error count, and progress counters without exposing arbitrary job details.
 - `RecurringExpenseCalculator` - owns recurrence due-date checks and next-run-date calculations for daily, weekly, monthly, and yearly frequencies.
 - `RecurringExpenseBatch` - Batch Apex processor for due recurring expenses. Each batch chunk creates expenses and advances `Next_Run_Date__c`.
 - `RecurringExpenseScheduler.execute(context)` - scheduled Apex wrapper that starts `RecurringExpenseBatch`.
@@ -205,21 +206,20 @@ Admin and All Access provide effectively equivalent app capabilities, including 
 - Recurring overview initially loads 50 templates and supports Load more with keyset pagination, ordered by active status, next run date (null last), name, and record ID. Counts and monthly estimates describe all matching templates through separate aggregates. A read-only `Due_For_Generation__c` formula preserves the due rule, including valid ended-schedule catch-up occurrences, for complete due counts.
 - Synchronous recurring generation caps output at 200 expenses; each batch transaction caps at 9,000 and processes a scope of 50 templates. Lock/reload and due-date rechecks protect generation, while retained next-run pointers allow catch-up to resume. Batch finish records aggregate results and failed-chunk status; reaching a cap is not clearly reported as unfinished catch-up.
 
-## Open Review Findings
+## Review Follow-ups
 
-The remaining source-confirmed finding is listed below. Later fixes and deployment status are recorded separately.
-See the maintained [review findings](review-findings.md) for follow-up scope and status.
+The confirmed functional findings have source fixes. Deployment status and remaining scaling/coverage limits are recorded in [review findings](review-findings.md).
 
-| Finding | Source and intended follow-up |
-| --- | --- |
-| Data refresh can precede batch completion | The recurring screen receives the queued job ID, then emits `generationstarted` and refreshes immediately. Track completion or provide explicit pending status and a refresh action. |
+Both manual-run screens use the shared `recurringRunMonitor` to retain the submitted job ID, display queued/running/terminal state, and block repeated submissions while pending. Sequential status polling is bounded; a failed check or exhausted polling window retains the busy state and offers Retry status. With no mounted subscribers, timers stop and stale replies are ignored; reconnecting resumes pending tracking. State is held in page memory and does not recover across a full browser reload or another browser tab.
 
 ## Source Versus Org State
+
+Job completion tracking is deployed to `mainDevOrg` as of 2026-10-04. Deployment `0AfgK00000VJSunSAH` passed 35 Apex tests; local frontend verification passed 128 Jest tests. See [testing notes](testing-and-tooling.md) for coverage and lifecycle boundaries.
 
 Recurring pagination and complete summaries are deployed to `mainDevOrg` as of 2026-10-03. Deployment `0AfgK00000VH2I5SAL` passed all 154 repository Apex tests; frontend verification passed 111 Jest tests across eleven suites. See [testing notes](testing-and-tooling.md) for coverage and regression details.
 
 Settings saves repair missing/unusable schedules when enabled, even with an unchanged time. Valid same-time jobs retain their owner and timezone. This Apex change is deployed to `mainDevOrg` as of 2026-10-04: deployment `0AfgK00000VJEF7SAP` passed 25/25 tests with 93.14% service coverage. The existing daily schedule was preserved; see F2 in [review findings](review-findings.md).
 
-API version is `65.0`; the project namespace is `bemgr` and `force-app` is the default package directory. This does not establish managed-package installation status. Current source has no active Flow implementation or populated Aura bundle. Eight controllers, sixteen service/interface classes, fifteen DTOs, six handlers, six triggers, two async classes, and eighteen Apex test classes implement the backend.
+API version is `65.0`; the project namespace is `bemgr` and `force-app` is the default package directory. This does not establish managed-package installation status. Current source has no active Flow implementation or populated Aura bundle. Eight controllers, sixteen service/interface classes, sixteen DTOs, six handlers, six triggers, two async classes, and nineteen Apex test classes implement the backend.
 
 `manifest/package.xml` is the current deployment set. Historical rebrand/destructive manifests are migration records, not an instruction to replay cleanup. Retired lookup selectors/services and presentation bundles have been removed from source; deleting files in Git does not delete their deployed counterparts. Live scheduled jobs, settings records, permission assignments, credential access, and removed metadata must be checked before the deferred deployment and cleanup. The 2026-09-30 source review passed 66 Jest tests in nine suites and lint; that review did not rerun Apex tests or inspect the live org.

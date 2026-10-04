@@ -1,5 +1,13 @@
 # Testing And Tooling
 
+## Recurring Batch Tracking Verification — 2026-10-04
+
+- Both manual-run screens share job-specific progress tracking. Terminal jobs refresh results once; failed/aborted jobs also refresh partial writes. Polling failures and the 150-check limit preserve the pending job and run guard, with an explicit Retry status check.
+- Jest passed **128 tests across 14 suites**. Coverage includes delayed completion, completed-with-errors, failed/aborted jobs, retry and polling limits, duplicate submission, cross-screen tracking, disconnect during status/enqueue requests, group/navigation changes, terminal replay, and stale settings reads. Lint, targeted formatting, and diff checks passed.
+- Check-only Apex validation `0AfgK00000VJRHBSA5` passed **35/35 tests** across the automation controller, recurring service, batch, and scheduler. `RecurringExpenseAutomationController` coverage is **100%** (32/32 executable lines). The status endpoint rejects other users' jobs, unrelated job types/classes, and invalid inputs.
+- Final combined check-only validation `0AfgK00000VJSmjSAH` compiled all seven changed/new components with no errors; it used `NoTestRun` because the unchanged Apex package had already passed the focused validation above. Deployment `0AfgK00000VJSunSAH` then deployed all seven components to `mainDevOrg` and passed **35/35 Apex tests**, with **100%** controller coverage.
+- Tracking is retained in page memory during navigation/disconnect and resumes on reconnect. It does not recover active runs across full browser reloads or separate tabs. The minimally privileged Admin permission-set/profile combination has not been separately exercised in a live browser; Apex tests validate ownership using the same profile as the validation user.
+
 ## Manual Automation Permission Verification — 2026-10-04
 
 - Source now gates Run Recurring in both UI entry points with `Manage_Recurring_Expense_Automation`, granted only to Admin and All Access. The User permission set and existing Apex authorization are unchanged.
