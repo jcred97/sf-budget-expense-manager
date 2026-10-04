@@ -20,7 +20,7 @@ The review inspected source and ran local lint/Jest checks; it did not reproduce
 
 ### F2 — Saving enabled automation does not create a missing schedule (P2)
 
-**Fixed in source; check-only validation passed:** Enabled saves repair a missing or unusable schedule even when the time is unchanged. Same-time saves retain a usable job and its owner/timezone; new jobs use the saving user's timezone. Disabled-save behavior remains unchanged. Added tests cover first-time default saves, repeated saves, same-time re-enable, removed-job recovery, and inactive job states. Validation `0AfgK00000UzpUBSAZ` passed 19/19 settings, batch, and scheduler tests with 93.14% service coverage. This fix is not deployed. The evidence below describes the original issue.
+**Fixed and deployed to `mainDevOrg` on 2026-10-04:** Enabled saves repair a missing or unusable schedule even when the time is unchanged. Same-time saves retain a usable job and its owner/timezone; new jobs use the saving user's timezone. Disabled-save behavior remains unchanged. Added tests cover first-time default saves, repeated saves, same-time re-enable, removed-job recovery, and inactive job states. Deployment `0AfgK00000VJEF7SAP` passed 25/25 settings service, settings trigger handler, batch, and scheduler tests with 93.14% service coverage. The existing daily job retained its ID, owner, timezone, and cron; the temporary deployment option was restored to disabled. The evidence below describes the original issue.
 
 - **Trigger:** Fresh settings default to enabled at `08:00`, or the existing job is removed. Saving the same clock time, including disabled-to-enabled, does not schedule a replacement.
 - **Impact:** Automation can be enabled in the settings record without any daily job.
@@ -29,6 +29,8 @@ The review inspected source and ran local lint/Jest checks; it did not reproduce
 - **Required regression checks:** Fresh same-time save, same-time re-enable, missing-job recovery, existing valid schedule unchanged.
 
 ### F3 — Run Recurring is exposed to the regular User role without execution access (P2)
+
+**Fixed and deployed to `mainDevOrg` on 2026-10-04:** The `Manage_Recurring_Expense_Automation` custom permission is granted to Admin and All Access, and omitted from User. Both manual-run UI entry points hide the action and guard their handlers when the permission is absent. Refresh remains available to normal users. Existing server Apex class access and user-mode data authorization remain enforced without broadening normal-user access. Deployment `0AfgK00000VJHo5SAH` succeeded after check-only validation; local Jest passed 116 tests. The evidence below describes the original issue.
 
 - **Trigger:** A user has the supplied User permission set and no additional automation Apex access, then clicks Run Recurring.
 - **Impact:** The visible action fails authorization. Permission sets are additive; users with other grants may not encounter it.

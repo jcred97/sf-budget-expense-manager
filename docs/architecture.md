@@ -186,7 +186,7 @@ The default sharing model is not private per user: Expense Groups and recurring 
 - `Budget_Expense_Manager_Admin` - Operational admin access. Grants the normal controllers, including Currency Context and Exchange Rate, plus `SettingsController` and `RecurringExpenseAutomationController`, the public exchange-rate credential principal, full access to global Banks and group assignments, and access to budgets and settings.
 - `Budget_Expense_Manager_All_Access` - Development/admin convenience set. Uses the same controller-only Apex access boundary as Admin, grants the public exchange-rate credential principal, and grants broad CRUD plus `viewAllRecords` and `modifyAllRecords` on the app objects. Generated key fields stay hidden.
 
-Admin and All Access currently provide effectively equivalent app capabilities, including broad record access. Normal User excludes settings-object access and the settings/automation controllers. The recurring screen currently still displays its manual run action to that role; this is an open UI capability mismatch, not evidence of granted Apex access.
+Admin and All Access provide effectively equivalent app capabilities, including broad record access. Both grant the `Manage_Recurring_Expense_Automation` custom permission that controls manual-run visibility and handler guards in the recurring screen and settings. Normal User excludes this capability, settings-object access, and the settings/automation controllers. Apex class access and existing user-mode data operations remain the server authorization boundary; the UI capability does not grant execution access by itself.
 
 ## Pages And Tabs
 
@@ -207,19 +207,18 @@ Admin and All Access currently provide effectively equivalent app capabilities, 
 
 ## Open Review Findings
 
-These source-confirmed findings remain unresolved as of 2026-09-30. Documentation updates do not implement their fixes.
+The remaining source-confirmed finding is listed below. Later fixes and deployment status are recorded separately.
 See the maintained [review findings](review-findings.md) for follow-up scope and status.
 
 | Finding | Source and intended follow-up |
 | --- | --- |
-| Normal users see an unauthorized manual-run action | [`recurringExpenses.js`](../force-app/main/default/lwc/recurringExpenses/recurringExpenses.js) exposes the action, while the User permission set omits `RecurringExpenseAutomationController`. Gate the UI on the intended capability. |
 | Data refresh can precede batch completion | The recurring screen receives the queued job ID, then emits `generationstarted` and refreshes immediately. Track completion or provide explicit pending status and a refresh action. |
 
 ## Source Versus Org State
 
 Recurring pagination and complete summaries are deployed to `mainDevOrg` as of 2026-10-03. Deployment `0AfgK00000VH2I5SAL` passed all 154 repository Apex tests; frontend verification passed 111 Jest tests across eleven suites. See [testing notes](testing-and-tooling.md) for coverage and regression details.
 
-Settings saves now repair missing/unusable schedules when enabled, even with an unchanged time. Valid same-time jobs retain their owner and timezone. This Apex change passed Salesforce check-only validation (19/19 tests, 93.14% service coverage) and awaits deployment; see F2 in [review findings](review-findings.md).
+Settings saves repair missing/unusable schedules when enabled, even with an unchanged time. Valid same-time jobs retain their owner and timezone. This Apex change is deployed to `mainDevOrg` as of 2026-10-04: deployment `0AfgK00000VJEF7SAP` passed 25/25 tests with 93.14% service coverage. The existing daily schedule was preserved; see F2 in [review findings](review-findings.md).
 
 API version is `65.0`; the project namespace is `bemgr` and `force-app` is the default package directory. This does not establish managed-package installation status. Current source has no active Flow implementation or populated Aura bundle. Eight controllers, sixteen service/interface classes, fifteen DTOs, six handlers, six triggers, two async classes, and eighteen Apex test classes implement the backend.
 

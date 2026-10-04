@@ -61,6 +61,7 @@
 
                 <div class="run-actions">
                     <lightning-button
+                        lwc:if={canRunRecurringExpenses}
                         variant="neutral"
                         label={runButtonLabel}
                         icon-name="utility:play"

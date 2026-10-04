@@ -8,6 +8,11 @@ import LightningConfirm from 'lightning/confirm';
 import deleteExpense from '@salesforce/apex/ExpenseController.deleteExpense';
 import { refreshApex } from '@salesforce/apex';
 import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
+jest.mock(
+    '@salesforce/customPermission/Manage_Recurring_Expense_Automation',
+    () => ({ default: true }),
+    { virtual: true }
+);
 
 jest.mock('lightning/confirm', () => ({ open: jest.fn() }));
 jest.mock('@salesforce/apex', () => ({ refreshApex: jest.fn() }), { virtual: true });

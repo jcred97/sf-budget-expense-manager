@@ -4,6 +4,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getSettings from '@salesforce/apex/SettingsController.getSettings';
 import saveSettings from '@salesforce/apex/SettingsController.saveSettings';
 import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
+import manageRecurringExpenseAutomation from '@salesforce/customPermission/Manage_Recurring_Expense_Automation';
 
 import { getErrorMessage } from 'c/expenseErrorUtils';
 
@@ -46,6 +47,10 @@ export default class BudgetExpenseSettings extends LightningElement {
         return this.isRunning ? 'Running...' : 'Run Recurring';
     }
 
+    get canRunRecurringExpenses() {
+        return manageRecurringExpenseAutomation === true;
+    }
+
     get refreshButtonLabel() {
         return this.isLoading ? 'Refreshing...' : this.loadError ? 'Retry' : 'Refresh';
     }
@@ -55,7 +60,9 @@ export default class BudgetExpenseSettings extends LightningElement {
     }
 
     get isRunDisabled() {
-        return this.isSaveDisabled || !this.recurringExpensesEnabled;
+        return (
+            !this.canRunRecurringExpenses || this.isSaveDisabled || !this.recurringExpensesEnabled
+        );
     }
 
     get isRefreshDisabled() {

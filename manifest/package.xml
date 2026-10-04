@@ -86,6 +86,10 @@
         <name>CustomApplication</name>
     </types>
     <types>
+        <members>Manage_Recurring_Expense_Automation</members>
+        <name>CustomPermission</name>
+    </types>
+    <types>
         <members>Budget_Expense_Manager_Setting__c.Base_Currency_Code__c</members>
         <members>Budget_Expense_Manager_Setting__c.Global_Recurring_Run_Time__c</members>
         <members>Budget_Expense_Manager_Setting__c.Last_Recurring_Run_DateTime__c</members>

@@ -8,6 +8,7 @@ import getRecurringExpenseOverview from '@salesforce/apex/RecurringExpenseContro
 import getRecurringExpensePage from '@salesforce/apex/RecurringExpenseController.getRecurringExpensePage';
 import deactivateRecurringExpense from '@salesforce/apex/RecurringExpenseController.deactivateRecurringExpense';
 import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
+import hasRecurringAutomationPermission from '@salesforce/customPermission/Manage_Recurring_Expense_Automation';
 
 export default class RecurringExpenses extends LightningElement {
     @api expenseGroupName;
@@ -247,6 +248,14 @@ export default class RecurringExpenses extends LightningElement {
     }
 
     get isRunRecurringDisabled() {
+        return !this.canRunRecurringAutomation || this.isRecurringBusy;
+    }
+
+    get canRunRecurringAutomation() {
+        return Boolean(hasRecurringAutomationPermission);
+    }
+
+    get isRecurringBusy() {
         return this.isRunningRecurring || this.isRecurringLoading;
     }
 

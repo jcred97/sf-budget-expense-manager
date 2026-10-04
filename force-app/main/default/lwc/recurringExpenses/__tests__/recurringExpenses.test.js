@@ -5,6 +5,12 @@ import getRecurringExpensePage from '@salesforce/apex/RecurringExpenseController
 import deactivateRecurringExpense from '@salesforce/apex/RecurringExpenseController.deactivateRecurringExpense';
 import { refreshApex } from '@salesforce/apex';
 import LightningConfirm from 'lightning/confirm';
+import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
+jest.mock(
+    '@salesforce/customPermission/Manage_Recurring_Expense_Automation',
+    () => ({ default: true }),
+    { virtual: true }
+);
 jest.mock('lightning/confirm', () => ({ open: jest.fn() }));
 jest.mock('@salesforce/apex', () => ({ refreshApex: jest.fn() }), { virtual: true });
 jest.mock(
@@ -70,6 +76,33 @@ describe('recurring screen', () => {
         await flush();
         return element;
     }
+
+    const findButton = (element, label) =>
+        [...element.shadowRoot.querySelectorAll('lightning-button')].find(
+            item => item.label === label
+        );
+    it('starts automation for permitted users and prevents a second request while busy', async () => {
+        const element = await mountRecurring();
+        let complete;
+        runDueExpensesBatch.mockImplementationOnce(
+            () =>
+                new Promise(resolve => {
+                    complete = resolve;
+                })
+        );
+        const generationStarted = jest.fn();
+        element.addEventListener('generationstarted', generationStarted);
+        findButton(element, 'Run Recurring').click();
+        await flush();
+        expect(findButton(element, 'Running...').disabled).toBe(true);
+        expect(findButton(element, 'Refresh').disabled).toBe(true);
+        findButton(element, 'Running...').click();
+        expect(runDueExpensesBatch).toHaveBeenCalledTimes(1);
+        complete('batch-job');
+        await flush();
+        expect(generationStarted).toHaveBeenCalledTimes(1);
+        expect(findButton(element, 'Run Recurring').disabled).toBe(false);
+    });
 
     it('presents recurring server rows through the combined view model', async () => {
         const element = await mount();

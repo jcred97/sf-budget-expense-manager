@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description
+    >Shows manual recurring expense automation actions to users with automation access.</description>
+    <isLicensed>false</isLicensed>
+    <label>Manage Recurring Expense Automation</label>
+</CustomPermission>

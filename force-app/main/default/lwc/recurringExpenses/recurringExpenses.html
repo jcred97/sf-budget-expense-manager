@@ -9,9 +9,10 @@
                 label="Refresh"
                 icon-name="utility:refresh"
                 onclick={loadRecurringExpenses}
-                disabled={isRunRecurringDisabled}
+                disabled={isRecurringBusy}
             ></lightning-button>
             <lightning-button
+                lwc:if={canRunRecurringAutomation}
                 variant="neutral"
                 label={runRecurringLabel}
                 icon-name="utility:play"

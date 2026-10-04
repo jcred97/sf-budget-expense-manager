@@ -2,6 +2,10 @@
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
     <label>Budget &amp; Expense Manager All Access</label>
     <hasActivationRequired>false</hasActivationRequired>
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Manage_Recurring_Expense_Automation</name>
+    </customPermissions>
 
     <!-- Object Permissions -->
     <objectPermissions>

@@ -1,5 +1,18 @@
 # Testing And Tooling
 
+## Manual Automation Permission Verification — 2026-10-04
+
+- Source now gates Run Recurring in both UI entry points with `Manage_Recurring_Expense_Automation`, granted only to Admin and All Access. The User permission set and existing Apex authorization are unchanged.
+- Jest passed **116 tests across 13 suites**. Regression checks cover denied visibility and handler invocation, retained Refresh/template management, permitted runs, and duplicate-request prevention. Lint and targeted formatting checks passed.
+- Check-only validation `0AfgK00000VJ5gVSAT` and deployment `0AfgK00000VJHo5SAH` succeeded for the custom permission, two permission sets, and two LWC bundles. `NoTestRun` was used because no Apex changed; these operations ran no Apex tests. The permission fix is deployed to `mainDevOrg`.
+
+## Schedule Recovery Deployment — 2026-10-04
+
+- Schedule recovery is deployed to `mainDevOrg`. Check-only validation `0AfgK00000VJEBtSAP` and deployment `0AfgK00000VJEF7SAP` each passed **25/25 tests** across the settings service, settings trigger handler, recurring batch, and scheduler test classes.
+- `BudgetExpenseSettingsService` coverage is **93.14%** (163/175 executable lines). Live source inspection confirmed the recovery helper is present.
+- Existing recurring job `08egK00000hRaZiQAK` remains WAITING with the same owner, cron `0 0 8 * * ?`, timezone `Asia/Manila`, and next run `2026-10-05T00:00:00Z`.
+- The user-approved temporary Deployment Settings option allowing deployment with pending Apex jobs was restored to disabled after deployment. No live schedule was aborted or recreated.
+
 ## Recurring Pagination Verification — 2026-10-03
 
 - Recurring overview pagination and complete summaries are deployed to `mainDevOrg`; deployment `0AfgK00000VH2I5SAL` succeeded with **154/154 Apex tests** across all 18 repository test classes.
