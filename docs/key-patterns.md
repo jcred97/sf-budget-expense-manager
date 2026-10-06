@@ -8,6 +8,11 @@ own their screen data, actions, and loading state. All three remain mounted acro
 hidden sections preserve state and keep pending actions connected. Group setters clear
 scoped data and close the expense/recurring dialogs when the group changes.
 
+Mounted inactive screen sections use scoped `[hidden] { display: none !important; }`
+rules so authored section styles cannot override their visibility. The expense modal
+and print report remain outside the expense screen section, preserving Dashboard Add
+Expense and report behavior while Expenses is inactive.
+
 Imperative expense, Dashboard, trend, and Bank-option reads enter through
 `expenseWorkspaceData`. The Category wire belongs to the manager; the recurring overview
 wire belongs to `recurringExpenses`, which retains its own `refreshApex` result.

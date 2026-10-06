@@ -1,5 +1,13 @@
 # Testing And Tooling
 
+## Workspace Navigation Visibility Verification — 2026-10-07
+
+- Added scoped hidden-section rules for workspace Dashboard/Recurring wrappers and the expense-list screen. Navigation keeps all three screen instances mounted; the shared expense modal and print report remain outside the hidden expense section.
+- Two regressions cover all three navigation choices, selection semantics, retained component instances, and the actual CSS cascade. The cascade test demonstrates that authored `section { display: block }` overrides native hidden behavior before applying repository styles, then verifies hidden sections render with `display: none` and active sections with `display: block`.
+- A browser fixture using before/after repository styles inside shadow roots reproduced the override and verified each navigation choice shows only its selected section. This is controlled browser evidence, not an inspection of the exact overriding rule in the live Salesforce org.
+- Full Jest passed **220 tests across 21 suites**; lint, targeted formatting, and diff checks passed. Salesforce check-only validation `0AfgK00000VbIKHSA3` compiled both changed LWC bundles successfully with `NoTestRun`; no Apex tests were run.
+- Deployment to `mainDevOrg` succeeded on 2026-10-07 (`0AfgK00000VbKh3SAF`), updating the `budgetExpenseManager` and `expenseList` LWC bundles. No Apex tests were run for this CSS-only deployment.
+
 ## Recurring Editor Lifecycle Regression Coverage — 2026-10-07
 
 - Added a dedicated recurring-modal suite covering independent form/record loading, initial form errors, context Retry success/rejection/incomplete reload, stale retry completion after close/reopen or record changes, reversed-date correction, native-validation rejection, pending-save guards, save-error recovery, and create/edit success events.

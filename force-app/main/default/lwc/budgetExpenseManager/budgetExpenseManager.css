@@ -216,6 +216,11 @@
         var(--slds-g-spacing-5, 1.5rem);
 }
 
+/* Keep inactive mounted screens hidden even when Salesforce styles section elements. */
+.workspace-view[hidden] {
+    display: none !important;
+}
+
 @media (max-width: 900px) {
     .workspace-shell,
     .workspace-shell.is-sidebar-collapsed {

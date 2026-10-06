@@ -1,4 +1,6 @@
 import { createElement } from 'lwc';
+import { readFileSync } from 'fs';
+import { resolve as resolvePath } from 'path';
 import BudgetExpenseManager from 'c/budgetExpenseManager';
 import getAllExpenseGroups from '@salesforce/apex/ExpenseController.getAllExpenseGroups';
 import getRecurringExpenseOverview from '@salesforce/apex/RecurringExpenseController.getRecurringExpenseOverview';
@@ -265,6 +267,61 @@ describe('workspace coordination', () => {
         element.shadowRoot.querySelector(`[data-view="${view}"]`).click();
         await flush();
     };
+
+    it('shows only the selected screen while retaining each screen instance', async () => {
+        const element = await mount();
+        const instances = {
+            dashboard: dashboard(element),
+            expenses: list(element),
+            recurring: recurring(element)
+        };
+        const panels = {
+            dashboard: instances.dashboard.parentElement,
+            expenses: instances.expenses.shadowRoot.querySelector('.expense-screen'),
+            recurring: instances.recurring.parentElement
+        };
+        for (const selected of ['dashboard', 'expenses', 'recurring', 'expenses', 'dashboard']) {
+            // Navigation follows a render before the next user click.
+            // eslint-disable-next-line no-await-in-loop
+            await navigate(element, selected);
+            for (const [view, panel] of Object.entries(panels)) {
+                expect(panel.hidden).toBe(view !== selected);
+                expect(
+                    element.shadowRoot
+                        .querySelector(`[data-view="${view}"]`)
+                        .getAttribute('aria-current')
+                ).toBe(view === selected ? 'page' : null);
+            }
+            expect(dashboard(element)).toBe(instances.dashboard);
+            expect(list(element)).toBe(instances.expenses);
+            expect(recurring(element)).toBe(instances.recurring);
+        }
+    });
+
+    it('keeps inactive screen sections hidden against authored section display rules', () => {
+        // Jest omits component styles. Exercise the real CSS in a light-DOM cascade fixture;
+        // this verifies display behavior rather than the hidden attribute alone.
+        const stylesheet = document.createElement('style');
+        stylesheet.textContent = 'section { display: block; }';
+        document.body.appendChild(stylesheet);
+        const panels = [];
+        for (const className of ['workspace-view', 'expense-screen']) {
+            const section = document.createElement('section');
+            section.className = className;
+            section.hidden = true;
+            document.body.appendChild(section);
+            expect(window.getComputedStyle(section).display).toBe('block');
+            panels.push(section);
+        }
+        stylesheet.textContent += `
+            ${readFileSync(resolvePath(__dirname, '../budgetExpenseManager.css'), 'utf8')}
+            ${readFileSync(resolvePath(__dirname, '../../expenseList/expenseList.css'), 'utf8')}`;
+        for (const section of panels) {
+            expect(window.getComputedStyle(section).display).toBe('none');
+            section.hidden = false;
+            expect(window.getComputedStyle(section).display).toBe('block');
+        }
+    });
     const dashboardButton = (element, label) =>
         [...dashboard(element).shadowRoot.querySelectorAll('lightning-button')].find(
             button => button.label === label

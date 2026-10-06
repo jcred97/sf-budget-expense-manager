@@ -2,6 +2,11 @@
     display: block;
 }
 
+/* The shared modal and print report remain outside this inactive screen. */
+.expense-screen[hidden] {
+    display: none !important;
+}
+
 .expenses-loading {
     flex: 1;
     /* The loading placeholder height prevents layout shift while expenses load. */
