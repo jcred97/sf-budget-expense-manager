@@ -23,7 +23,7 @@ function formatDateTime(value) {
 
 export default class BudgetExpenseSettings extends LightningElement {
     settingsId;
-    recurringExpensesEnabled = true;
+    recurringExpensesEnabled = false;
     globalRecurringRunTime = '08:00';
     lastRunStatus = '-';
     lastRunDateTime;

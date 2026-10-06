@@ -30,29 +30,19 @@ private class BudgetExpenseSettingsServiceTest {
     static void testGetSettingsCreatesDefaultRecord() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             CronTrigger expectedSchedule = getRecurringSchedule();
-            CurrencyContextService.currencyProvider = new StubOrganizationCurrencyProvider(
-                INITIAL_BASE_CURRENCY
-            );
+            CurrencyContextService.currencyProvider = new StubOrganizationCurrencyProvider(INITIAL_BASE_CURRENCY);
 
             Test.startTest();
-            BudgetExpenseSettingsState settings = SettingsController.getSettings();
+            BudgetExpenseSettingsState settings = BudgetExpenseSettingsService.getSettings();
             Test.stopTest();
 
-            System.assertNotEquals(
-                null,
-                settings.settingsId,
-                'Getting settings should create the default settings record.'
-            );
+            System.assertNotEquals(null, settings.settingsId, 'Getting settings should create the default settings record.');
             System.assertEquals(
-                true,
+                false,
                 settings.recurringExpensesEnabled,
-                'Recurring expenses should be enabled by default.'
+                'Recurring expenses should be disabled until explicitly enabled.'
             );
-            System.assertEquals(
-                '08:00',
-                settings.globalRecurringRunTime,
-                'The default recurring run time should be 08:00.'
-            );
+            System.assertEquals('08:00', settings.globalRecurringRunTime, 'The default recurring run time should be 08:00.');
             System.assertEquals(
                 INITIAL_BASE_CURRENCY,
                 settings.baseCurrencyCode,
@@ -74,9 +64,7 @@ private class BudgetExpenseSettingsServiceTest {
                 'Next run time should reflect the currently visible recurring job.'
             );
             System.assertEquals(
-                expectedSchedule == null
-                    ? UserInfo.getTimeZone().getID()
-                    : expectedSchedule.TimeZoneSidKey,
+                expectedSchedule == null ? UserInfo.getTimeZone().getID() : expectedSchedule.TimeZoneSidKey,
                 settings.recurringScheduleTimeZone,
                 'Schedule timezone should reflect the job or current user timezone.'
             );
@@ -106,9 +94,7 @@ private class BudgetExpenseSettingsServiceTest {
                 Recurring_Expenses_Enabled__c = true,
                 Global_Recurring_Run_Time__c = Time.newInstance(8, 0, 0, 0)
             );
-            StubOrganizationCurrencyProvider provider = new StubOrganizationCurrencyProvider(
-                BACKFILLED_BASE_CURRENCY
-            );
+            StubOrganizationCurrencyProvider provider = new StubOrganizationCurrencyProvider(BACKFILLED_BASE_CURRENCY);
             CurrencyContextService.currencyProvider = provider;
 
             Test.startTest();
@@ -130,11 +116,7 @@ private class BudgetExpenseSettingsServiceTest {
                 persistedSettings.Base_Currency_Code__c,
                 'A missing base currency should be backfilled on the existing singleton.'
             );
-            System.assertEquals(
-                1,
-                provider.invocationCount,
-                'Backfilling should resolve the organization currency once.'
-            );
+            System.assertEquals(1, provider.invocationCount, 'Backfilling should resolve the organization currency once.');
         }
     }
 
@@ -147,18 +129,14 @@ private class BudgetExpenseSettingsServiceTest {
                 Global_Recurring_Run_Time__c = Time.newInstance(8, 0, 0, 0),
                 Base_Currency_Code__c = PINNED_BASE_CURRENCY
             );
-            StubOrganizationCurrencyProvider changedOrganizationProvider = new StubOrganizationCurrencyProvider(
-                'USD'
-            );
+            StubOrganizationCurrencyProvider changedOrganizationProvider = new StubOrganizationCurrencyProvider('USD');
             CurrencyContextService.currencyProvider = changedOrganizationProvider;
             BudgetExpenseSettingsUpdateRequest request = new BudgetExpenseSettingsUpdateRequest();
             request.recurringExpensesEnabled = 'true';
             request.globalRecurringRunTime = '08:00';
 
             Test.startTest();
-            BudgetExpenseSettingsState settings = BudgetExpenseSettingsService.saveSettings(
-                request
-            );
+            BudgetExpenseSettingsState settings = BudgetExpenseSettingsService.saveSettings(request);
             Test.stopTest();
 
             System.assertEquals(
@@ -187,20 +165,16 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testSaveSettingsUpdatesExistingRecord() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            SettingsController.getSettings();
+            BudgetExpenseSettingsService.getSettings();
             BudgetExpenseSettingsUpdateRequest request = new BudgetExpenseSettingsUpdateRequest();
             request.recurringExpensesEnabled = 'false';
             request.globalRecurringRunTime = '08:00';
 
             Test.startTest();
-            BudgetExpenseSettingsState settings = SettingsController.saveSettings(request);
+            BudgetExpenseSettingsState settings = BudgetExpenseSettingsService.saveSettings(request);
             Test.stopTest();
 
-            System.assertEquals(
-                false,
-                settings.recurringExpensesEnabled,
-                'Saving disabled settings should return a disabled state.'
-            );
+            System.assertEquals(false, settings.recurringExpensesEnabled, 'Saving disabled settings should return a disabled state.');
             System.assertEquals(
                 false,
                 BudgetExpenseSettingsService.areRecurringExpensesEnabled(),
@@ -217,38 +191,22 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testSaveSettingsUpdatesGlobalRunTimeAndSchedule() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            SettingsController.getSettings();
+            BudgetExpenseSettingsService.getSettings();
             BudgetExpenseSettingsUpdateRequest request = new BudgetExpenseSettingsUpdateRequest();
             request.recurringExpensesEnabled = 'true';
             request.globalRecurringRunTime = '10:30';
 
-            BudgetExpenseSettingsState settings = SettingsController.saveSettings(request);
+            BudgetExpenseSettingsState settings = BudgetExpenseSettingsService.saveSettings(request);
 
-            System.assertEquals(
-                '10:30',
-                settings.globalRecurringRunTime,
-                'Saving settings should return the requested run time.'
-            );
-            System.assertEquals(
-                true,
-                settings.recurringScheduleActive,
-                'Changing the run time should create an active schedule.'
-            );
-            System.assertEquals(
-                'WAITING',
-                settings.recurringScheduleState,
-                'The new recurring schedule should be waiting.'
-            );
+            System.assertEquals('10:30', settings.globalRecurringRunTime, 'Saving settings should return the requested run time.');
+            System.assertEquals(true, settings.recurringScheduleActive, 'Changing the run time should create an active schedule.');
+            System.assertEquals('WAITING', settings.recurringScheduleState, 'The new recurring schedule should be waiting.');
             System.assertNotEquals(
                 null,
                 settings.recurringScheduleNextRunDateTime,
                 'The new recurring schedule should have a next run time.'
             );
-            System.assertNotEquals(
-                null,
-                settings.recurringScheduleTimeZone,
-                'The new recurring schedule should have a timezone.'
-            );
+            System.assertNotEquals(null, settings.recurringScheduleTimeZone, 'The new recurring schedule should have a timezone.');
             System.assertEquals(
                 '0 30 10 * * ?',
                 settings.recurringScheduleCronExpression,
@@ -272,11 +230,7 @@ private class BudgetExpenseSettingsServiceTest {
                 WHERE CronJobDetail.Name = 'Budget Expense Manager Recurring Daily'
                 LIMIT 1
             ];
-            System.assertEquals(
-                '0 30 10 * * ?',
-                scheduledJob.CronExpression,
-                'The scheduled job should use the requested daily run time.'
-            );
+            System.assertEquals('0 30 10 * * ?', scheduledJob.CronExpression, 'The scheduled job should use the requested daily run time.');
         }
     }
 
@@ -289,28 +243,15 @@ private class BudgetExpenseSettingsServiceTest {
             Test.stopTest();
 
             Budget_Expense_Manager_Setting__c settings = [
-                SELECT
-                    Last_Recurring_Run_DateTime__c,
-                    Last_Recurring_Run_Status__c,
-                    Last_Recurring_Run_Message__c
+                SELECT Last_Recurring_Run_DateTime__c, Last_Recurring_Run_Status__c, Last_Recurring_Run_Message__c
                 FROM Budget_Expense_Manager_Setting__c
                 LIMIT 1
             ];
 
-            System.assertNotEquals(
-                null,
-                settings.Last_Recurring_Run_DateTime__c,
-                'Completing a run should record its completion time.'
-            );
-            System.assertEquals(
-                'Completed',
-                settings.Last_Recurring_Run_Status__c,
-                'Completing a run should record a completed status.'
-            );
+            System.assertNotEquals(null, settings.Last_Recurring_Run_DateTime__c, 'Completing a run should record its completion time.');
+            System.assertEquals('Completed', settings.Last_Recurring_Run_Status__c, 'Completing a run should record a completed status.');
             System.assert(
-                settings.Last_Recurring_Run_Message__c.contains(
-                    'Created 3 expenses from 2 recurring templates.'
-                ),
+                settings.Last_Recurring_Run_Message__c.contains('Created 3 expenses from 2 recurring templates.'),
                 'Completing a run should record the generated expense and template counts.'
             );
         }
@@ -341,18 +282,21 @@ private class BudgetExpenseSettingsServiceTest {
     static void testEnabledDefaultSaveCreatesScheduleAndRepeatedSavePreservesIt() {
         isolateRecurringSchedule();
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            SettingsController.getSettings();
-            BudgetExpenseSettingsState state = SettingsController.saveSettings(defaultScheduleRequest(true));
+            BudgetExpenseSettingsService.getSettings();
+            BudgetExpenseSettingsState state = BudgetExpenseSettingsService.saveSettings(defaultScheduleRequest(true));
             CronTrigger original = getRecurringSchedule();
             System.assertEquals(true, state.recurringScheduleActive, 'Saving default enabled settings must create a schedule.');
             System.assertEquals('0 0 8 * * ?', original.CronExpression, 'The default time must schedule daily at 08:00.');
 
-            SettingsController.saveSettings(defaultScheduleRequest(true));
+            BudgetExpenseSettingsService.saveSettings(defaultScheduleRequest(true));
             CronTrigger unchanged = getRecurringSchedule();
             System.assertEquals(original.Id, unchanged.Id, 'Repeated saves must preserve the job and its owner.');
             System.assertEquals(original.TimeZoneSidKey, unchanged.TimeZoneSidKey, 'Repeated saves must preserve the timezone.');
-            System.assertEquals(1, [SELECT COUNT() FROM CronTrigger WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME AND State != 'DELETED'],
-                'Repeated saves must not create duplicate schedules.');
+            System.assertEquals(
+                1,
+                [SELECT COUNT() FROM CronTrigger WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME AND State != 'DELETED'],
+                'Repeated saves must not create duplicate schedules.'
+            );
         }
     }
 
@@ -360,9 +304,9 @@ private class BudgetExpenseSettingsServiceTest {
     static void testSameTimeReenableCreatesMissingSchedule() {
         isolateRecurringSchedule();
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            SettingsController.saveSettings(defaultScheduleRequest(false));
+            BudgetExpenseSettingsService.saveSettings(defaultScheduleRequest(false));
             System.assertEquals(null, getRecurringSchedule(), 'A disabled same-time save must not create a schedule.');
-            BudgetExpenseSettingsState state = SettingsController.saveSettings(defaultScheduleRequest(true));
+            BudgetExpenseSettingsState state = BudgetExpenseSettingsService.saveSettings(defaultScheduleRequest(true));
             System.assertEquals(true, state.recurringScheduleActive, 'Re-enabling at the same time must create the missing job.');
             System.assertEquals('0 0 8 * * ?', state.recurringScheduleCronExpression, 'Recovery must use the saved time.');
         }
@@ -372,10 +316,10 @@ private class BudgetExpenseSettingsServiceTest {
     static void testSameTimeSaveRepairsRemovedSchedule() {
         isolateRecurringSchedule();
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            SettingsController.saveSettings(defaultScheduleRequest(true));
+            BudgetExpenseSettingsService.saveSettings(defaultScheduleRequest(true));
             Id removedJobId = getRecurringSchedule().Id;
             System.abortJob(removedJobId);
-            BudgetExpenseSettingsState state = SettingsController.saveSettings(defaultScheduleRequest(true));
+            BudgetExpenseSettingsState state = BudgetExpenseSettingsService.saveSettings(defaultScheduleRequest(true));
             System.assertEquals(true, state.recurringScheduleActive, 'Saving must repair a removed job without a clock change.');
             System.assertNotEquals(removedJobId, getRecurringSchedule().Id, 'The removed job must be replaced.');
         }
@@ -386,12 +330,16 @@ private class BudgetExpenseSettingsServiceTest {
         System.assertEquals(false, BudgetExpenseSettingsService.isUsableSchedule(null), 'A missing job is inactive.');
         for (String state : new List<String>{ 'PAUSED', 'PAUSED_BLOCKED', 'ERROR', 'COMPLETE', 'DELETED' }) {
             CronTrigger job = (CronTrigger) JSON.deserialize(
-                '{"State":"' + state + '","NextFireTime":"2099-01-01T08:00:00.000Z"}', CronTrigger.class);
+                '{"State":"' + state + '","NextFireTime":"2099-01-01T08:00:00.000Z"}',
+                CronTrigger.class
+            );
             System.assertEquals(false, BudgetExpenseSettingsService.isUsableSchedule(job), state + ' must not count as healthy.');
         }
         for (String state : new List<String>{ 'WAITING', 'ACQUIRED', 'EXECUTING', 'BLOCKED' }) {
             CronTrigger job = (CronTrigger) JSON.deserialize(
-                '{"State":"' + state + '","NextFireTime":"2099-01-01T08:00:00.000Z"}', CronTrigger.class);
+                '{"State":"' + state + '","NextFireTime":"2099-01-01T08:00:00.000Z"}',
+                CronTrigger.class
+            );
             System.assertEquals(true, BudgetExpenseSettingsService.isUsableSchedule(job), state + ' must not be replaced unnecessarily.');
         }
         CronTrigger noNextRun = (CronTrigger) JSON.deserialize('{"State":"WAITING"}', CronTrigger.class);

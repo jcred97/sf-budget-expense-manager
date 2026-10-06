@@ -2,6 +2,7 @@
 private class RecurringExpenseAutomationControllerTest {
     @IsTest
     static void testTracksTheSubmittedJobThroughCompletion() {
+        insert new Budget_Expense_Manager_Setting__c(Name = 'Default', Recurring_Expenses_Enabled__c = true, Base_Currency_Code__c = 'PHP');
         Test.startTest();
         Id jobId = RecurringExpenseAutomationController.runDueExpensesBatch();
         RecurringExpenseRunStatus queued = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);

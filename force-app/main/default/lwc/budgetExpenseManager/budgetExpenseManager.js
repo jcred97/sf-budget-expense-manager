@@ -17,6 +17,18 @@ export default class BudgetExpenseManager extends LightningElement {
     _activeCategoryRefreshRequestId = 0;
     _wiredCategoriesResult;
     _dateFormatStyleLoadPromise;
+    _wiredGroupsResult;
+    isSetupReady = false;
+    async handleSetupReady(event) {
+        this.isSetupReady = true;
+        if (event.detail?.completed && this._wiredGroupsResult) {
+            try {
+                await refreshApex(this._wiredGroupsResult);
+            } catch {
+                // The existing group wire owns error presentation.
+            }
+        }
+    }
 
     // Workspace and shared lookup state.
     activeView = WORKSPACE_VIEWS.DASHBOARD;
@@ -97,7 +109,9 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     @wire(getAllExpenseGroups)
-    wiredExpenseGroups({ error, data }) {
+    wiredExpenseGroups(result) {
+        this._wiredGroupsResult = result;
+        const { error, data } = result;
         if (data) {
             this.expenseGroups = data;
             this.expenseGroupOptions = data.map(expenseGroup => ({

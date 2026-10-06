@@ -1,7 +1,7 @@
 @IsTest
 private class CurrencyContextServiceTest {
     private static final String TEST_BASE_CURRENCY = 'AUD';
-    private static final String MISSING_CURRENCY_MESSAGE = 'The app base currency has not been initialized. Open Budget & Expense Manager Settings and refresh.';
+    private static final String MISSING_CURRENCY_MESSAGE = 'The app base currency has not been initialized. Open Budget & Expense Manager and ask an app administrator to complete first-time setup.';
     private static final String INVALID_CURRENCY_MESSAGE = 'The app base currency must be a valid three-letter ISO currency code.';
     private static final String INVALID_ORGANIZATION_CURRENCY_MESSAGE = 'Salesforce did not return a valid three-letter organization currency code.';
 
@@ -25,9 +25,7 @@ private class CurrencyContextServiceTest {
     @IsTest
     static void testResolvesCurrencyThroughProviderBoundary() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            CurrencyContextService.currencyProvider = new StubOrganizationCurrencyProvider(
-                ' ' + TEST_BASE_CURRENCY.toLowerCase() + ' '
-            );
+            CurrencyContextService.currencyProvider = new StubOrganizationCurrencyProvider(' ' + TEST_BASE_CURRENCY.toLowerCase() + ' ');
 
             Test.startTest();
             String resolvedCurrency = CurrencyContextService.resolveOrganizationCurrencyCode();
@@ -62,8 +60,7 @@ private class CurrencyContextServiceTest {
     @IsTest
     static void testSalesforceProviderReturnsOrganizationCurrency() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            String organizationCurrency = new SalesforceOrganizationCurrencyProvider()
-                .getCurrencyCode();
+            String organizationCurrency = new SalesforceOrganizationCurrencyProvider().getCurrencyCode();
 
             System.assert(
                 Pattern.matches('[A-Z]{3}', organizationCurrency),
@@ -86,15 +83,10 @@ private class CurrencyContextServiceTest {
             SalesforceOrganizationCurrencyProvider.corporateCurrencyCodeOverride = TEST_BASE_CURRENCY;
 
             Test.startTest();
-            String organizationCurrency = new SalesforceOrganizationCurrencyProvider()
-                .getCurrencyCode();
+            String organizationCurrency = new SalesforceOrganizationCurrencyProvider().getCurrencyCode();
             Test.stopTest();
 
-            System.assertEquals(
-                TEST_BASE_CURRENCY,
-                organizationCurrency,
-                'A multi-currency org should resolve its corporate currency.'
-            );
+            System.assertEquals(TEST_BASE_CURRENCY, organizationCurrency, 'A multi-currency org should resolve its corporate currency.');
         }
     }
 
@@ -108,29 +100,20 @@ private class CurrencyContextServiceTest {
 
             Test.startTest();
             try {
-                organizationCurrency = new SalesforceOrganizationCurrencyProvider()
-                    .getCurrencyCode();
+                organizationCurrency = new SalesforceOrganizationCurrencyProvider().getCurrencyCode();
             } catch (QueryException exceptionToCheck) {
                 queryFailure = exceptionToCheck;
             }
             Test.stopTest();
 
             if (UserInfo.isMultiCurrencyOrganization()) {
-                System.assertEquals(
-                    null,
-                    queryFailure,
-                    'A multi-currency org should support the corporate CurrencyType query.'
-                );
+                System.assertEquals(null, queryFailure, 'A multi-currency org should support the corporate CurrencyType query.');
                 System.assert(
                     Pattern.matches('[A-Z]{3}', organizationCurrency),
                     'The corporate CurrencyType query should return a three-letter currency.'
                 );
             } else {
-                System.assertNotEquals(
-                    null,
-                    queryFailure,
-                    'A single-currency org should reject the unavailable CurrencyType query.'
-                );
+                System.assertNotEquals(null, queryFailure, 'A single-currency org should reject the unavailable CurrencyType query.');
                 System.assert(
                     queryFailure.getMessage().contains('CurrencyType'),
                     'The single-currency failure should identify the unavailable CurrencyType object.'
@@ -201,11 +184,7 @@ private class CurrencyContextServiceTest {
                 queriesAfterFirstRead,
                 'The first context read should query the pinned settings currency.'
             );
-            System.assertEquals(
-                queriesAfterFirstRead,
-                Limits.getQueries(),
-                'A repeated context read should use the transaction cache.'
-            );
+            System.assertEquals(queriesAfterFirstRead, Limits.getQueries(), 'A repeated context read should use the transaction cache.');
             System.assertEquals(
                 firstContext.baseCurrencyCode,
                 secondContext.baseCurrencyCode,

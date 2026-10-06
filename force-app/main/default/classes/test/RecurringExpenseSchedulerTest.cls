@@ -2,6 +2,7 @@
 private class RecurringExpenseSchedulerTest {
     @IsTest
     static void testScheduledRunStartsBatch() {
+        insert new Budget_Expense_Manager_Setting__c(Name = 'Default', Recurring_Expenses_Enabled__c = true, Base_Currency_Code__c = 'PHP');
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Date dueDate = Date.today();
             Recurring_Expense__c recurringExpense = createDueRecurringExpense(dueDate);
@@ -15,16 +16,8 @@ private class RecurringExpenseSchedulerTest {
                 FROM Expense__c
                 WHERE Recurring_Expense__c = :recurringExpense.Id
             ];
-            System.assertEquals(
-                1,
-                generatedExpenses.size(),
-                'The scheduled batch should create one due expense'
-            );
-            System.assertEquals(
-                'Gym',
-                generatedExpenses[0].Name,
-                'The scheduled batch should preserve the recurring expense name.'
-            );
+            System.assertEquals(1, generatedExpenses.size(), 'The scheduled batch should create one due expense');
+            System.assertEquals('Gym', generatedExpenses[0].Name, 'The scheduled batch should preserve the recurring expense name.');
             System.assertEquals(
                 dueDate,
                 generatedExpenses[0].Expense_Date__c,
@@ -58,17 +51,13 @@ private class RecurringExpenseSchedulerTest {
             BudgetExpenseSettingsUpdateRequest settingsRequest = new BudgetExpenseSettingsUpdateRequest();
             settingsRequest.recurringExpensesEnabled = 'false';
             settingsRequest.globalRecurringRunTime = '08:00';
-            SettingsController.saveSettings(settingsRequest);
+            BudgetExpenseSettingsService.saveSettings(settingsRequest);
 
             Test.startTest();
             new RecurringExpenseScheduler().execute(null);
             Test.stopTest();
 
-            System.assertEquals(
-                0,
-                [SELECT COUNT() FROM Expense__c],
-                'No expenses should generate when disabled'
-            );
+            System.assertEquals(0, [SELECT COUNT() FROM Expense__c], 'No expenses should generate when disabled');
 
             Budget_Expense_Manager_Setting__c settings = [
                 SELECT Last_Recurring_Run_Status__c
@@ -87,10 +76,7 @@ private class RecurringExpenseSchedulerTest {
         Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Health');
         insert expenseGroup;
 
-        Category__c category = new Category__c(
-            Name = 'Fitness',
-            Expense_Group__c = expenseGroup.Id
-        );
+        Category__c category = new Category__c(Name = 'Fitness', Expense_Group__c = expenseGroup.Id);
         insert category;
 
         Bank__c bank = new Bank__c(Name = 'BPI', Active__c = true);

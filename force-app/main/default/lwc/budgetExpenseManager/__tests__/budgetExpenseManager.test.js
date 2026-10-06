@@ -2,6 +2,13 @@ import { createElement } from 'lwc';
 import { readFileSync } from 'fs';
 import { resolve as resolvePath } from 'path';
 import BudgetExpenseManager from 'c/budgetExpenseManager';
+import getSetupStatus from '@salesforce/apex/AppSetupController.getSetupStatus';
+jest.mock('@salesforce/apex/AppSetupController.getSetupStatus', () => ({ default: jest.fn() }), {
+    virtual: true
+});
+jest.mock('@salesforce/apex/AppSetupController.completeSetup', () => ({ default: jest.fn() }), {
+    virtual: true
+});
 import getAllExpenseGroups from '@salesforce/apex/ExpenseController.getAllExpenseGroups';
 import getRecurringExpenseOverview from '@salesforce/apex/RecurringExpenseController.getRecurringExpenseOverview';
 import { fetchExpensePage, fetchDashboardData, fetchBankOptions } from 'c/expenseWorkspaceData';
@@ -138,6 +145,7 @@ async function mount() {
 describe('workspace coordination', () => {
     beforeEach(() => {
         jest.resetAllMocks();
+        getSetupStatus.mockResolvedValue({ ready: true });
         LightningConfirm.open.mockResolvedValue(true);
         loadStyle.mockResolvedValue();
         fetchExpensePage.mockResolvedValue(firstPage());
@@ -180,6 +188,57 @@ describe('workspace coordination', () => {
         return element;
     }
 
+    it('waits for the read-only setup check before mounting any workspace screens', async () => {
+        let resolve;
+        getSetupStatus.mockImplementationOnce(
+            () =>
+                new Promise(accept => {
+                    resolve = accept;
+                })
+        );
+        const element = createElement('c-budget-expense-manager', { is: BudgetExpenseManager });
+        document.body.appendChild(element);
+        getAllExpenseGroups.emit([{ Id: 'group', Name: 'Personal' }]);
+        await flush();
+        expect(element.shadowRoot.querySelector('c-app-setup')).not.toBeNull();
+        expect(list(element)).toBeNull();
+        expect(fetchDashboardData).not.toHaveBeenCalled();
+        expect(fetchExpensePage).not.toHaveBeenCalled();
+        resolve({ ready: true });
+        await flush();
+        await flush();
+        expect(element.shadowRoot.querySelector('c-app-setup')).toBeNull();
+        expect(list(element)).not.toBeNull();
+        expect(element.shadowRoot.querySelector('c-expense-dashboard')).not.toBeNull();
+    });
+    it('keeps an uninitialized user in setup until an administrator finishes and Refresh confirms readiness', async () => {
+        getSetupStatus
+            .mockResolvedValueOnce({ ready: false, canManageSetup: false, message: 'Await setup.' })
+            .mockResolvedValueOnce({ ready: true });
+        const element = createElement('c-budget-expense-manager', { is: BudgetExpenseManager });
+        document.body.appendChild(element);
+        await flush();
+        const setup = element.shadowRoot.querySelector('c-app-setup');
+        expect(setup.shadowRoot.textContent).toContain('Ask an app administrator');
+        expect(list(element)).toBeNull();
+        [...setup.shadowRoot.querySelectorAll('lightning-button')]
+            .find(item => item.label === 'Refresh')
+            .click();
+        await flush();
+        await flush();
+        expect(list(element)).not.toBeNull();
+        expect(element.shadowRoot.querySelector('c-app-setup')).toBeNull();
+    });
+    it('keeps the workspace closed after setup-check failure and offers explicit recovery', async () => {
+        getSetupStatus.mockRejectedValueOnce(new Error('Setup check unavailable'));
+        const element = createElement('c-budget-expense-manager', { is: BudgetExpenseManager });
+        document.body.appendChild(element);
+        await flush();
+        expect(list(element)).toBeNull();
+        expect(element.shadowRoot.querySelector('c-app-setup').shadowRoot.textContent).toContain(
+            'Setup check unavailable'
+        );
+    });
     it('owns the recurring modal and refreshes shared options and saved templates', async () => {
         const element = await mountRecurring();
         fetchBankOptions.mockClear();

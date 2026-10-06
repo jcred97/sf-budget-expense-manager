@@ -1,6 +1,6 @@
 # Architecture
 
-Source reviewed on 2026-09-30. This document describes the current checkout, not a verified live-org inventory. The screen-ownership refactors and cleanup have been pushed; deploying those changes and removing retired org metadata remain deferred.
+This document describes the current checkout, not a verified live-org inventory. Deployment evidence is recorded separately in [Testing and tooling](testing-and-tooling.md).
 
 ![Budget & Expense Manager architecture](assets/architecture.svg)
 
@@ -10,7 +10,8 @@ This is a Salesforce-native app: LWC screens call Apex or Lightning Data Service
 
 | Owner | Responsibility |
 | --- | --- |
-| `budgetExpenseManager` | Expense Group selection, navigation/sidebar, group/category wires, shared bank options, and cross-screen refresh coordination |
+| `budgetExpenseManager` | Entry readiness routing, Expense Group selection, navigation/sidebar, shared lookups, and cross-screen refresh coordination |
+| `appSetup` | Read-only setup check, administrator currency confirmation, optional group/category creation, and completion |
 | `expenseDashboard` | Selected month, dashboard/trend/budget-history requests, loading/errors, and dashboard view model |
 | `expenseList` | Filters/search, pagination, selection, deletion/rollback, expense modal state, and CSV/print workflows |
 | `recurringExpenses` | Overview wire and refresh, template state, recurring modal, deactivation, and batch launch |
@@ -73,6 +74,7 @@ Bank__c (global, Public Read Only catalog)
 
 Budget_Expense_Manager_Setting__c
   - Base_Currency_Code__c (stable ISO reporting currency)
+  - Singleton_Key__c (internal unique key assigned to new settings records)
   - Recurring_Expenses_Enabled__c
   - Global_Recurring_Run_Time__c
   - Last_Recurring_Run_DateTime__c
@@ -125,17 +127,31 @@ stale response replacing newer state. Imperative expense, Dashboard, trend, and 
 reads are grouped behind the non-visual `expenseWorkspaceData` boundary. The expense list and
 dashboard own their data request tokens; the manager owns shared Bank lookup tokens.
 `Budget_Expense_Manager_Setting__c` is a singleton app settings object. `BudgetExpenseSettingsTrigger`
-prevents more than one settings record. The settings service creates the default
-record when it is missing and initializes a blank base currency exactly once from Salesforce.
+rejects duplicate inserts and assigns the unique `Singleton_Key__c` to new records. The
+database key protects simultaneous first inserts; setup locks an existing record before
+initialization and reloads a competing initializer's record after a creation collision.
 Validation rules require a normalized three-letter code and prevent the initialized value from
 being changed or cleared through UI, API, or import paths.
 `CurrencyContextController` exposes only the sanitized, persisted currency through a read-only
-cacheable method; initialization remains on the non-cacheable admin settings path. Single-currency
-orgs use their organization default, while multi-currency orgs resolve the corporate currency
-through a dynamic `CurrencyType` query so the source still compiles when that object is unavailable.
-The current PHP-specific FX and display layers are unchanged until the next currency workstream.
+cacheable method. First-time app initialization uses `AppSetupController.completeSetup(confirmed)`:
+the server checks `Manage_App_Setup`, explicit confirmation, and a single-currency PHP org before
+pinning PHP. Fresh settings default recurring automation to disabled and do not create a schedule.
+Existing initialized configurations remain ready without changing currency, automation, or run time;
+an existing uninitialized record retains its automation and run-time choices when initialized.
+The organization-currency provider can resolve corporate currency dynamically, but new
+multi-currency setup is deliberately unsupported because financial writes and display remain PHP-focused.
+`SettingsController` rejects uninitialized configuration instead of implicitly pinning currency.
 Recurring automation currently uses these global
 settings; `Expense_Group__c` has no group-specific settings fields.
+
+`AppSetupService` uses narrow system access without sharing to expose org-level readiness to
+normal app users without granting Settings CRUD or requiring access to its private record.
+Its DTO contains readiness, capability, currency, and explanatory text only. The manager gates
+workspace rendering on readiness; this is onboarding, not object-level security. Standard tabs,
+record URLs, and API operations retain their Salesforce permission and validation boundaries.
+Optional group/category creation uses LDS forms; banks, budgets, FX, and automation are not
+completion requirements. No install handler, automatic permission assignment, or sample-data loader
+is introduced.
 
 Lightning calls enter Apex only through classes under `classes/controller`. Their request and
 response contracts are top-level, data-only classes under `classes/dto`. Keep simple endpoint-specific
@@ -148,6 +164,8 @@ entry points live under `classes/async` without changing their Salesforce metada
 
 ## Apex Methods
 
+- `AppSetupController.getSetupStatus()` - non-cacheable, read-only sanitized setup status available to all app permission sets; no initialization or scheduling.
+- `AppSetupController.completeSetup(confirmed)` - requires `Manage_App_Setup` and explicit confirmation; initializes supported fresh configuration idempotently and preserves existing initialized records.
 - `ExpenseController.getAllExpenseGroups()` - cacheable user-mode lookup returning the bounded workspace list ordered by Name.
 - `BankController.getAvailableExpenseGroupBanks(expenseGroupId)` - non-cacheable, returns fresh active global Banks assigned to the requested accessible Expense Group; modal loads are request-guarded to ignore stale responses.
 - `BankController` owns user-mode group-scoped Bank assignment lookup and option mapping directly.
@@ -175,7 +193,7 @@ entry points live under `classes/async` without changing their Salesforce metada
 - `RecurringExpenseCalculator` - owns recurrence due-date checks and next-run-date calculations for daily, weekly, monthly, and yearly frequencies.
 - `RecurringExpenseBatch` - Batch Apex processor for due recurring expenses. Each batch chunk creates expenses and advances `Next_Run_Date__c`.
 - `RecurringExpenseScheduler.execute(context)` - scheduled Apex wrapper that starts `RecurringExpenseBatch`.
-- `SettingsController.getSettings()` and `saveSettings(request)` - Admin/All Access Lightning entry points for global settings.
+- `SettingsController.getSettings()` and `saveSettings(request)` - Admin/All Access Lightning entry points for global settings; require completed app initialization.
 - `BudgetExpenseSettingsService` - creates/updates the singleton settings record, initializes its base currency once, and tracks recurring run status without exposing Lightning methods directly.
 
 ## Custom Application
@@ -192,7 +210,13 @@ The default sharing model is not private per user: Expense Groups and recurring 
 - `Budget_Expense_Manager_Admin` - Operational admin access. Grants the normal controllers, including Currency Context and Exchange Rate, plus `SettingsController` and `RecurringExpenseAutomationController`, the public exchange-rate credential principal, full access to global Banks and group assignments, and access to budgets and settings.
 - `Budget_Expense_Manager_All_Access` - Development/admin convenience set. Uses the same controller-only Apex access boundary as Admin, grants the public exchange-rate credential principal, and grants broad CRUD plus `viewAllRecords` and `modifyAllRecords` on the app objects. Generated key fields stay hidden.
 
-Admin and All Access provide effectively equivalent app capabilities, including broad record access. Both grant the `Manage_Recurring_Expense_Automation` custom permission that controls manual-run visibility and handler guards in the recurring screen and settings. Normal User excludes this capability, settings-object access, and the settings/automation controllers. Apex class access and existing user-mode data operations remain the server authorization boundary; the UI capability does not grant execution access by itself.
+Admin and All Access provide effectively equivalent app capabilities, including broad record access. Both grant `Manage_App_Setup` for server-authorized first-time completion and `Manage_Recurring_Expense_Automation` for manual-run visibility and handler guards. All three sets grant `AppSetupController` access for read-only readiness; Normal User excludes both management capabilities, settings-object access, and the settings/automation controllers. Setup completion separately enforces its custom permission in Apex. Other Apex class access and user-mode data operations remain their server authorization boundaries.
+
+App Admin access alone does not establish access to Salesforce Scheduled Apex metadata. The
+existing Settings path queries `CronTrigger` in user mode and can fail under a minimal-access
+profile despite the app Admin permission set. Setup initialization and ordinary User readiness
+do not require that query. Scheduled-automation administration needs separate subscriber-org
+permission verification; this setup change does not expand platform permissions.
 
 ## Pages And Tabs
 

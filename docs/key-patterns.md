@@ -1,5 +1,28 @@
 # Key Patterns
 
+## Guided App Setup
+
+The workspace tab checks initialization through `appSetup` before mounting its three screens.
+Existing initialized installations open the workspace automatically. Uninitialized administrators
+see the guided setup page; normal users see administrator guidance and a read-only Refresh.
+Failed checks show an error and recovery action rather than being treated as missing configuration.
+
+Setup completion requires the server-side `Manage_App_Setup` permission and explicit PHP
+confirmation. Fresh setup supports single-currency PHP orgs only, initializes the fixed base
+currency, and leaves recurring automation disabled without creating a schedule. Existing currency,
+automation, and time settings are preserved. Direct Settings entry requires initialized configuration
+and cannot implicitly complete setup.
+
+Administrators can create an Expense Group and Category through LDS forms or select an existing
+group before finishing. Those records are optional at this stage; banks, budgets, FX, and recurring
+automation also do not block completion. Pending operations disable their controls, and failed
+completion retains confirmation for an explicit retry. Only a response with `ready=true` opens the
+workspace. Completion refreshes the manager's group choices so newly created records are available.
+
+This gate controls app entry, not object CRUD. Standard Salesforce tabs, direct record links,
+and APIs remain governed by permissions and validations. Setup does not assign permission sets,
+create sample records automatically, or run through an install handler.
+
 ## Workspace Shell
 
 `budgetExpenseManager` owns group selection, navigation, shared Category/Bank lookups, and
@@ -274,8 +297,9 @@ an intentional View path outside this workspace-only editor.
 ## Budget & Expense Manager Settings
 
 `Budget_Expense_Manager_Setting__c` stores singleton app-level controls. `BudgetExpenseSettingsTrigger`
-prevents multiple settings records, while `BudgetExpenseSettingsService` creates the
-default record when missing. The `budgetExpenseSettings` LWC enters Apex through
+rejects duplicate inserts and assigns a database-unique singleton key. Explicit setup initializes
+the app; the Settings controller requires readiness before reading or saving. Internal service
+paths retain missing-record handling with disabled fresh automation. The `budgetExpenseSettings` LWC enters Apex through
 `SettingsController` and `RecurringExpenseAutomationController`; service classes are not
 Lightning entry points. The page lets authorized users enable or disable recurring expense
 generation, manually queue a recurring run, and view the most recent run status.

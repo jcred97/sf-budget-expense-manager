@@ -1,6 +1,6 @@
 /** Reads and validates the stable app reporting currency. */
 public without sharing class CurrencyContextService {
-    private static final String UNINITIALIZED_MESSAGE = 'The app base currency has not been initialized. Open Budget & Expense Manager Settings and refresh.';
+    private static final String UNINITIALIZED_MESSAGE = 'The app base currency has not been initialized. Open Budget & Expense Manager and ask an app administrator to complete first-time setup.';
     private static final String INVALID_STORED_CODE_MESSAGE = 'The app base currency must be a valid three-letter ISO currency code.';
     private static final String INVALID_ORG_CODE_MESSAGE = 'Salesforce did not return a valid three-letter organization currency code.';
 
@@ -24,21 +24,15 @@ public without sharing class CurrencyContextService {
         }
 
         List<SObject> settingsRecords = Database.query(
-            'SELECT Base_Currency_Code__c FROM Budget_Expense_Manager_Setting__c ' +
-            'ORDER BY CreatedDate ASC LIMIT 1',
+            'SELECT Base_Currency_Code__c FROM Budget_Expense_Manager_Setting__c ' + 'ORDER BY CreatedDate ASC LIMIT 1',
             AccessLevel.SYSTEM_MODE
         );
-        if (
-            settingsRecords.isEmpty() ||
-            String.isBlank((String) settingsRecords[0].get('Base_Currency_Code__c'))
-        ) {
+        if (settingsRecords.isEmpty() || String.isBlank((String) settingsRecords[0].get('Base_Currency_Code__c'))) {
             throw new CurrencyContextException(UNINITIALIZED_MESSAGE);
         }
 
         cachedContext = new CurrencyContextDto();
-        cachedContext.baseCurrencyCode = normalizeStoredCurrencyCode(
-            (String) settingsRecords[0].get('Base_Currency_Code__c')
-        );
+        cachedContext.baseCurrencyCode = normalizeStoredCurrencyCode((String) settingsRecords[0].get('Base_Currency_Code__c'));
         cachedContext.multiCurrencyEnabled = UserInfo.isMultiCurrencyOrganization();
         return cachedContext;
     }

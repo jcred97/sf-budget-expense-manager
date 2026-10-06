@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
+        <members>AppSetupController</members>
+        <members>AppSetupService</members>
+        <members>AppSetupServiceTest</members>
+        <members>AppSetupStatus</members>
         <members>BankAssignmentValidator</members>
         <members>BankAssignmentValidatorTest</members>
         <members>BankController</members>
@@ -93,10 +97,12 @@
         <name>CustomApplication</name>
     </types>
     <types>
+        <members>Manage_App_Setup</members>
         <members>Manage_Recurring_Expense_Automation</members>
         <name>CustomPermission</name>
     </types>
     <types>
+        <members>Budget_Expense_Manager_Setting__c.Singleton_Key__c</members>
         <members>Budget_Expense_Manager_Setting__c.Base_Currency_Code__c</members>
         <members>Budget_Expense_Manager_Setting__c.Global_Recurring_Run_Time__c</members>
         <members>Budget_Expense_Manager_Setting__c.Last_Recurring_Run_DateTime__c</members>
@@ -197,6 +203,7 @@
         <name>Layout</name>
     </types>
     <types>
+        <members>appSetup</members>
         <members>budgetExpenseManager</members>
         <members>budgetExpenseSettings</members>
         <members>budgetHistory</members>

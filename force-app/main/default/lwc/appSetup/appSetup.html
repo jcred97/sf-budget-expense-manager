@@ -1,0 +1,161 @@
+<template>
+    <section
+        class="slds-box slds-theme_default slds-m-around_large"
+        aria-labelledby="setup-heading"
+    >
+        <h1 id="setup-heading" class="slds-text-heading_medium">
+            Set up Budget &amp; Expense Manager
+        </h1>
+        <p class="slds-m-top_small">
+            Confirm the app's reporting currency before opening the workspace.
+        </p>
+        <template lwc:if={isLoading}>
+            <div class="slds-is-relative slds-p-vertical_xx-large" role="status">
+                <lightning-spinner
+                    alternative-text="Checking app setup"
+                    size="small"
+                ></lightning-spinner>
+            </div>
+        </template>
+        <template lwc:else>
+            <template lwc:if={error}>
+                <p class="slds-text-color_error slds-m-top_medium" role="alert">{error}</p>
+            </template>
+            <template lwc:if={status}>
+                <p class="slds-m-top_medium" role="status">{statusMessage}</p>
+                <template lwc:if={canManageSetup}>
+                    <h2 class="slds-text-heading_small slds-m-top_large">
+                        1. Confirm reporting currency
+                    </h2>
+                    <p class="slds-m-top_small">
+                        This release supports setup in single-currency PHP organizations and records
+                        budgets and expense totals in PHP. Once initialized, the app's base currency
+                        is fixed.
+                    </p>
+                    <p class="slds-m-top_small">
+                        Organization currency: <strong>{organizationCurrencyCode}</strong>
+                    </p>
+                    <lightning-input
+                        type="checkbox"
+                        label="I confirm PHP as this app's reporting currency"
+                        checked={confirmed}
+                        disabled={isBusy}
+                        onchange={handleConfirmation}
+                    ></lightning-input>
+                    <template lwc:if={canCreateRecords}>
+                        <h2 class="slds-text-heading_small slds-m-top_large">
+                            2. Add your first expense group and category
+                        </h2>
+                        <p class="slds-m-bottom_medium">
+                            Create your own records here or use existing groups. You can also add
+                            them after setup.
+                        </p>
+                        <lightning-record-edit-form
+                            data-form="group"
+                            object-api-name={expenseGroupObject}
+                            onsubmit={handleRecordSubmit}
+                            onsuccess={handleGroupCreated}
+                            onerror={handleRecordError}
+                        >
+                            <lightning-messages></lightning-messages>
+                            <lightning-input-field
+                                field-name="Name"
+                                required
+                                disabled={isBusy}
+                            ></lightning-input-field>
+                            <lightning-button
+                                type="submit"
+                                label="Create expense group"
+                                disabled={isBusy}
+                            ></lightning-button>
+                        </lightning-record-edit-form>
+                        <lightning-combobox
+                            class="slds-m-top_medium"
+                            label="Expense group for category"
+                            value={selectedGroupId}
+                            options={groupOptions}
+                            onchange={handleGroupSelection}
+                            disabled={isBusy}
+                        ></lightning-combobox>
+                        <div
+                            lwc:if={groupsError}
+                            class="slds-text-color_error slds-m-top_small"
+                            role="alert"
+                        >
+                            <p>{groupsError}</p>
+                            <lightning-button
+                                label="Retry loading groups"
+                                onclick={handleRefreshGroups}
+                                disabled={isRefreshingGroups}
+                            ></lightning-button>
+                        </div>
+                        <lightning-record-edit-form
+                            data-form="category"
+                            object-api-name={categoryObject}
+                            onsubmit={handleCategorySubmit}
+                            onsuccess={handleCategoryCreated}
+                            onerror={handleRecordError}
+                        >
+                            <lightning-messages></lightning-messages>
+                            <lightning-input-field
+                                field-name="Name"
+                                required
+                                disabled={isBusy}
+                            ></lightning-input-field>
+                            <lightning-input-field
+                                field-name={categoryGroupField}
+                                value={selectedGroupId}
+                                disabled
+                                required
+                            ></lightning-input-field>
+                            <lightning-button
+                                type="submit"
+                                label="Create category"
+                                disabled={isCategorySaveDisabled}
+                            ></lightning-button>
+                        </lightning-record-edit-form>
+                        <p
+                            lwc:if={recordMessage}
+                            class="slds-text-color_success slds-m-top_small"
+                            role="status"
+                        >
+                            {recordMessage}
+                        </p>
+                        <p
+                            lwc:if={recordError}
+                            class="slds-text-color_error slds-m-top_small"
+                            role="alert"
+                        >
+                            {recordError}
+                        </p>
+                    </template>
+                    <h2 class="slds-text-heading_small slds-m-top_large">3. Finish setup</h2>
+                    <p class="slds-m-bottom_medium">
+                        Bank assignments, monthly budgets, reference exchange rates, and recurring
+                        automation are optional. Configure them later as needed.
+                    </p>
+                    <lightning-button
+                        variant="brand"
+                        label="Finish setup"
+                        onclick={handleFinish}
+                        disabled={isFinishDisabled}
+                    ></lightning-button>
+                    <p lwc:if={isCompleting} class="slds-m-top_small" role="status">
+                        Finishing setup...
+                    </p>
+                </template>
+                <template lwc:else>
+                    <p class="slds-m-top_medium">
+                        Ask an app administrator to complete setup, then select Refresh.
+                    </p>
+                </template>
+            </template>
+            <lightning-button
+                class="slds-m-top_medium"
+                label="Refresh"
+                onclick={refreshStatus}
+                disabled={isBusy}
+            ></lightning-button>
+        </template>
+    </section>
+</template>

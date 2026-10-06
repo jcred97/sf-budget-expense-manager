@@ -1,107 +1,115 @@
 <template>
-    <div class="budget-expense-manager-page">
-        <div class={workspaceShellClass}>
-            <aside class="workspace-sidebar" aria-label="Budget and Expense Manager workspace">
-                <div class="sidebar-brand">
-                    <span class="brand-mark">
-                        <lightning-icon icon-name="utility:money" size="x-small"></lightning-icon>
-                    </span>
-                    <div class="brand-copy">
-                        <span class="brand-name">Budget &amp; Expense Manager</span>
-                        <span class="brand-caption">{selectedExpenseGroupName}</span>
-                    </div>
-                    <button
-                        class="sidebar-toggle"
-                        type="button"
-                        title={sidebarToggleTitle}
-                        aria-label={sidebarToggleTitle}
-                        aria-expanded={sidebarAriaExpanded}
-                        onclick={handleSidebarToggle}
-                    >
-                        <lightning-icon
-                            icon-name={sidebarToggleIcon}
-                            size="xx-small"
-                        ></lightning-icon>
-                    </button>
-                </div>
-
-                <div class="workspace-context">
-                    <lightning-combobox
-                        label="Expense Group"
-                        value={expenseGroupId}
-                        options={expenseGroupOptions}
-                        variant="label-hidden"
-                        onchange={handleWorkspaceGroupChange}
-                    >
-                    </lightning-combobox>
-                    <span class="context-caption">Current group</span>
-                </div>
-
-                <nav class="workspace-nav" aria-label="Budget and Expense Manager views">
-                    <template for:each={workspaceNavItems} for:item="item">
-                        <button
-                            key={item.key}
-                            class={item.className}
-                            data-view={item.key}
-                            aria-current={item.ariaCurrent}
-                            title={item.label}
-                            onclick={handleViewChange}
-                        >
+    <template lwc:if={isSetupReady}>
+        <div class="budget-expense-manager-page">
+            <div class={workspaceShellClass}>
+                <aside class="workspace-sidebar" aria-label="Budget and Expense Manager workspace">
+                    <div class="sidebar-brand">
+                        <span class="brand-mark">
                             <lightning-icon
-                                icon-name={item.iconName}
+                                icon-name="utility:money"
                                 size="x-small"
                             ></lightning-icon>
-                            <span>{item.label}</span>
+                        </span>
+                        <div class="brand-copy">
+                            <span class="brand-name">Budget &amp; Expense Manager</span>
+                            <span class="brand-caption">{selectedExpenseGroupName}</span>
+                        </div>
+                        <button
+                            class="sidebar-toggle"
+                            type="button"
+                            title={sidebarToggleTitle}
+                            aria-label={sidebarToggleTitle}
+                            aria-expanded={sidebarAriaExpanded}
+                            onclick={handleSidebarToggle}
+                        >
+                            <lightning-icon
+                                icon-name={sidebarToggleIcon}
+                                size="xx-small"
+                            ></lightning-icon>
                         </button>
-                    </template>
-                </nav>
-            </aside>
+                    </div>
 
-            <main class="workspace-main">
-                <!-- Preserve the dashboard month and allow refreshes from other screens. -->
-                <section class="workspace-view non-print-view" hidden={isDashboardHidden}>
-                    <c-expense-dashboard
+                    <div class="workspace-context">
+                        <lightning-combobox
+                            label="Expense Group"
+                            value={expenseGroupId}
+                            options={expenseGroupOptions}
+                            variant="label-hidden"
+                            onchange={handleWorkspaceGroupChange}
+                        >
+                        </lightning-combobox>
+                        <span class="context-caption">Current group</span>
+                    </div>
+
+                    <nav class="workspace-nav" aria-label="Budget and Expense Manager views">
+                        <template for:each={workspaceNavItems} for:item="item">
+                            <button
+                                key={item.key}
+                                class={item.className}
+                                data-view={item.key}
+                                aria-current={item.ariaCurrent}
+                                title={item.label}
+                                onclick={handleViewChange}
+                            >
+                                <lightning-icon
+                                    icon-name={item.iconName}
+                                    size="x-small"
+                                ></lightning-icon>
+                                <span>{item.label}</span>
+                            </button>
+                        </template>
+                    </nav>
+                </aside>
+
+                <main class="workspace-main">
+                    <!-- Preserve the dashboard month and allow refreshes from other screens. -->
+                    <section class="workspace-view non-print-view" hidden={isDashboardHidden}>
+                        <c-expense-dashboard
+                            expense-group-id={expenseGroupId}
+                            expense-group-name={selectedExpenseGroupName}
+                            active={isDashboardView}
+                            onaddexpense={openExpenseModal}
+                            onviewexpenses={handleViewExpenses}
+                        ></c-expense-dashboard>
+                    </section>
+                    <c-expense-list
+                        active={isExpensesView}
                         expense-group-id={expenseGroupId}
                         expense-group-name={selectedExpenseGroupName}
-                        active={isDashboardView}
-                        onaddexpense={openExpenseModal}
-                        onviewexpenses={handleViewExpenses}
-                    ></c-expense-dashboard>
-                </section>
-                <c-expense-list
-                    active={isExpensesView}
-                    expense-group-id={expenseGroupId}
-                    expense-group-name={selectedExpenseGroupName}
-                    category-options={categoryOptions}
-                    is-categories-loading={isCategoriesLoading}
-                    category-options-error={categoryOptionsError}
-                    bank-options={bankOptions}
-                    is-bank-options-loading={isBankOptionsLoading}
-                    bank-options-error={bankOptionsError}
-                    onrefreshbanks={handleRetryBankOptions}
-                    onretrycategories={handleRetryCategoryOptions}
-                    onexpenseschanged={refreshDashboard}
-                ></c-expense-list>
-
-                <!-- Keep pending recurring actions connected while another view is visible. -->
-                <section class="workspace-view non-print-view" hidden={isRecurringHidden}>
-                    <c-recurring-expenses
-                        expense-group-id={expenseGroupId}
-                        expense-group-name={selectedExpenseGroupName}
-                        active={isRecurringView}
-                        category-options={modalCategoryOptions}
-                        category-options-loading={isCategoriesLoading}
+                        category-options={categoryOptions}
+                        is-categories-loading={isCategoriesLoading}
                         category-options-error={categoryOptionsError}
                         bank-options={bankOptions}
-                        bank-options-loading={isBankOptionsLoading}
+                        is-bank-options-loading={isBankOptionsLoading}
                         bank-options-error={bankOptionsError}
-                        onrefreshoptions={handleRecurringOptionsRefresh}
-                        onretrybanks={handleRetryBankOptions}
+                        onrefreshbanks={handleRetryBankOptions}
                         onretrycategories={handleRetryCategoryOptions}
-                        ongenerationcompleted={handleRecurringGenerationCompleted}
-                    ></c-recurring-expenses>
-                </section>
-            </main>
+                        onexpenseschanged={refreshDashboard}
+                    ></c-expense-list>
+
+                    <!-- Keep pending recurring actions connected while another view is visible. -->
+                    <section class="workspace-view non-print-view" hidden={isRecurringHidden}>
+                        <c-recurring-expenses
+                            expense-group-id={expenseGroupId}
+                            expense-group-name={selectedExpenseGroupName}
+                            active={isRecurringView}
+                            category-options={modalCategoryOptions}
+                            category-options-loading={isCategoriesLoading}
+                            category-options-error={categoryOptionsError}
+                            bank-options={bankOptions}
+                            bank-options-loading={isBankOptionsLoading}
+                            bank-options-error={bankOptionsError}
+                            onrefreshoptions={handleRecurringOptionsRefresh}
+                            onretrybanks={handleRetryBankOptions}
+                            onretrycategories={handleRetryCategoryOptions}
+                            ongenerationcompleted={handleRecurringGenerationCompleted}
+                        ></c-recurring-expenses>
+                    </section>
+                </main>
+            </div>
         </div>
-    </div>
+    </template>
+    <template lwc:else>
+        <c-app-setup onready={handleSetupReady}></c-app-setup>
+    </template>
 </template>

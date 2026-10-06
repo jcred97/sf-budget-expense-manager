@@ -1,5 +1,25 @@
 # Testing And Tooling
 
+## Guided First-Time Setup Verification — 2026-10-07
+
+- The app entry checks readiness without creating settings. Administrators explicitly confirm PHP before initialization; regular users can check readiness without Settings CRUD. Optional LDS group/category creation does not gate completion. Fresh setup supports single-currency PHP organizations and leaves automation disabled; initialized installations retain their currency, automation, and time choices.
+- Eleven setup UI tests and three manager routing regressions cover confirmation, waiting/retry, unsupported configuration, pending completion, incomplete responses, optional record submission, and workspace entry. Full Jest passed **240 tests across 22 suites**; lint and targeted frontend formatting passed. Lightning forms and Apex calls are mocked, so these checks do not establish live subscriber installation.
+- Apex regressions cover restricted-user authorization/readiness, read-only checks, idempotent initialization, existing configuration preservation, direct Settings guards, currency policy, and genuine failed-insert recovery. Collision tests exercise the recovery boundary; they do not prove simultaneous transactions. Schedule assertions compare existing identities instead of assuming the org has no jobs.
+- Existing Settings schedule reads use `CronTrigger WITH USER_MODE` and need platform privileges beyond the app Admin permission set on a minimal profile. Setup does not add those privileges. Settings success checks run as the org administrator, while setup authorization checks retain restricted users.
+- Final check-only validation `0AfgK00000Vb6iySAB` against `mainDevOrg` compiled all **23 components** and passed **67/67 Apex tests**. Setup service coverage is **95.79%** (91/95); setup controller, status DTO, Settings controller, currency service, and settings trigger handler are **100%**. Settings service coverage is **86.50%** (141/163). No metadata was deployed.
+- The previously authorized temporary Deployment Settings option was restored to disabled after validation. The original daily schedule retained its identity, owner, `Asia/Manila` timezone, and `0 0 8 * * ?` cron. A fresh namespaced subscriber install and upgrade remain unverified.
+- Deployment to `mainDevOrg` succeeded on 2026-10-07 (`0AfgK00000Vbx2TSAR`), deploying all **23 components** and passing **67/67 Apex tests**. The temporary deployment option was restored afterward. The initialized org retained PHP reporting, enabled recurring automation, and its 08:00 run time.
+- A live browser smoke check as the existing signed-in administrator opened the deployed main app directly into its Dashboard with the selected group and existing data. Fresh-org and separate normal-user browser checks remain manual follow-ups.
+
+### Manual Setup Checks
+
+1. In an initialized org, reopen the main app as an app Admin and normal User. Both should enter the workspace after the readiness check, with existing data and settings preserved. Do not clear the immutable base currency to simulate first use.
+2. In a fresh disposable single-currency PHP org with the app deployed, assign `Budget_Expense_Manager_User` to a test user. The main app should show administrator guidance and Refresh, without initialization controls.
+3. As a user assigned `Budget_Expense_Manager_Admin`, open the main app. Finish setup should remain disabled until the PHP confirmation is checked. Optionally create an Expense Group and Category; skipping creation must also allow completion.
+4. Confirm PHP and finish setup. Verify the workspace opens and reopening bypasses the wizard. Refresh the normal user's waiting page and verify it opens the workspace too.
+5. With sufficient platform permissions for Settings, verify fresh recurring automation is disabled and no app schedule was created. Banks, budgets, and FX configuration must not be required to complete setup.
+6. In a separate fresh USD or multi-currency org, verify the unsupported-configuration message and disabled Finish action. Opening setup alone must not create customer records or initialize settings.
+
 ## Recurring Background Refresh Verification — 2026-10-07
 
 - Recurring retains its last successful rows, totals, loaded pages, and empty state while refreshing on tab activation. A small SLDS refresh status replaces the full spinner once a snapshot exists. Initial loading and Expense Group changes retain the full loader. Successful refreshes reset to the latest first page; failures preserve cached pages/cursors with an inline warning and Retry.

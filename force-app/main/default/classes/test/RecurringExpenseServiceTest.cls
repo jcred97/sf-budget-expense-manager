@@ -5,7 +5,11 @@ private class RecurringExpenseServiceTest {
     static void testSynchronousControllerRespectsDisabledSetting() {
         Recurring_Expense__c template = synchronousTemplate('Disabled', Date.today());
         insert template;
-        insert new Budget_Expense_Manager_Setting__c(Name = 'Default', Recurring_Expenses_Enabled__c = false);
+        update new Budget_Expense_Manager_Setting__c(
+            Id = [SELECT Id FROM Budget_Expense_Manager_Setting__c LIMIT 1]
+            .Id,
+            Recurring_Expenses_Enabled__c = false
+        );
 
         Test.startTest();
         try {
@@ -118,22 +122,16 @@ private class RecurringExpenseServiceTest {
 
     @TestSetup
     static void setupData() {
+        insert new Budget_Expense_Manager_Setting__c(Name = 'Default', Recurring_Expenses_Enabled__c = true, Base_Currency_Code__c = 'PHP');
         Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Health');
         insert expenseGroup;
 
-        Category__c category = new Category__c(
-            Name = 'Fitness',
-            Expense_Group__c = expenseGroup.Id
-        );
+        Category__c category = new Category__c(Name = 'Fitness', Expense_Group__c = expenseGroup.Id);
         insert category;
 
         Bank__c bank = new Bank__c(Name = 'BPI', Active__c = true);
         insert bank;
-        insert new Expense_Group_Bank__c(
-            Expense_Group__c = expenseGroup.Id,
-            Bank__c = bank.Id,
-            Active__c = true
-        );
+        insert new Expense_Group_Bank__c(Expense_Group__c = expenseGroup.Id, Bank__c = bank.Id, Active__c = true);
     }
 
     @IsTest
@@ -165,26 +163,12 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
-                runDate
-            );
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(runDate);
             Test.stopTest();
 
-            System.assertEquals(
-                1,
-                result.recurringExpensesProcessed,
-                'One recurring expense should be processed'
-            );
-            System.assertEquals(
-                3,
-                result.expensesCreated,
-                'March, April, and May expenses should be created'
-            );
-            System.assertEquals(
-                false,
-                result.hitGenerationLimit,
-                'The generation cap should not be hit'
-            );
+            System.assertEquals(1, result.recurringExpensesProcessed, 'One recurring expense should be processed');
+            System.assertEquals(3, result.expensesCreated, 'March, April, and May expenses should be created');
+            System.assertEquals(false, result.hitGenerationLimit, 'The generation cap should not be hit');
 
             List<Expense__c> generatedExpenses = [
                 SELECT
@@ -203,11 +187,7 @@ private class RecurringExpenseServiceTest {
                 ORDER BY Expense_Date__c ASC
             ];
 
-            System.assertEquals(
-                3,
-                generatedExpenses.size(),
-                'Three generated expenses should be linked to the template'
-            );
+            System.assertEquals(3, generatedExpenses.size(), 'Three generated expenses should be linked to the template');
             System.assertEquals(
                 Date.newInstance(2026, 3, 1),
                 generatedExpenses[0].Expense_Date__c,
@@ -223,31 +203,15 @@ private class RecurringExpenseServiceTest {
                 generatedExpenses[2].Expense_Date__c,
                 'The third generated expense should use the May due date.'
             );
-            System.assertEquals(
-                'Gym',
-                generatedExpenses[0].Name,
-                'Generated expenses should copy the recurring template name.'
-            );
-            System.assertEquals(
-                1500,
-                generatedExpenses[0].Amount__c,
-                'Generated expenses should copy the recurring amount.'
-            );
-            System.assertEquals(
-                'BPI',
-                generatedExpenses[0].Bank__c,
-                'Generated expenses should copy the recurring bank.'
-            );
+            System.assertEquals('Gym', generatedExpenses[0].Name, 'Generated expenses should copy the recurring template name.');
+            System.assertEquals(1500, generatedExpenses[0].Amount__c, 'Generated expenses should copy the recurring amount.');
+            System.assertEquals('BPI', generatedExpenses[0].Bank__c, 'Generated expenses should copy the recurring bank.');
             System.assertEquals(
                 bankAssignment.Id,
                 generatedExpenses[0].Bank_Assignment__c,
                 'Generated expenses should copy the record-based Bank assignment.'
             );
-            System.assertNotEquals(
-                null,
-                generatedExpenses[0].Transaction_Time__c,
-                'Generated expenses should record the generation time.'
-            );
+            System.assertNotEquals(null, generatedExpenses[0].Transaction_Time__c, 'Generated expenses should record the generation time.');
             System.assertEquals(
                 'Debit Card',
                 generatedExpenses[0].Transaction_Type__c,
@@ -330,28 +294,16 @@ private class RecurringExpenseServiceTest {
                 pointerAfterLimit,
                 'The capped run must persist the first ungenerated due date.'
             );
-            System.assertEquals(
-                false,
-                secondResult.hitGenerationLimit,
-                'The follow-up run should finish the remaining occurrence.'
-            );
+            System.assertEquals(false, secondResult.hitGenerationLimit, 'The follow-up run should finish the remaining occurrence.');
             List<Expense__c> generatedExpenses = [
                 SELECT Expense_Date__c
                 FROM Expense__c
                 WHERE Recurring_Expense__c = :recurringExpense.Id
                 ORDER BY Expense_Date__c
             ];
+            System.assertEquals(3, generatedExpenses.size(), 'Each due date should be generated once.');
             System.assertEquals(
-                3,
-                generatedExpenses.size(),
-                'Each due date should be generated once.'
-            );
-            System.assertEquals(
-                new List<Date>{
-                    Date.newInstance(2026, 5, 1),
-                    Date.newInstance(2026, 5, 2),
-                    Date.newInstance(2026, 5, 3)
-                },
+                new List<Date>{ Date.newInstance(2026, 5, 1), Date.newInstance(2026, 5, 2), Date.newInstance(2026, 5, 3) },
                 new List<Date>{
                     generatedExpenses[0].Expense_Date__c,
                     generatedExpenses[1].Expense_Date__c,
@@ -377,22 +329,14 @@ private class RecurringExpenseServiceTest {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Recurring_Expense__c template = createConcurrencyTemplate();
             Date runDate = template.Start_Date__c;
-            List<SObject> staleScope = new List<SObject>{
-                template.clone(true, true, false, false)
-            };
+            List<SObject> staleScope = new List<SObject>{ template.clone(true, true, false, false) };
 
             Test.startTest();
-            RecurringExpenseGenerationResult firstRun = RecurringExpenseService.generateDueExpenses(
-                runDate
-            );
+            RecurringExpenseGenerationResult firstRun = RecurringExpenseService.generateDueExpenses(runDate);
             new RecurringExpenseBatch(runDate).execute(null, staleScope);
             Test.stopTest();
 
-            System.assertEquals(
-                1,
-                firstRun.expensesCreated,
-                'The manual run should generate the occurrence.'
-            );
+            System.assertEquals(1, firstRun.expensesCreated, 'The manual run should generate the occurrence.');
             System.assertEquals(
                 1,
                 [SELECT COUNT() FROM Expense__c WHERE Recurring_Expense__c = :template.Id],
@@ -400,8 +344,7 @@ private class RecurringExpenseServiceTest {
             );
             System.assertEquals(
                 runDate.addDays(1),
-                [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id]
-                .Next_Run_Date__c,
+                [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id].Next_Run_Date__c,
                 'The stale run must not advance or rewind the persisted pointer.'
             );
         }
@@ -415,23 +358,15 @@ private class RecurringExpenseServiceTest {
 
             Test.startTest();
             RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
-                new List<Recurring_Expense__c>{
-                    template,
-                    template.clone(true, true, false, false)
-                },
+                new List<Recurring_Expense__c>{ template, template.clone(true, true, false, false) },
                 template.Start_Date__c
             );
             Test.stopTest();
 
-            System.assertEquals(
-                1,
-                result.expensesCreated,
-                'Repeated IDs should be processed only once.'
-            );
+            System.assertEquals(1, result.expensesCreated, 'Repeated IDs should be processed only once.');
             System.assertEquals(
                 250,
-                [SELECT Amount__c FROM Expense__c WHERE Recurring_Expense__c = :template.Id]
-                .Amount__c,
+                [SELECT Amount__c FROM Expense__c WHERE Recurring_Expense__c = :template.Id].Amount__c,
                 'Generation must use the persisted amount rather than the stale caller values.'
             );
         }
@@ -452,16 +387,8 @@ private class RecurringExpenseServiceTest {
             );
             Test.stopTest();
 
-            System.assertEquals(
-                0,
-                result.expensesCreated,
-                'Stale eligible templates must be rechecked after locking.'
-            );
-            System.assertEquals(
-                0,
-                [SELECT COUNT() FROM Expense__c],
-                'No expense should be inserted.'
-            );
+            System.assertEquals(0, result.expensesCreated, 'Stale eligible templates must be rechecked after locking.');
+            System.assertEquals(0, [SELECT COUNT() FROM Expense__c], 'No expense should be inserted.');
         }
 
     }
@@ -493,10 +420,7 @@ private class RecurringExpenseServiceTest {
 
             Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Automation Group');
             insert expenseGroup;
-            Category__c category = new Category__c(
-                Name = 'Automation Category',
-                Expense_Group__c = expenseGroup.Id
-            );
+            Category__c category = new Category__c(Name = 'Automation Category', Expense_Group__c = expenseGroup.Id);
             insert category;
 
             Date dueDate = Date.newInstance(2026, 7, 1);
@@ -512,16 +436,10 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
-                dueDate
-            );
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(dueDate);
             Test.stopTest();
 
-            System.assertEquals(
-                1,
-                result.expensesCreated,
-                'Automation should create the due expense for a restricted user.'
-            );
+            System.assertEquals(1, result.expensesCreated, 'Automation should create the due expense for a restricted user.');
             System.assertEquals(
                 dueDate.addMonths(1),
                 [
@@ -563,16 +481,10 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
-                Date.newInstance(2026, 3, 1)
-            );
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(Date.newInstance(2026, 3, 1));
             Test.stopTest();
 
-            System.assertEquals(
-                1,
-                result.expensesCreated,
-                'Only the January occurrence is within the end date'
-            );
+            System.assertEquals(1, result.expensesCreated, 'Only the January occurrence is within the end date');
 
             Recurring_Expense__c updatedRecurringExpense = [
                 SELECT Next_Run_Date__c
@@ -606,21 +518,11 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
-                Date.newInstance(2026, 5, 3)
-            );
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(Date.newInstance(2026, 5, 3));
             Test.stopTest();
 
-            System.assertEquals(
-                0,
-                result.recurringExpensesProcessed,
-                'An already-ended pointer should be filtered before generation.'
-            );
-            System.assertEquals(
-                0,
-                result.expensesCreated,
-                'An already-ended pointer must not create an expense.'
-            );
+            System.assertEquals(0, result.recurringExpensesProcessed, 'An already-ended pointer should be filtered before generation.');
+            System.assertEquals(0, result.expensesCreated, 'An already-ended pointer must not create an expense.');
             System.assertEquals(
                 0,
                 [SELECT COUNT() FROM Expense__c WHERE Recurring_Expense__c = :recurringExpense.Id],
@@ -657,16 +559,10 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
-                Date.newInstance(2026, 3, 30)
-            );
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(Date.newInstance(2026, 3, 30));
             Test.stopTest();
 
-            System.assertEquals(
-                3,
-                result.expensesCreated,
-                'January, February, and March should be generated'
-            );
+            System.assertEquals(3, result.expensesCreated, 'January, February, and March should be generated');
 
             List<Expense__c> generatedExpenses = [
                 SELECT Expense_Date__c
@@ -721,16 +617,10 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
-                Date.newInstance(2026, 7, 16)
-            );
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(Date.newInstance(2026, 7, 16));
             Test.stopTest();
 
-            System.assertEquals(
-                2,
-                result.expensesCreated,
-                'June and July should be generated after the last generated date'
-            );
+            System.assertEquals(2, result.expensesCreated, 'June and July should be generated after the last generated date');
 
             List<Expense__c> generatedExpenses = [
                 SELECT Expense_Date__c
@@ -790,17 +680,11 @@ private class RecurringExpenseServiceTest {
             };
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
-                runDate
-            );
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(runDate);
             Test.stopTest();
 
             System.assertEquals(0, result.expensesCreated, 'No expenses should be generated');
-            System.assertEquals(
-                0,
-                [SELECT COUNT() FROM Expense__c],
-                'No expense records should be inserted'
-            );
+            System.assertEquals(0, [SELECT COUNT() FROM Expense__c], 'No expense records should be inserted');
         }
     }
 
@@ -875,10 +759,22 @@ private class RecurringExpenseServiceTest {
         for (Expense__c expense : [SELECT Recurring_Expense__c, Bank_Assignment__c, Bank__c, Transaction_Type__c FROM Expense__c]) {
             expensesBySource.put(expense.Recurring_Expense__c, expense);
         }
-        System.assertEquals(supported.Bank_Assignment__c, expensesBySource.get(supported.Id).Bank_Assignment__c, 'The supported assignment must be copied.');
-        System.assertEquals('Credit Card', expensesBySource.get(supported.Id).Transaction_Type__c, 'The supported payment method must be copied.');
+        System.assertEquals(
+            supported.Bank_Assignment__c,
+            expensesBySource.get(supported.Id).Bank_Assignment__c,
+            'The supported assignment must be copied.'
+        );
+        System.assertEquals(
+            'Credit Card',
+            expensesBySource.get(supported.Id).Transaction_Type__c,
+            'The supported payment method must be copied.'
+        );
         System.assertEquals('BPI', expensesBySource.get(legacy.Id).Bank__c, 'The legacy Bank must remain compatible.');
-        System.assertEquals('Bank Transfer', expensesBySource.get(legacy.Id).Transaction_Type__c, 'The legacy payment method must be copied.');
+        System.assertEquals(
+            'Bank Transfer',
+            expensesBySource.get(legacy.Id).Transaction_Type__c,
+            'The legacy payment method must be copied.'
+        );
         Set<Id> sourceIds = new Set<Id>{ supported.Id, legacy.Id };
         for (Recurring_Expense__c template : [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id IN :sourceIds]) {
             System.assertEquals(Date.today().addDays(1), template.Next_Run_Date__c, 'Generation should advance both pointers.');
@@ -905,11 +801,7 @@ private class RecurringExpenseServiceTest {
             RecurringExpenseGenerationResult result = RecurringExpenseAutomationController.generateDueExpenses();
             Test.stopTest();
 
-            System.assertEquals(
-                1,
-                result.expensesCreated,
-                'The automation controller should return the generated expense count.'
-            );
+            System.assertEquals(1, result.expensesCreated, 'The automation controller should return the generated expense count.');
             System.assertEquals(
                 1,
                 [
@@ -974,11 +866,7 @@ private class RecurringExpenseServiceTest {
                 exceptionThrown = true;
             }
 
-            System.assertEquals(
-                true,
-                exceptionThrown,
-                'Manual generation should be blocked when disabled'
-            );
+            System.assertEquals(true, exceptionThrown, 'Manual generation should be blocked when disabled');
         }
     }
 
@@ -995,18 +883,13 @@ private class RecurringExpenseServiceTest {
                 exceptionThrown = true;
             }
 
-            System.assertEquals(
-                true,
-                exceptionThrown,
-                'A null run date should throw a handled exception'
-            );
+            System.assertEquals(true, exceptionThrown, 'A null run date should throw a handled exception');
         }
     }
 
     private static User createRestrictedAutomationUser() {
         Id restrictedProfileId = findRestrictedProfileId();
-        String uniqueSuffix =
-            UserInfo.getOrganizationId() + String.valueOf(DateTime.now().getTime());
+        String uniqueSuffix = UserInfo.getOrganizationId() + String.valueOf(DateTime.now().getTime());
         User automationUser = new User(
             Alias = 'recurusr',
             CommunityNickname = 'recurring' + uniqueSuffix.right(8),
@@ -1024,17 +907,11 @@ private class RecurringExpenseServiceTest {
         PermissionSet adminPermissionSet = [
             SELECT Id, NamespacePrefix
             FROM PermissionSet
-            WHERE
-                Name = 'Budget_Expense_Manager_Admin'
-                AND (NamespacePrefix = 'bemgr'
-                OR NamespacePrefix = NULL)
+            WHERE Name = 'Budget_Expense_Manager_Admin' AND (NamespacePrefix = 'bemgr' OR NamespacePrefix = NULL)
             ORDER BY NamespacePrefix DESC NULLS LAST
             LIMIT 1
         ];
-        insert new PermissionSetAssignment(
-            AssigneeId = automationUser.Id,
-            PermissionSetId = adminPermissionSet.Id
-        );
+        insert new PermissionSetAssignment(AssigneeId = automationUser.Id, PermissionSetId = adminPermissionSet.Id);
         return automationUser;
     }
 
@@ -1048,10 +925,7 @@ private class RecurringExpenseServiceTest {
         List<Profile> candidateProfiles = [
             SELECT Id
             FROM Profile
-            WHERE
-                UserLicenseId = :runningUserLicenseId
-                AND UserType = 'Standard'
-                AND PermissionsModifyAllData = FALSE
+            WHERE UserLicenseId = :runningUserLicenseId AND UserType = 'Standard' AND PermissionsModifyAllData = FALSE
             ORDER BY Name
         ];
         Set<Id> candidateProfileIds = new Map<Id, Profile>(candidateProfiles).keySet();
@@ -1073,14 +947,9 @@ private class RecurringExpenseServiceTest {
         for (FieldPermissions fieldPermission : [
             SELECT ParentId
             FROM FieldPermissions
-            WHERE
-                ParentId IN :profileIdByPermissionSetId.keySet()
-                AND Field IN :generatedLinkFields
-                AND PermissionsEdit = TRUE
+            WHERE ParentId IN :profileIdByPermissionSetId.keySet() AND Field IN :generatedLinkFields AND PermissionsEdit = TRUE
         ]) {
-            profilesWithGeneratedLinkAccess.add(
-                profileIdByPermissionSetId.get(fieldPermission.ParentId)
-            );
+            profilesWithGeneratedLinkAccess.add(profileIdByPermissionSetId.get(fieldPermission.ParentId));
         }
 
         for (Profile candidateProfile : candidateProfiles) {

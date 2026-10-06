@@ -8,6 +8,10 @@ public inherited sharing class BudgetExpenseSettingsTriggerHandler {
      * @param settingsRecords Settings records in the current before-insert context.
      */
     public static void beforeInsert(List<Budget_Expense_Manager_Setting__c> settingsRecords) {
+        for (Budget_Expense_Manager_Setting__c settings : settingsRecords) {
+            // The database unique key also serializes otherwise simultaneous first inserts.
+            settings.Singleton_Key__c = 'Default';
+        }
         Boolean singletonWouldBeViolated = settingsRecords.size() > 1;
 
         if (!singletonWouldBeViolated) {

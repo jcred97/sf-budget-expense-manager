@@ -2,7 +2,8 @@
 
 | Path                                                          | Role                                                                                                                                         |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lwc/budgetExpenseManager`                                    | Workspace shell: group selection, navigation, shared category/bank lookups, and refresh coordination across the three screens |
+| `lwc/budgetExpenseManager`                                    | Entry-page readiness routing and workspace shell: group selection, navigation, shared category/bank lookups, and refresh coordination |
+| `lwc/appSetup`                                               | Guided administrator currency confirmation, optional LDS group/category creation, read-only status refresh, and ready event |
 | `lwc/expenseWorkspaceConfig`                                  | Non-exposed keys and navigation items for Dashboard, Expenses, and Recurring                                                     |
 | `lwc/expenseWorkspaceData`                                    | Non-exposed imperative read gateway for expense rows, Dashboard trend/budget history, and group-scoped Bank options                          |
 | `lwc/expenseWorkspaceViewModels`                              | WeakMap memoization by component owner and input identity for dashboard and expense-list builders only; recurring uses its builder directly |
@@ -30,6 +31,9 @@
 | `lwc/expenseTransforms`                                       | Non-exposed pure utilities for PHP/FX expense mapping, grouping, summaries, chart construction, colors, totals, and count labels             |
 | `lwc/expenseModal`                                            | Add/Edit Expense modal: atomic loading, optional FX conversion, animations, focus management, and document-level lifecycle cleanup           |
 | `lwc/budgetExpenseSettings`                                   | Settings page for recurring automation controls, global run time, and last-run status                                                        |
+| `classes/controller/AppSetupController.cls`                  | Read-only readiness endpoint for all app users and explicitly authorized setup completion |
+| `classes/service/AppSetupService.cls`                        | Narrow system-mode configuration lookup, confirmed single-currency PHP initialization, and readiness guard for Settings |
+| `classes/dto/AppSetupStatus.cls`                             | Sanitized readiness, setup capability, currency, and explanatory message without settings-record or job details |
 | `classes/controller/BankController.cls`                       | Direct user-mode group-scoped active Bank query and option mapping                                                                                  |
 | `classes/controller/BudgetController.cls`                     | Lightning-facing current-month and bounded six-month budget query/save/delete façade                                                         |
 | `classes/controller/CurrencyContextController.cls`            | Lightning-facing cacheable façade over the initialized app reporting currency                                                                |
@@ -54,6 +58,11 @@
 
 ## Screen Lifetime And Events
 
+The workspace entry initially renders `appSetup`. A read-only status response or successful
+confirmed completion emits `ready`, after which the manager mounts the workspace. Existing
+initialized installations enter without repeating setup. Newly completed setup also refreshes
+the manager's group wire to include records created in the optional setup forms.
+
 All three workspace screens stay mounted across navigation. The manager hides Dashboard
 and Recurring sections; `expenseList` hides its interactive screen internally. This preserves
 the independent dashboard month and expense filters, loaded pages, selection, and pending
@@ -73,6 +82,11 @@ the recurring screen owns its modal. The standalone settings component is a sepa
 not a fourth workspace view.
 
 ## Verification Boundaries
+
+Guided setup tests cover entry routing, confirmation, read-only status recovery, pending completion,
+and optional record submission. Apex tests exercise authorization, readiness without Settings CRUD,
+preservation, initialization, and unsupported configuration. Mocked UI responses and unique-key
+checks do not establish live subscriber installation or concurrent multi-transaction behavior.
 
 Jest suites cover manager integration, dashboard, expense list, recurring screen,
 expense modal, recurring view model, expense transforms, workspace data, and CSV output.

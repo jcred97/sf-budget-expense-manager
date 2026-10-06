@@ -7,6 +7,7 @@ public with sharing class SettingsController {
      */
     @AuraEnabled
     public static BudgetExpenseSettingsState getSettings() {
+        AppSetupService.requireReady();
         return BudgetExpenseSettingsService.getSettings();
     }
 
@@ -18,6 +19,7 @@ public with sharing class SettingsController {
      */
     @AuraEnabled
     public static BudgetExpenseSettingsState saveSettings(BudgetExpenseSettingsUpdateRequest request) {
+        AppSetupService.requireReady();
         return BudgetExpenseSettingsService.saveSettings(request);
     }
 }

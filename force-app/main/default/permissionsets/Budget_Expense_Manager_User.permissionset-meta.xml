@@ -2,6 +2,34 @@
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
     <label>Budget &amp; Expense Manager User</label>
     <hasActivationRequired>false</hasActivationRequired>
+    <classAccesses>
+        <apexClass>CurrencyContextController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ExchangeRateController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>BankController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>BudgetController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ExpenseController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>RecurringExpenseController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>AppSetupController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
 
     <!-- Object Permissions -->
     <objectPermissions>
@@ -268,30 +296,6 @@
     </tabSettings>
 
     <!-- Apex Class Access -->
-    <classAccesses>
-        <apexClass>CurrencyContextController</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
-    <classAccesses>
-        <apexClass>ExchangeRateController</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
-    <classAccesses>
-        <apexClass>BankController</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
-    <classAccesses>
-        <apexClass>BudgetController</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
-    <classAccesses>
-        <apexClass>ExpenseController</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
-    <classAccesses>
-        <apexClass>RecurringExpenseController</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
     <externalCredentialPrincipalAccesses>
         <enabled>true</enabled>
         <externalCredentialPrincipal

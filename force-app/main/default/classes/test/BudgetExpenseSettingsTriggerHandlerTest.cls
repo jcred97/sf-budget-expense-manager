@@ -13,38 +13,27 @@ private class BudgetExpenseSettingsTriggerHandlerTest {
             );
 
             Test.startTest();
-            BudgetExpenseSettingsTriggerHandler.beforeInsert(
-                new List<Budget_Expense_Manager_Setting__c>{ firstSettings }
-            );
+            BudgetExpenseSettingsTriggerHandler.beforeInsert(new List<Budget_Expense_Manager_Setting__c>{ firstSettings });
             Test.stopTest();
 
-            System.assertEquals(
-                false,
-                firstSettings.hasErrors(),
-                'The handler should allow the first settings record.'
-            );
+            System.assertEquals(false, firstSettings.hasErrors(), 'The handler should allow the first settings record.');
         }
     }
 
     @IsTest
     static void testBeforeInsertRejectsRecordWhenSettingsAlreadyExist() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            SettingsController.getSettings();
+            BudgetExpenseSettingsService.getSettings();
             Budget_Expense_Manager_Setting__c secondSettings = new Budget_Expense_Manager_Setting__c(
                 Name = 'Second',
                 Recurring_Expenses_Enabled__c = true
             );
 
             Test.startTest();
-            BudgetExpenseSettingsTriggerHandler.beforeInsert(
-                new List<Budget_Expense_Manager_Setting__c>{ secondSettings }
-            );
+            BudgetExpenseSettingsTriggerHandler.beforeInsert(new List<Budget_Expense_Manager_Setting__c>{ secondSettings });
             Test.stopTest();
 
-            System.assert(
-                secondSettings.hasErrors(),
-                'The handler should reject a second settings record.'
-            );
+            System.assert(secondSettings.hasErrors(), 'The handler should reject a second settings record.');
             assertSingletonError(secondSettings);
         }
     }
@@ -53,14 +42,8 @@ private class BudgetExpenseSettingsTriggerHandlerTest {
     static void testBeforeInsertRejectsBulkRecordsWhenSettingsDoNotExist() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             List<Budget_Expense_Manager_Setting__c> settingsRecords = new List<Budget_Expense_Manager_Setting__c>{
-                new Budget_Expense_Manager_Setting__c(
-                    Name = 'First',
-                    Recurring_Expenses_Enabled__c = true
-                ),
-                new Budget_Expense_Manager_Setting__c(
-                    Name = 'Second',
-                    Recurring_Expenses_Enabled__c = false
-                )
+                new Budget_Expense_Manager_Setting__c(Name = 'First', Recurring_Expenses_Enabled__c = true),
+                new Budget_Expense_Manager_Setting__c(Name = 'Second', Recurring_Expenses_Enabled__c = false)
             };
 
             Test.startTest();
@@ -81,23 +64,16 @@ private class BudgetExpenseSettingsTriggerHandlerTest {
     @IsTest
     static void testTriggerDelegatesBeforeInsert() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            SettingsController.getSettings();
+            BudgetExpenseSettingsService.getSettings();
 
             Test.startTest();
             Database.SaveResult result = Database.insert(
-                new Budget_Expense_Manager_Setting__c(
-                    Name = 'Second',
-                    Recurring_Expenses_Enabled__c = true
-                ),
+                new Budget_Expense_Manager_Setting__c(Name = 'Second', Recurring_Expenses_Enabled__c = true),
                 false
             );
             Test.stopTest();
 
-            System.assertEquals(
-                false,
-                result.isSuccess(),
-                'The trigger should reject a second settings record.'
-            );
+            System.assertEquals(false, result.isSuccess(), 'The trigger should reject a second settings record.');
             System.assertEquals(
                 SINGLETON_ERROR_MESSAGE,
                 result.getErrors()[0].getMessage(),
@@ -120,11 +96,7 @@ private class BudgetExpenseSettingsTriggerHandlerTest {
             );
             Test.stopTest();
 
-            System.assertEquals(
-                false,
-                result.isSuccess(),
-                'The base currency should reject non-normalized codes.'
-            );
+            System.assertEquals(false, result.isSuccess(), 'The base currency should reject non-normalized codes.');
             System.assertEquals(
                 INVALID_CURRENCY_ERROR_MESSAGE,
                 result.getErrors()[0].getMessage(),
@@ -150,21 +122,13 @@ private class BudgetExpenseSettingsTriggerHandlerTest {
             Database.SaveResult clearResult = Database.update(settings, false);
             Test.stopTest();
 
-            System.assertEquals(
-                false,
-                changeResult.isSuccess(),
-                'The base currency should not change after initialization.'
-            );
+            System.assertEquals(false, changeResult.isSuccess(), 'The base currency should not change after initialization.');
             System.assertEquals(
                 IMMUTABLE_CURRENCY_ERROR_MESSAGE,
                 changeResult.getErrors()[0].getMessage(),
                 'The validation rule should explain the pinned-currency invariant.'
             );
-            System.assertEquals(
-                false,
-                clearResult.isSuccess(),
-                'The base currency should not be cleared after initialization.'
-            );
+            System.assertEquals(false, clearResult.isSuccess(), 'The base currency should not be cleared after initialization.');
             System.assertEquals(
                 IMMUTABLE_CURRENCY_ERROR_MESSAGE,
                 clearResult.getErrors()[0].getMessage(),
@@ -174,11 +138,7 @@ private class BudgetExpenseSettingsTriggerHandlerTest {
     }
 
     private static void assertSingletonError(Budget_Expense_Manager_Setting__c settingsRecord) {
-        System.assertEquals(
-            true,
-            settingsRecord.hasErrors(),
-            'The handler should add an error to each rejected settings record.'
-        );
+        System.assertEquals(true, settingsRecord.hasErrors(), 'The handler should add an error to each rejected settings record.');
         System.assertEquals(
             SINGLETON_ERROR_MESSAGE,
             settingsRecord.getErrors()[0].getMessage(),

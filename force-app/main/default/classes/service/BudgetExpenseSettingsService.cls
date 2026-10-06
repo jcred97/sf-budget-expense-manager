@@ -154,7 +154,7 @@ public with sharing class BudgetExpenseSettingsService {
 
         Budget_Expense_Manager_Setting__c settings = new Budget_Expense_Manager_Setting__c(
             Name = DEFAULT_SETTINGS_NAME,
-            Recurring_Expenses_Enabled__c = true,
+            Recurring_Expenses_Enabled__c = false,
             Global_Recurring_Run_Time__c = DEFAULT_RECURRING_RUN_TIME
         );
         List<Budget_Expense_Manager_Setting__c> inserts = (List<Budget_Expense_Manager_Setting__c>) Security.stripInaccessible(
