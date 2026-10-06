@@ -53,6 +53,11 @@ or dates reloads within the selected group. Dashboard and Expenses have independ
 state and previous/next controls; changing one screen's month does not change the other.
 Their selected ranges survive navigation and group changes. Dashboard refreshes on activation;
 the expense list retains its current pages on activation and refreshes through explicit changes.
+Recurring refreshes on activation while retaining its last successful snapshot, including
+loaded pages and empty results. A small refresh status replaces the full loader once a
+snapshot exists; initial loads and group changes still use the full loader. Failed refreshes
+retain the snapshot with an inline warning and Retry. A successful refresh replaces the
+snapshot with the current first page and summary.
 
 ## Date Validation
 

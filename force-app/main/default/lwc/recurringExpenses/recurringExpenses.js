@@ -24,6 +24,8 @@ export default class RecurringExpenses extends LightningElement {
     _wiredRecurringResult;
     _pageVersion = 0;
     _refreshVersion = 0;
+    _pendingRefreshVersion;
+    _overviewFailureVersion = 0;
     _firstPageOverview;
     _seenCursors = new Set();
     nextCursor;
@@ -31,6 +33,7 @@ export default class RecurringExpenses extends LightningElement {
     isLoadingMore = false;
     pageError = '';
     overviewError = '';
+    refreshError = '';
     recurringRows = [];
     recurringOverview = {};
     isRecurringLoading = false;
@@ -50,10 +53,12 @@ export default class RecurringExpenses extends LightningElement {
         this._contextVersion += 1;
         this._wiredRecurringResult = undefined;
         this._firstPageOverview = undefined;
+        this._pendingRefreshVersion = undefined;
         this.resetPagination();
         this.recurringRows = [];
         this.recurringOverview = {};
         this.overviewError = '';
+        this.refreshError = '';
         this.isRecurringLoading = Boolean(groupId);
         this.resetRecurringExpenseModal();
     }
@@ -73,11 +78,18 @@ export default class RecurringExpenses extends LightningElement {
             rows: this.recurringRows,
             overview: this.recurringOverview,
             expenseGroupName: this.expenseGroupName,
-            isLoading: this.isRecurringLoading
+            isLoading: this.isRecurringLoading && !this.hasLoadedOverview
         });
     }
     get hasRows() {
         return this.recurringRows.length > 0;
+    }
+    get hasLoadedOverview() {
+        // A successful empty overview is still a usable cached snapshot.
+        return this._firstPageOverview !== undefined;
+    }
+    get isRefreshing() {
+        return this.isRecurringLoading && this.hasLoadedOverview;
     }
     connectedCallback() {
         let initialState = true;
@@ -105,6 +117,7 @@ export default class RecurringExpenses extends LightningElement {
     disconnectedCallback() {
         this._unsubscribeRun?.();
         this._contextVersion += 1;
+        this._pendingRefreshVersion = undefined;
         this.resetPagination();
     }
     resetPagination() {
@@ -193,23 +206,10 @@ export default class RecurringExpenses extends LightningElement {
 
         if (data) {
             this.applyRecurringOverview(data);
-            this.isRecurringLoading = false;
+            if (this._pendingRefreshVersion === undefined) this.isRecurringLoading = false;
         } else if (error && this.expenseGroupId) {
-            this.resetPagination();
-            this._firstPageOverview = undefined;
-            this.overviewError = getErrorMessage(error, 'Failed to load recurring expenses.');
-            this.recurringRows = [];
-            this.recurringOverview = {
-                activeCount: 0,
-                dueTodayCount: 0,
-                monthlyTotal: 0
-            };
-            this.isRecurringLoading = false;
-            this.showToast(
-                'Error',
-                getErrorMessage(error, 'Failed to load recurring expenses.'),
-                'error'
-            );
+            this.showOverviewFailure(error);
+            if (this._pendingRefreshVersion === undefined) this.isRecurringLoading = false;
         } else if (this.expenseGroupId) {
             this.isRecurringLoading = true;
         }
@@ -217,6 +217,20 @@ export default class RecurringExpenses extends LightningElement {
             this._refreshAfterWire = false;
             this.loadRecurringExpenses();
         }
+    }
+
+    showOverviewFailure(error) {
+        this._overviewFailureVersion += 1;
+        const message = getErrorMessage(error, 'Failed to load recurring expenses.');
+        if (this.hasLoadedOverview) {
+            this.refreshError = message;
+            return;
+        }
+        this.resetPagination();
+        this.overviewError = message;
+        this.recurringRows = [];
+        this.recurringOverview = {};
+        this.showToast('Error', message, 'error');
     }
 
     async loadRecurringExpenses() {
@@ -227,24 +241,47 @@ export default class RecurringExpenses extends LightningElement {
         }
 
         const contextVersion = this._contextVersion;
-        if (this._firstPageOverview) this.applyRecurringOverview(this._firstPageOverview);
-        else this.resetPagination();
+        // Invalidate pending page replies without discarding the cached pages or cursor.
+        this._pageVersion += 1;
+        this.isLoadingMore = false;
         const refreshVersion = ++this._refreshVersion;
         this.isRecurringLoading = true;
+        this.refreshError = '';
         if (!this._wiredRecurringResult) {
             return;
         }
+        this._pendingRefreshVersion = refreshVersion;
+        const failureVersion = this._overviewFailureVersion;
+        const wireResult = this._wiredRecurringResult;
 
         try {
-            await refreshApex(this._wiredRecurringResult);
-        } catch {
-            // The wire handler owns recurring-load error presentation.
+            await refreshApex(wireResult);
+            if (
+                this.isConnected &&
+                contextVersion === this._contextVersion &&
+                refreshVersion === this._refreshVersion &&
+                failureVersion === this._overviewFailureVersion &&
+                this.hasLoadedOverview
+            ) {
+                // LDS may not emit when the refreshed first page is unchanged.
+                this.applyRecurringOverview(this._firstPageOverview);
+            }
+        } catch (error) {
+            if (
+                this.isConnected &&
+                contextVersion === this._contextVersion &&
+                refreshVersion === this._refreshVersion
+            ) {
+                this.showOverviewFailure(error);
+            }
         } finally {
             if (
+                this.isConnected &&
                 contextVersion === this._contextVersion &&
                 refreshVersion === this._refreshVersion
             ) {
                 this.isRecurringLoading = false;
+                this._pendingRefreshVersion = undefined;
             }
         }
     }
@@ -252,6 +289,7 @@ export default class RecurringExpenses extends LightningElement {
     applyRecurringOverview(overview) {
         this.resetPagination();
         this.overviewError = '';
+        this.refreshError = '';
         this._firstPageOverview = overview;
         this.recurringOverview = {
             totalCount: overview?.totalCount ?? overview?.rows?.length ?? 0,
@@ -265,7 +303,7 @@ export default class RecurringExpenses extends LightningElement {
     }
 
     get isAddRecurringDisabled() {
-        return !this.expenseGroupId;
+        return !this.expenseGroupId || this.isRecurringBusy;
     }
 
     get runRecurringLabel() {
@@ -373,7 +411,7 @@ export default class RecurringExpenses extends LightningElement {
     }
 
     openRecurringExpenseModal() {
-        if (!this.expenseGroupId) {
+        if (this.isAddRecurringDisabled) {
             return;
         }
 
@@ -400,6 +438,7 @@ export default class RecurringExpenses extends LightningElement {
     }
 
     async handleRowAction(event) {
+        if (this.isRecurringBusy) return;
         const action = event.detail.value;
         const id = event.currentTarget.dataset.id;
 

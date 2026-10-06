@@ -1,5 +1,12 @@
 # Testing And Tooling
 
+## Recurring Background Refresh Verification — 2026-10-07
+
+- Recurring retains its last successful rows, totals, loaded pages, and empty state while refreshing on tab activation. A small SLDS refresh status replaces the full spinner once a snapshot exists. Initial loading and Expense Group changes retain the full loader. Successful refreshes reset to the latest first page; failures preserve cached pages/cursors with an inline warning and Retry.
+- Six new regressions cover delayed activation refresh, fresh wire data arriving before refresh completion, promise/wire failures and retry, loaded empty groups, stale failures after group changes, and mutation-completion refresh overlapping activation refresh. Existing cases cover unchanged-wire success, stale page replies, and disconnect/reconnect. Visible row actions and Add are disabled during refresh, with handler guards.
+- All **21 recurring-screen tests** and **226 tests across 21 suites** passed. Lint, targeted formatting, and diff checks passed. These frontend tests mock Apex refresh and wire delivery; live Salesforce timing is not established by the mocks.
+- Check-only validation `0AfgK00000VbM7lSAF` and deployment `0AfgK00000VaaSxSAJ` succeeded against `mainDevOrg`, updating only the `recurringExpenses` LWC. No Apex tests were run for this LWC-only change.
+
 ## Workspace Navigation Visibility Verification — 2026-10-07
 
 - Added scoped hidden-section rules for workspace Dashboard/Recurring wrappers and the expense-list screen. Navigation keeps all three screen instances mounted; the shared expense modal and print report remain outside the hidden expense section.

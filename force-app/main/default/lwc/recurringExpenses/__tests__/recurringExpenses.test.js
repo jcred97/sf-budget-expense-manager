@@ -403,6 +403,163 @@ describe('recurring screen', () => {
         expect(element.shadowRoot.textContent).not.toContain('Disconnected');
         expect(loadMore(element)).toBeDefined();
     });
+    const delayedRefresh = () => {
+        let resolve;
+        let reject;
+        refreshApex.mockImplementationOnce(
+            () =>
+                new Promise((accept, fail) => {
+                    resolve = accept;
+                    reject = fail;
+                })
+        );
+        return { resolve: () => resolve(), reject: error => reject(error) };
+    };
+    const reactivate = async element => {
+        element.active = false;
+        await flush();
+        element.active = true;
+        await flush();
+    };
+    const appendCachedPage = async element => {
+        getRecurringExpensePage.mockResolvedValueOnce({
+            rows: [{ id: 'second', name: 'Second cached page' }],
+            hasMore: true,
+            nextCursor: 'cursor2'
+        });
+        loadMore(element).click();
+        await flush();
+    };
+    it('retains cached pages and totals on activation while refreshing, then resets on fresh success', async () => {
+        const element = await mountPaged();
+        await appendCachedPage(element);
+        const pending = delayedRefresh();
+        await reactivate(element);
+        expect(element.shadowRoot.querySelectorAll('article')).toHaveLength(2);
+        expect(element.shadowRoot.textContent).toContain('501 total templates');
+        expect(element.shadowRoot.querySelector('lightning-spinner')).toBeNull();
+        expect(element.shadowRoot.querySelector('[data-refresh-status]').textContent).toContain(
+            'Refreshing'
+        );
+        expect(loadMore(element).disabled).toBe(true);
+        expect(findButton(element, 'Add Recurring').disabled).toBe(true);
+        expect(element.shadowRoot.querySelector('lightning-button-menu').disabled).toBe(true);
+        selectRecurring(element, 'edit');
+        expect(modal(element).isOpen).toBe(false);
+        getRecurringExpenseOverview.emit({
+            expenseGroupId: 'group',
+            totalCount: 1,
+            rows: [{ id: 'fresh', name: 'Fresh template' }],
+            hasMore: true,
+            nextCursor: 'fresh-cursor'
+        });
+        await flush();
+        expect(element.shadowRoot.textContent).toContain('Fresh template');
+        expect(element.shadowRoot.textContent).not.toContain('Second cached page');
+        // Fresh wire data may arrive before refreshApex settles; controls stay locked.
+        expect(loadMore(element).disabled).toBe(true);
+        pending.resolve();
+        await flush();
+        expect(element.shadowRoot.querySelector('[data-refresh-status]')).toBeNull();
+        expect(loadMore(element).disabled).toBe(false);
+        getRecurringExpensePage.mockResolvedValueOnce({ rows: [], hasMore: false });
+        loadMore(element).click();
+        await flush();
+        expect(getRecurringExpensePage.mock.calls.at(-1)[0].cursor).toBe('fresh-cursor');
+    });
+    it.each(['promise', 'wire'])(
+        'retains cached pages and cursor after a %s refresh failure with an inline retry',
+        async channel => {
+            const element = await mountPaged();
+            await appendCachedPage(element);
+            const pending = delayedRefresh();
+            await reactivate(element);
+            if (channel === 'promise') pending.reject(new Error('Refresh unavailable'));
+            else {
+                getRecurringExpenseOverview.error({ message: 'Refresh unavailable' });
+                pending.resolve();
+            }
+            await flush();
+            expect(element.shadowRoot.querySelectorAll('article')).toHaveLength(2);
+            expect(element.shadowRoot.textContent).toContain('501 total templates');
+            expect(element.shadowRoot.querySelector('[data-refresh-error]').textContent).toContain(
+                'Showing previously loaded data'
+            );
+            expect(element.shadowRoot.textContent).toContain('Refresh unavailable');
+            expect(loadMore(element).disabled).toBe(false);
+            getRecurringExpensePage.mockResolvedValueOnce({
+                rows: [{ id: 'third', name: 'Third' }],
+                hasMore: true,
+                nextCursor: 'cursor3'
+            });
+            loadMore(element).click();
+            await flush();
+            expect(getRecurringExpensePage.mock.calls.at(-1)[0].cursor).toBe('cursor2');
+            const retry = delayedRefresh();
+            findButton(element, 'Retry refresh').click();
+            await flush();
+            expect(element.shadowRoot.querySelectorAll('article')).toHaveLength(3);
+            getRecurringExpenseOverview.emit({ expenseGroupId: 'group', totalCount: 0, rows: [] });
+            retry.resolve();
+            await flush();
+            expect(element.shadowRoot.querySelector('[data-refresh-error]')).toBeNull();
+            expect(element.shadowRoot.querySelectorAll('article')).toHaveLength(0);
+        }
+    );
+    it('keeps a successfully loaded empty group visible during refresh', async () => {
+        const element = await mount();
+        getRecurringExpenseOverview.emit({ expenseGroupId: 'group', rows: [], totalCount: 0 });
+        await flush();
+        const pending = delayedRefresh();
+        await reactivate(element);
+        expect(element.shadowRoot.textContent).toContain('No recurring expenses for this group');
+        expect(element.shadowRoot.querySelector('lightning-spinner')).toBeNull();
+        expect(element.shadowRoot.querySelector('[data-refresh-status]')).not.toBeNull();
+        pending.reject(new Error('Empty overview refresh failed'));
+        await flush();
+        expect(element.shadowRoot.textContent).toContain('No recurring expenses for this group');
+        expect(element.shadowRoot.querySelector('[data-refresh-error]')).not.toBeNull();
+    });
+    it('uses full loading for a new group and ignores the previous refresh failure', async () => {
+        const element = await mountPaged();
+        const pending = delayedRefresh();
+        await reactivate(element);
+        element.expenseGroupId = 'other-group';
+        await flush();
+        expect(element.shadowRoot.querySelector('lightning-spinner')).not.toBeNull();
+        expect(element.shadowRoot.querySelector('[data-refresh-status]')).toBeNull();
+        expect(element.shadowRoot.querySelectorAll('article')).toHaveLength(0);
+        pending.reject(new Error('Previous group failed'));
+        await flush();
+        expect(element.shadowRoot.querySelector('lightning-spinner')).not.toBeNull();
+        expect(element.shadowRoot.querySelector('[data-refresh-error]')).toBeNull();
+        getRecurringExpenseOverview.emit({ expenseGroupId: 'other-group', rows: [] });
+        await flush();
+        expect(element.shadowRoot.querySelector('lightning-spinner')).toBeNull();
+    });
+    it('allows a mutation-completion refresh to supersede activation without an older reply unlocking it', async () => {
+        const element = await mountPaged();
+        const activation = delayedRefresh();
+        await reactivate(element);
+        const completion = delayedRefresh();
+        // Completion callbacks must still request freshness even during an activation refresh.
+        modal(element).dispatchEvent(new CustomEvent('success', { detail: { mode: 'edit' } }));
+        await flush();
+        activation.reject(new Error('Older refresh failed'));
+        await flush();
+        expect(element.shadowRoot.querySelector('[data-refresh-error]')).toBeNull();
+        expect(element.shadowRoot.querySelector('[data-refresh-status]')).not.toBeNull();
+        expect(loadMore(element).disabled).toBe(true);
+        getRecurringExpenseOverview.emit({
+            expenseGroupId: 'group',
+            totalCount: 1,
+            rows: [{ id: 'newest', name: 'Newest template' }]
+        });
+        completion.resolve();
+        await flush();
+        expect(element.shadowRoot.querySelector('[data-refresh-status]')).toBeNull();
+        expect(element.shadowRoot.textContent).toContain('Newest template');
+    });
     it('shows an initial overview failure with retry instead of an empty group', async () => {
         const element = await mount();
         getRecurringExpenseOverview.error({ message: 'Overview failed' });
