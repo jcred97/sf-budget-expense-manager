@@ -1,5 +1,12 @@
 # Testing And Tooling
 
+## Recurring Editor Lifecycle Regression Coverage — 2026-10-07
+
+- Added a dedicated recurring-modal suite covering independent form/record loading, initial form errors, context Retry success/rejection/incomplete reload, stale retry completion after close/reopen or record changes, reversed-date correction, native-validation rejection, pending-save guards, save-error recovery, and create/edit success events.
+- Save-error tests verify retained name, category, bank, and transaction type, plus the retried submission payload. Pending-save checks verify disabled controls, rejected duplicate submission, and blocked closure. Synthetic events exercise handler guards rather than claiming disabled controls accept normal user input.
+- Lightning wire responses, refresh notifications, field validity, and record-form submission are mocked. These tests verify component behavior; they do not establish live LDS refresh semantics, persistence, or actual browser rendering. Existing shared payment-method regressions remain separate.
+- All **15 new tests** passed; full Jest passed **218 tests across 21 suites**. Lint, targeted test formatting, and diff checks passed. No runtime defect was reproduced and no runtime source or metadata changed, so no deployment or Apex execution was required.
+
 ## Recurring No Bank Selection Verification — 2026-10-04
 
 - Recurring bank options and the inactive-bank notice now use the normalized assignment value. Selecting No bank produces one option, clears the inactive-bank notice, and submits Cash with both bank fields cleared. Actual inactive assignments retain their historical edit behavior and reactivation guard.

@@ -81,7 +81,9 @@ Expense modal FX suites cover quote cancellation and error recovery, Save blocki
 complete snapshot submission, PHP cleanup, and edit/duplicate preservation. Direct
 currency-math and exchange-rate adapter suites cover decimal rounding and request contracts.
 A direct budget-panel suite covers retry failure/recovery, pending retries, group/month
-changes, stale completion, switching away and back, and disconnect/reconnect. There are
-no direct suites for budget modal or recurring modal, and mocked
-browser tests do not establish Salesforce print/PDF layout correctness. See `key-patterns.md`
+changes, stale completion, switching away and back, and disconnect/reconnect. There is
+no direct suite for budget modal. A recurring-modal suite covers loading, record-context
+retry isolation, date validation, pending-save guards, save-error recovery, and success events.
+Lightning record responses and field validity are mocked; these tests do not establish live
+LDS behavior or Salesforce print/PDF layout correctness. See `key-patterns.md`
 for recurring-action review findings and asynchronous run limitations.
