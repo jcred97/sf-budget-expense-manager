@@ -4,6 +4,7 @@
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `lwc/budgetExpenseManager`                                    | Entry-page readiness routing and workspace shell: group selection, navigation, shared category/bank lookups, and refresh coordination |
 | `lwc/appSetup`                                               | Guided administrator currency confirmation, optional LDS group/category creation, read-only status refresh, and ready event |
+| `lwc/workspaceManage`                                        | Permanent group/category/bank/assignment lists with searched pagination, permission-aware LDS create/edit forms, and shared lookup refresh events |
 | `lwc/expenseWorkspaceConfig`                                  | Non-exposed keys and navigation items for Dashboard, Expenses, and Recurring                                                     |
 | `lwc/expenseWorkspaceData`                                    | Non-exposed imperative read gateway for expense rows, Dashboard trend/budget history, and group-scoped Bank options                          |
 | `lwc/expenseWorkspaceViewModels`                              | WeakMap memoization by component owner and input identity for dashboard and expense-list builders only; recurring uses its builder directly |
@@ -32,6 +33,8 @@
 | `lwc/expenseModal`                                            | Add/Edit Expense modal: atomic loading, optional FX conversion, animations, focus management, and document-level lifecycle cleanup           |
 | `lwc/budgetExpenseSettings`                                   | Settings page for recurring automation controls, global run time, and last-run status                                                        |
 | `classes/controller/AppSetupController.cls`                  | Read-only readiness endpoint for all app users and explicitly authorized setup completion |
+| `classes/controller/WorkspaceManagementController.cls`       | Sharing-enforced user-mode management pages, including inactive banks/assignments and scoped category/assignment lists |
+| `classes/dto/WorkspaceManagementPage.cls` and `WorkspaceManagementRecord.cls` | Normalized management rows and continuation token contract |
 | `classes/service/AppSetupService.cls`                        | Narrow system-mode configuration lookup, confirmed single-currency PHP initialization, and readiness guard for Settings |
 | `classes/dto/AppSetupStatus.cls`                             | Sanitized readiness, setup capability, currency, and explanatory message without settings-record or job details |
 | `classes/controller/BankController.cls`                       | Direct user-mode group-scoped active Bank query and option mapping                                                                                  |
@@ -63,7 +66,12 @@ confirmed completion emits `ready`, after which the manager mounts the workspace
 initialized installations enter without repeating setup. Newly completed setup also refreshes
 the manager's group wire to include records created in the optional setup forms.
 
-All three workspace screens stay mounted across navigation. The manager hides Dashboard
+The three financial screens and Manage stay mounted across navigation. Manage loads lists on
+activation; its create/edit forms use current object/field metadata and retain the original group
+context during an in-flight save. Management success refreshes shared lookups and financial reads;
+Recurring refreshes its overview on next activation.
+
+The manager hides Dashboard
 and Recurring sections; `expenseList` hides its interactive screen internally. This preserves
 the independent dashboard month and expense filters, loaded pages, selection, and pending
 actions. A group change resets each screen's scoped data and closes expense/recurring dialogs.

@@ -2,6 +2,13 @@ import { createElement } from 'lwc';
 import { readFileSync } from 'fs';
 import { resolve as resolvePath } from 'path';
 import BudgetExpenseManager from 'c/budgetExpenseManager';
+jest.mock(
+    '@salesforce/apex/WorkspaceManagementController.getRecordsPage',
+    () => ({
+        default: jest.fn().mockResolvedValue({ records: [], hasMore: false })
+    }),
+    { virtual: true }
+);
 import getSetupStatus from '@salesforce/apex/AppSetupController.getSetupStatus';
 jest.mock('@salesforce/apex/AppSetupController.getSetupStatus', () => ({ default: jest.fn() }), {
     virtual: true
@@ -332,14 +339,23 @@ describe('workspace coordination', () => {
         const instances = {
             dashboard: dashboard(element),
             expenses: list(element),
-            recurring: recurring(element)
+            recurring: recurring(element),
+            manage: element.shadowRoot.querySelector('c-workspace-manage')
         };
         const panels = {
             dashboard: instances.dashboard.parentElement,
             expenses: instances.expenses.shadowRoot.querySelector('.expense-screen'),
-            recurring: instances.recurring.parentElement
+            recurring: instances.recurring.parentElement,
+            manage: instances.manage.parentElement
         };
-        for (const selected of ['dashboard', 'expenses', 'recurring', 'expenses', 'dashboard']) {
+        for (const selected of [
+            'dashboard',
+            'expenses',
+            'recurring',
+            'manage',
+            'expenses',
+            'dashboard'
+        ]) {
             // Navigation follows a render before the next user click.
             // eslint-disable-next-line no-await-in-loop
             await navigate(element, selected);
@@ -354,6 +370,7 @@ describe('workspace coordination', () => {
             expect(dashboard(element)).toBe(instances.dashboard);
             expect(list(element)).toBe(instances.expenses);
             expect(recurring(element)).toBe(instances.recurring);
+            expect(element.shadowRoot.querySelector('c-workspace-manage')).toBe(instances.manage);
         }
     });
 
@@ -380,6 +397,39 @@ describe('workspace coordination', () => {
             section.hidden = false;
             expect(window.getComputedStyle(section).display).toBe('block');
         }
+    });
+
+    it('keeps Manage open when the selected expense group changes', async () => {
+        const element = await mount();
+        await navigate(element, 'manage');
+        const manage = element.shadowRoot.querySelector('c-workspace-manage');
+        changeGroup(element);
+        await flush();
+        expect(manage.expenseGroupId).toBe('other-group');
+        expect(manage.active).toBe(true);
+        expect(manage.parentElement.hidden).toBe(false);
+        expect(dashboard(element).active).toBe(false);
+    });
+
+    it('refreshes shared choices and financial screens after a saved management record', async () => {
+        const element = await mount();
+        await navigate(element, 'manage');
+        refreshApex.mockClear();
+        fetchBankOptions.mockClear();
+        fetchDashboardData.mockClear();
+        fetchExpensePage.mockClear();
+        element.shadowRoot
+            .querySelector('c-workspace-manage')
+            .dispatchEvent(
+                new CustomEvent('configurationchange', { detail: { objectKind: 'groups' } })
+            );
+        await flush();
+        await flush();
+        expect(refreshApex).toHaveBeenCalledTimes(1);
+        expect(fetchBankOptions).toHaveBeenCalledWith('group');
+        expect(fetchDashboardData).toHaveBeenCalledTimes(1);
+        expect(fetchExpensePage).toHaveBeenCalledTimes(1);
+        expect(element.shadowRoot.querySelector('c-workspace-manage').active).toBe(true);
     });
     const dashboardButton = (element, label) =>
         [...dashboard(element).shadowRoot.querySelectorAll('lightning-button')].find(

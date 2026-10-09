@@ -25,9 +25,21 @@ create sample records automatically, or run through an install handler.
 
 ## Workspace Shell
 
+The permanent Manage view provides Groups, Categories, Banks, and Group Banks tabs after setup.
+Category and assignment lists use the selected Expense Group; global Banks remain a shared catalog.
+Object and field metadata control create/edit affordances, while LDS enforces save permissions.
+The normal User permission set can maintain groups, categories, and assignments but reads Banks only.
+Assignment editors configure the four supported bank payment methods and preserve historical bank
+references. Internal keys and run-outcome records have no management editor.
+
+Read-only management pages use name/ID keyset cursors, 50 rows per page, and explicit Load more.
+Search applies only when submitted. Group/tab changes invalidate stale replies. LDS forms retain
+their group context during pending saves, and a save completed while inactive refreshes on return.
+SLDS record cards support small form factors; desktop uses the standard Lightning datatable.
+
 `budgetExpenseManager` owns group selection, navigation, shared Category/Bank lookups, and
 cross-screen refresh coordination. `expenseDashboard`, `expenseList`, and `recurringExpenses`
-own their screen data, actions, and loading state. All three remain mounted across navigation;
+own their screen data, actions, and loading state. These screens and Manage remain mounted across navigation;
 hidden sections preserve state and keep pending actions connected. Group setters clear
 scoped data and close the expense/recurring dialogs when the group changes.
 

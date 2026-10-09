@@ -1,0 +1,203 @@
+<template>
+    <lightning-card title="Manage" icon-name="utility:settings">
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <p class="slds-m-bottom_small">
+                Manage expense groups, their categories and bank assignments, and the shared bank
+                directory.
+            </p>
+            <lightning-tabset active-tab-value={kind}>
+                <lightning-tab
+                    label="Expense Groups"
+                    value="Groups"
+                    onactive={handleTab}
+                ></lightning-tab>
+                <lightning-tab
+                    label="Categories"
+                    value="Categories"
+                    onactive={handleTab}
+                ></lightning-tab>
+                <lightning-tab label="Banks" value="Banks" onactive={handleTab}></lightning-tab>
+                <lightning-tab
+                    label="Group Banks"
+                    value="Assignments"
+                    onactive={handleTab}
+                ></lightning-tab>
+            </lightning-tabset>
+            <template lwc:if={metadataError}
+                ><p role="alert" class="slds-text-color_error">{metadataError}</p></template
+            >
+            <template lwc:if={needsGroup}
+                ><p class="slds-m-vertical_small">
+                    Select an expense group in the sidebar to manage its categories and bank
+                    assignments.
+                </p></template
+            >
+            <div class="slds-grid slds-wrap slds-gutters slds-m-vertical_small">
+                <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                    <lightning-input
+                        type="search"
+                        label="Search by name"
+                        value={searchTerm}
+                        onchange={handleSearch}
+                        disabled={isSaving}
+                    ></lightning-input>
+                </div>
+                <div class="slds-col slds-align-bottom slds-m-top_small">
+                    <lightning-button
+                        label="Search"
+                        onclick={handleSearchSubmit}
+                        disabled={isSaving}
+                    ></lightning-button>
+                    <lightning-button
+                        class="slds-m-left_small"
+                        label="Refresh"
+                        onclick={handleRefresh}
+                        disabled={isBusy}
+                    ></lightning-button>
+                    <template lwc:if={canCreate}
+                        ><lightning-button
+                            class="slds-m-left_small"
+                            label="New"
+                            variant="brand"
+                            onclick={handleNew}
+                            disabled={newDisabled}
+                        ></lightning-button
+                    ></template>
+                </div>
+            </div>
+            <template lwc:if={error}
+                ><p role="alert" class="slds-text-color_error slds-m-bottom_small">
+                    {error}
+                </p></template
+            >
+            <template lwc:if={message}
+                ><p role="status" class="slds-text-color_success slds-m-bottom_small">
+                    {message}
+                </p></template
+            >
+            <template lwc:if={isLoading}
+                ><p role="status" class="slds-m-bottom_small">Loading records…</p></template
+            >
+            <template lwc:if={hasRecords}>
+                <template lwc:if={isSmallScreen}>
+                    <ul class="slds-has-dividers_bottom-space">
+                        <template for:each={mobileRecords} for:item="record">
+                            <li key={record.id} class="slds-item slds-p-vertical_small">
+                                <h3 class="slds-text-heading_small">{record.name}</h3>
+                                <template lwc:if={record.showActive}
+                                    ><p>{record.activeLabel}</p></template
+                                >
+                                <template lwc:if={record.methods}><p>{record.methods}</p></template>
+                                <template lwc:if={canUpdate}
+                                    ><lightning-button
+                                        data-id={record.id}
+                                        label="Edit"
+                                        onclick={handleMobileEdit}
+                                        disabled={isBusy}
+                                    ></lightning-button
+                                ></template>
+                            </li>
+                        </template>
+                    </ul>
+                </template>
+                <template lwc:else>
+                    <lightning-datatable
+                        key-field="id"
+                        data={records}
+                        columns={columns}
+                        hide-checkbox-column
+                        onrowaction={handleRowAction}
+                    ></lightning-datatable>
+                </template>
+            </template>
+            <template lwc:if={showEmpty}
+                ><p class="slds-m-vertical_small">No records found.</p></template
+            >
+            <template lwc:if={hasMore}
+                ><lightning-button
+                    class="slds-m-top_small"
+                    label="Load more"
+                    onclick={handleMore}
+                    disabled={isBusy}
+                ></lightning-button
+            ></template>
+            <template lwc:if={showEditor}>
+                <section class="slds-box slds-m-top_medium" aria-label={editorTitle}>
+                    <h2 class="slds-text-heading_small slds-m-bottom_small">{editorTitle}</h2>
+                    <template lwc:if={editorIsScoped}
+                        ><p class="slds-m-bottom_small">Expense group: {groupContext}</p></template
+                    >
+                    <template lwc:if={recordError}
+                        ><p role="alert" class="slds-text-color_error">{recordError}</p></template
+                    >
+                    <lightning-record-edit-form
+                        object-api-name={editorObject}
+                        record-id={editorId}
+                        onsubmit={handleSubmit}
+                        onsuccess={handleSuccess}
+                        onerror={handleError}
+                    >
+                        <lightning-messages></lightning-messages>
+                        <template lwc:if={editingNamedRecord}
+                            ><lightning-input-field
+                                field-name="Name"
+                                disabled={nameDisabled}
+                            ></lightning-input-field
+                        ></template>
+                        <template lwc:if={editingBank}
+                            ><lightning-input-field
+                                field-name={bankActiveField}
+                                disabled={activeDisabled}
+                            ></lightning-input-field
+                        ></template>
+                        <template lwc:if={editingAssignment}>
+                            <lightning-record-picker
+                                label="Bank"
+                                object-api-name={bankObject}
+                                value={selectedBankId}
+                                filter={bankFilter}
+                                onchange={handleBankChange}
+                                disabled={bankPickerDisabled}
+                                required
+                            ></lightning-record-picker>
+                            <lightning-input-field
+                                field-name={assignmentActiveField}
+                                disabled={activeDisabled}
+                            ></lightning-input-field>
+                            <lightning-input-field
+                                field-name={creditField}
+                                disabled={creditDisabled}
+                            ></lightning-input-field>
+                            <lightning-input-field
+                                field-name={debitField}
+                                disabled={debitDisabled}
+                            ></lightning-input-field>
+                            <lightning-input-field
+                                field-name={paymentField}
+                                disabled={paymentDisabled}
+                            ></lightning-input-field>
+                            <lightning-input-field
+                                field-name={transferField}
+                                disabled={transferDisabled}
+                            ></lightning-input-field>
+                        </template>
+                        <div class="slds-m-top_small">
+                            <lightning-button
+                                type="submit"
+                                label="Save"
+                                variant="brand"
+                                disabled={saveDisabled}
+                            ></lightning-button>
+                            <lightning-button
+                                class="slds-m-left_small"
+                                label="Cancel"
+                                onclick={handleCancel}
+                                disabled={editDisabled}
+                            ></lightning-button>
+                        </div>
+                    </lightning-record-edit-form>
+                </section>
+            </template>
+        </div>
+    </lightning-card>
+</template>

@@ -77,6 +77,10 @@
         <members>FrankfurterExchangeRateProvider</members>
         <members>SalesforceOrganizationCurrencyProvider</members>
         <members>SettingsController</members>
+        <members>WorkspaceManagementController</members>
+        <members>WorkspaceManagementControllerTest</members>
+        <members>WorkspaceManagementPage</members>
+        <members>WorkspaceManagementRecord</members>
         <name>ApexClass</name>
     </types>
     <types>
@@ -193,6 +197,7 @@
     </types>
     <types>
         <members>Bank__c-Bank Layout</members>
+        <members>Budget__c-Budget Layout</members>
         <members
         >Budget_Expense_Manager_Setting__c-Budget &amp; Expense Manager Settings Layout</members>
         <members>Category__c-Category Layout</members>
@@ -234,6 +239,7 @@
         <members>recurringExpenses</members>
         <members>recurringExpenseViewModel</members>
         <members>recurringRunMonitor</members>
+        <members>workspaceManage</members>
         <name>LightningComponentBundle</name>
     </types>
     <types>

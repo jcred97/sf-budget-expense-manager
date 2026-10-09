@@ -1,5 +1,24 @@
 # Testing And Tooling
 
+## Manage Workspace And Record Layout Verification — 2026-10-09
+
+- Added permanent Manage tabs for Expense Groups, Categories, global Banks, and Group Banks. Standard LDS editors create/edit permitted records and configure the four assignment payment methods. Bank catalog writes remain unavailable under the normal User permission set. Financial record creation continues through the existing expense, recurring, and monthly-budget flows.
+- Management reads use user-mode sharing enforcement and normalized DTOs with name/ID keyset pagination. Seven Apex tests cover real app User permissions, denied object access, inactive records, group isolation, literal wildcard searches, malformed/scoped cursors, 107 matching groups with duplicate names, and continuation pages for each object kind.
+- Fifteen Manage tests cover desktop/mobile editing affordances, namespaced parent/bank field submission, bank filters, pending duplicate submission, captured group context, stale replies, pagination retry/draft search, and save completion while inactive. Two new manager tests cover retained Manage navigation during group changes and shared lookup/financial refresh. Full Jest passed **257 tests across 24 suites**; lint and targeted source formatting passed.
+- Standard layout checks verified eight business/settings layouts, 72 field references, nine related-list relationships and their columns, required fields, and read-only formula/generated fields. Internal key fields remain absent. Added the missing Budget layout and removed unrelated CRM actions from the Expense Lightning record page. Profile/record-type layout assignments were not changed.
+- Final combined Salesforce check-only validation `0AfgK00000Vs7DzSAJ` against `mainDevOrg` compiled all **19 components** and passed **7/7 Apex tests**. Management controller coverage is **100%** (130/130 executable lines); page DTO coverage is **100%**. The record DTO has no executable locations. Check-only validation made no deployment or scheduler changes.
+- Deployment to `mainDevOrg` succeeded on 2026-10-09 (`0AfgK00000VsCf3SAF`): all **19 components** deployed and **7/7 Apex tests** passed. No temporary Deployment Settings change was needed. A live browser smoke check could not start because the local automation runtime failed on a BitLocker-locked drive; live creation/editing and profile-specific layout display remain manual checks.
+- A read-only live UI API check confirmed the object and field `createable`/`updateable` properties used by the editor. Form submissions, permissions metadata, mobile form factor, and Apex replies are mocked in frontend tests; actual browser create/edit and a fresh namespaced package installation remain unverified.
+
+### Manual Manage Checks After Deployment
+
+1. Open Manage in the main app. Create or rename an Expense Group, select it in the sidebar, and verify Manage stays selected.
+2. Create/edit a category in that group. Verify it appears in expense and recurring category choices after saving.
+3. As an app Admin, create an active Bank. Assign it under Group Banks, choose supported payment methods, and verify the expense/recurring payment options reflect them.
+4. As a normal app User, verify Banks has no New/Edit controls, while permitted groups/categories/assignments can be maintained. Check validation errors preserve form input for retry.
+5. Switch groups during a pending save and navigate away before it completes. Verify it retains its original group context, and Manage refreshes on return. Check Search and Load more with enough matching records to span pages.
+6. Review standard New/Edit/Details pages and related lists for each business object under the intended subscriber profile assignments. Verify small-form-factor Manage cards support editing.
+
 ## Guided First-Time Setup Verification — 2026-10-07
 
 - The app entry checks readiness without creating settings. Administrators explicitly confirm PHP before initialization; regular users can check readiness without Settings CRUD. Optional LDS group/category creation does not gate completion. Fresh setup supports single-currency PHP organizations and leaves automation disabled; initialized installations retain their currency, automation, and time choices.

@@ -66,6 +66,14 @@ export default class BudgetExpenseManager extends LightningElement {
         return this.activeView === WORKSPACE_VIEWS.RECURRING;
     }
 
+    get isManageView() {
+        return this.activeView === WORKSPACE_VIEWS.MANAGE;
+    }
+
+    get isManageHidden() {
+        return !this.isManageView;
+    }
+
     get selectedExpenseGroupName() {
         return (
             this.expenseGroups.find(expenseGroup => expenseGroup.Id === this.expenseGroupId)
@@ -246,7 +254,7 @@ export default class BudgetExpenseManager extends LightningElement {
         this.categoryOptions = [{ label: 'All Categories', value: 'All' }];
         this.categoryOptionsError = '';
         this.isCategoriesLoading = true;
-        this.activeView = WORKSPACE_VIEWS.DASHBOARD;
+        if (!this.isManageView) this.activeView = WORKSPACE_VIEWS.DASHBOARD;
         this.loadBankOptions();
     }
 
@@ -257,7 +265,7 @@ export default class BudgetExpenseManager extends LightningElement {
         this.categoryOptions = [{ label: 'All Categories', value: 'All' }];
         this.categoryOptionsError = '';
         this.isCategoriesLoading = false;
-        this.activeView = WORKSPACE_VIEWS.DASHBOARD;
+        if (!this.isManageView) this.activeView = WORKSPACE_VIEWS.DASHBOARD;
         this.clearBankOptions();
     }
 
@@ -279,6 +287,24 @@ export default class BudgetExpenseManager extends LightningElement {
     handleRecurringOptionsRefresh() {
         this.refreshCategoryOptions();
         this.loadBankOptions();
+    }
+
+    async handleConfigurationChange(event) {
+        const tasks = [this.refreshCategoryOptions(), this.loadBankOptions()];
+        if (event.detail?.objectKind === 'groups' && this._wiredGroupsResult) {
+            tasks.push(refreshApex(this._wiredGroupsResult));
+        }
+        const results = await Promise.allSettled(tasks);
+        if (results.some(result => result.status === 'rejected')) {
+            this.showToast(
+                'Refresh needed',
+                'The record was saved, but group choices could not refresh. Reload the app to update them.',
+                'warning'
+            );
+        }
+        this.refreshDashboard();
+        this.template.querySelector('c-expense-list')?.refresh();
+        // Recurring refreshes its saved overview when the user next activates that screen.
     }
 
     handleRecurringGenerationCompleted() {

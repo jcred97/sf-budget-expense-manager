@@ -1,7 +1,8 @@
 export const WORKSPACE_VIEWS = Object.freeze({
     DASHBOARD: 'dashboard',
     EXPENSES: 'expenses',
-    RECURRING: 'recurring'
+    RECURRING: 'recurring',
+    MANAGE: 'manage'
 });
 
 const WORKSPACE_VIEW_CONFIG = Object.freeze([
@@ -19,6 +20,11 @@ const WORKSPACE_VIEW_CONFIG = Object.freeze([
         key: WORKSPACE_VIEWS.RECURRING,
         label: 'Recurring',
         iconName: 'utility:sync'
+    },
+    {
+        key: WORKSPACE_VIEWS.MANAGE,
+        label: 'Manage',
+        iconName: 'utility:settings'
     }
 ]);
 

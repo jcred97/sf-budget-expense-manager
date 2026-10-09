@@ -12,6 +12,7 @@ This is a Salesforce-native app: LWC screens call Apex or Lightning Data Service
 | --- | --- |
 | `budgetExpenseManager` | Entry readiness routing, Expense Group selection, navigation/sidebar, shared lookups, and cross-screen refresh coordination |
 | `appSetup` | Read-only setup check, administrator currency confirmation, optional group/category creation, and completion |
+| `workspaceManage` | Permanent group/category/bank/assignment management, bounded reads, permission-aware LDS editors |
 | `expenseDashboard` | Selected month, dashboard/trend/budget-history requests, loading/errors, and dashboard view model |
 | `expenseList` | Filters/search, pagination, selection, deletion/rollback, expense modal state, and CSV/print workflows |
 | `recurringExpenses` | Overview wire and refresh, template state, recurring modal, deactivation, and batch launch |
@@ -164,6 +165,7 @@ entry points live under `classes/async` without changing their Salesforce metada
 
 ## Apex Methods
 
+- `WorkspaceManagementController.getRecordsPage(objectKind, expenseGroupId, searchTerm, pageToken)` - non-cacheable, read-only user-mode pages for Groups/Categories/Banks/Assignments; 50-row name/ID cursor paging, normalized rows, inactive records included. Category and assignment lists are group-scoped. Writes use LDS instead of Apex mutation methods.
 - `AppSetupController.getSetupStatus()` - non-cacheable, read-only sanitized setup status available to all app permission sets; no initialization or scheduling.
 - `AppSetupController.completeSetup(confirmed)` - requires `Manage_App_Setup` and explicit confirmation; initializes supported fresh configuration idempotently and preserves existing initialized records.
 - `ExpenseController.getAllExpenseGroups()` - cacheable user-mode lookup returning the bounded workspace list ordered by Name.
@@ -219,6 +221,14 @@ do not require that query. Scheduled-automation administration needs separate su
 permission verification; this setup change does not expand platform permissions.
 
 ## Pages And Tabs
+
+Standard record layouts organize identity, payment methods, recurrence, currency details, and audit
+fields into separate sections. Expense Groups relate Categories, Budgets, and Bank Assignments;
+Categories relate Expenses and Recurring templates; templates relate generated Expenses. Budget
+has an explicit monthly-budget layout. Internal singleton/deduplication keys stay off layouts.
+The Expense Lightning record page limits its explicit actions to Clone, Edit, Delete, and Printable
+View; unrelated CRM actions are removed. Layout assignment remains controlled by subscriber profiles
+and record types and is not changed through package permission sets.
 
 - `Budget_Expense_Manager` - LWC custom tab backed directly by `budgetExpenseManager`, which avoids the standard Lightning App Page title strip.
 - `Budget_Expense_Manager_Settings` - LWC custom tab backed directly by `budgetExpenseSettings`.

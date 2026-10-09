@@ -105,6 +105,14 @@
                             ongenerationcompleted={handleRecurringGenerationCompleted}
                         ></c-recurring-expenses>
                     </section>
+                    <section class="workspace-view non-print-view" hidden={isManageHidden}>
+                        <c-workspace-manage
+                            active={isManageView}
+                            expense-group-id={expenseGroupId}
+                            expense-group-name={selectedExpenseGroupName}
+                            onconfigurationchange={handleConfigurationChange}
+                        ></c-workspace-manage>
+                    </section>
                 </main>
             </div>
         </div>
