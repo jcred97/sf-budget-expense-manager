@@ -1,27 +1,32 @@
 <template>
-    <lightning-card title="Manage" icon-name="utility:settings">
+    <lightning-card title={scopeTitle} icon-name="utility:settings">
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
-            <p class="slds-m-bottom_small">
-                Manage expense groups, their categories and bank assignments, and the shared bank
-                directory.
-            </p>
+            <p class="slds-m-bottom_small">{scopeDescription}</p>
             <lightning-tabset active-tab-value={kind}>
-                <lightning-tab
-                    label="Expense Groups"
-                    value="Groups"
-                    onactive={handleTab}
-                ></lightning-tab>
-                <lightning-tab
-                    label="Categories"
-                    value="Categories"
-                    onactive={handleTab}
-                ></lightning-tab>
-                <lightning-tab label="Banks" value="Banks" onactive={handleTab}></lightning-tab>
-                <lightning-tab
-                    label="Group Banks"
-                    value="Assignments"
-                    onactive={handleTab}
-                ></lightning-tab>
+                <template lwc:if={isAppScope}>
+                    <lightning-tab
+                        label="Expense Groups"
+                        value="Groups"
+                        onactive={handleTab}
+                    ></lightning-tab>
+                    <lightning-tab
+                        label="Bank Directory"
+                        value="Banks"
+                        onactive={handleTab}
+                    ></lightning-tab>
+                </template>
+                <template lwc:else>
+                    <lightning-tab
+                        label="Categories"
+                        value="Categories"
+                        onactive={handleTab}
+                    ></lightning-tab>
+                    <lightning-tab
+                        label="Banks &amp; Payment Methods"
+                        value="Assignments"
+                        onactive={handleTab}
+                    ></lightning-tab>
+                </template>
             </lightning-tabset>
             <template lwc:if={metadataError}
                 ><p role="alert" class="slds-text-color_error">{metadataError}</p></template
@@ -96,6 +101,14 @@
                                         disabled={isBusy}
                                     ></lightning-button
                                 ></template>
+                                <template lwc:if={showingGroups}>
+                                    <lightning-button
+                                        data-id={record.id}
+                                        label="Manage this group"
+                                        onclick={handleMobileManageGroup}
+                                        disabled={isBusy}
+                                    ></lightning-button>
+                                </template>
                             </li>
                         </template>
                     </ul>

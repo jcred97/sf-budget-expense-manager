@@ -47,9 +47,45 @@ export default class WorkspaceManage extends LightningElement {
     paymentField = PAYMENT;
     transferField = TRANSFER;
     _groupId = '';
+    _scope = 'app';
     _active = false;
     _requestVersion = 0;
     _loaded = false;
+
+    @api
+    get scope() {
+        return this._scope;
+    }
+    set scope(value) {
+        const scope = value === 'group' ? 'group' : 'app';
+        if (scope === this._scope) return;
+        this._scope = scope;
+        this.kind = scope === 'group' ? 'Categories' : 'Groups';
+        this.searchTerm = '';
+        this.appliedSearchTerm = '';
+        this.message = '';
+        if (!this.isSaving) this.closeEditor();
+        this.resetAndLoad();
+    }
+    get isGroupScope() {
+        return this._scope === 'group';
+    }
+    get isAppScope() {
+        return !this.isGroupScope;
+    }
+    get scopeTitle() {
+        return this.isGroupScope
+            ? `Settings for ${this.expenseGroupName || 'current expense group'}`
+            : 'App Management';
+    }
+    get scopeDescription() {
+        return this.isGroupScope
+            ? 'Manage categories and banks with their payment methods for this expense group.'
+            : 'Manage all accessible expense groups and the shared bank directory.';
+    }
+    get showingGroups() {
+        return this.kind === 'Groups';
+    }
 
     @api
     get expenseGroupId() {
@@ -217,6 +253,10 @@ export default class WorkspaceManage extends LightningElement {
         const row = this.records.find(record => record.id === event.target.dataset.id);
         if (row) this.handleRowAction({ detail: { action: { name: 'edit' }, row } });
     }
+    handleMobileManageGroup(event) {
+        const row = this.records.find(record => record.id === event.target.dataset.id);
+        if (row) this.handleRowAction({ detail: { action: { name: 'managegroup' }, row } });
+    }
     get columns() {
         const columns = [{ label: 'Name', fieldName: 'name', type: 'text' }];
         if (this.kind === 'Banks' || this.kind === 'Assignments')
@@ -233,11 +273,21 @@ export default class WorkspaceManage extends LightningElement {
                 type: 'button',
                 typeAttributes: { label: 'Edit', name: 'edit', disabled: this.isBusy }
             });
+        if (this.showingGroups)
+            columns.push({
+                type: 'button',
+                typeAttributes: {
+                    label: 'Manage this group',
+                    name: 'managegroup',
+                    disabled: this.isBusy
+                }
+            });
         return columns;
     }
     handleTab(event) {
         const kind = event.target.value;
-        if (!KINDS.includes(kind) || kind === this.kind) return;
+        const kinds = this.isGroupScope ? ['Categories', 'Assignments'] : ['Groups', 'Banks'];
+        if (!kinds.includes(kind) || kind === this.kind) return;
         this.kind = kind;
         this.searchTerm = '';
         this.appliedSearchTerm = '';
@@ -281,7 +331,7 @@ export default class WorkspaceManage extends LightningElement {
             return;
         }
         const kind = this.kind;
-        const groupId = this._groupId;
+        const groupId = this.isScoped ? this._groupId : null;
         this.isLoading = true;
         this.error = '';
         try {
@@ -311,7 +361,18 @@ export default class WorkspaceManage extends LightningElement {
         this.openEditor();
     }
     handleRowAction(event) {
-        if (this.isBusy || !this.canUpdate || event.detail.action.name !== 'edit') return;
+        if (this.isBusy) return;
+        if (event.detail.action.name === 'managegroup' && this.showingGroups) {
+            const row = this.records.find(record => record.id === event.detail.row?.id);
+            if (row)
+                this.dispatchEvent(
+                    new CustomEvent('managegroup', {
+                        detail: { expenseGroupId: row.id, expenseGroupName: row.name }
+                    })
+                );
+            return;
+        }
+        if (!this.canUpdate || event.detail.action.name !== 'edit') return;
         this.openEditor(event.detail.row);
     }
     openEditor(row) {
@@ -382,10 +443,14 @@ export default class WorkspaceManage extends LightningElement {
     handleError(event) {
         this.isSaving = false;
         this.recordError = getErrorMessage(event.detail, 'Unable to save record.');
-        if (this.editorIsScoped && this.editor.groupId !== this._groupId) {
+        if (
+            this.editor &&
+            (this.editor.kind !== this.kind ||
+                (this.editorIsScoped && this.editor.groupId !== this._groupId))
+        ) {
             this.closeEditor();
             this.error =
-                'The record could not save. Select New or Edit in the current expense group to retry.';
+                'The record could not save. Select New or Edit in the current view to retry.';
         }
     }
 }

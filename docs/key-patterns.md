@@ -2,7 +2,7 @@
 
 ## Guided App Setup
 
-The workspace tab checks initialization through `appSetup` before mounting its three screens.
+The workspace tab checks initialization through `appSetup` before mounting its screens.
 Existing initialized installations open the workspace automatically. Uninitialized administrators
 see the guided setup page; normal users see administrator guidance and a read-only Refresh.
 Failed checks show an error and recovery action rather than being treated as missing configuration.
@@ -25,21 +25,28 @@ create sample records automatically, or run through an install handler.
 
 ## Workspace Shell
 
-The permanent Manage view provides Groups, Categories, Banks, and Group Banks tabs after setup.
-Category and assignment lists use the selected Expense Group; global Banks remain a shared catalog.
+After setup, App Management provides Expense Groups and Bank Directory tabs. Its sidebar group
+selector and group caption are hidden because these lists span accessible groups or the shared
+catalog. Group Settings provides Categories and Banks & Payment Methods for the selected Expense
+Group, with an explicit Settings for [group name] heading. The selected group remains unchanged
+when visiting App Management. Manage this group on an Expense Group row selects that group and
+opens Group Settings, including groups outside the bounded sidebar lookup.
+An off-page selection is added to the dropdown and verified through LDS rather than discarded
+when the bounded group wire refreshes. Confirmed loss of access clears that context; a transient
+verification failure retains it and offers Retry.
 Object and field metadata control create/edit affordances, while LDS enforces save permissions.
 The normal User permission set can maintain groups, categories, and assignments but reads Banks only.
 Assignment editors configure the four supported bank payment methods and preserve historical bank
 references. Internal keys and run-outcome records have no management editor.
 
 Read-only management pages use name/ID keyset cursors, 50 rows per page, and explicit Load more.
-Search applies only when submitted. Group/tab changes invalidate stale replies. LDS forms retain
+Search applies only when submitted. Group/tab/scope changes invalidate stale replies. LDS forms retain
 their group context during pending saves, and a save completed while inactive refreshes on return.
 SLDS record cards support small form factors; desktop uses the standard Lightning datatable.
 
 `budgetExpenseManager` owns group selection, navigation, shared Category/Bank lookups, and
 cross-screen refresh coordination. `expenseDashboard`, `expenseList`, and `recurringExpenses`
-own their screen data, actions, and loading state. These screens and Manage remain mounted across navigation;
+own their screen data, actions, and loading state. These screens and one management child remain mounted across navigation;
 hidden sections preserve state and keep pending actions connected. Group setters clear
 scoped data and close the expense/recurring dialogs when the group changes.
 

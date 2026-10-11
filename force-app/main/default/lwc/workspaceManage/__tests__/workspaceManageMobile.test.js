@@ -47,4 +47,45 @@ describe('mobile workspace management', () => {
             'group'
         );
     });
+    it('lets a read-only user manage an accessible group from its mobile row', async () => {
+        getRecordsPage.mockResolvedValue({
+            records: [{ id: 'group', name: 'Family' }],
+            hasMore: false
+        });
+        const element = createElement('c-workspace-manage', { is: WorkspaceManage });
+        element.active = true;
+        document.body.appendChild(element);
+        getObjectInfos.emit({
+            results: [0, 1, 2, 3].map(() => ({
+                statusCode: 200,
+                result: { createable: false, updateable: false, fields: {} }
+            }))
+        });
+        const managed = jest.fn();
+        element.addEventListener('managegroup', managed);
+        await flush();
+        expect(element.shadowRoot.querySelector('lightning-datatable')).toBeNull();
+        const buttons = [...element.shadowRoot.querySelectorAll('lightning-button')];
+        expect(buttons.some(button => button.label === 'Edit')).toBe(false);
+        const manage = buttons.find(button => button.label === 'Manage this group');
+        manage.click();
+        expect(managed.mock.calls[0][0].detail).toEqual({
+            expenseGroupId: 'group',
+            expenseGroupName: 'Family'
+        });
+        let finishRead;
+        getRecordsPage.mockImplementationOnce(
+            () =>
+                new Promise(resolve => {
+                    finishRead = resolve;
+                })
+        );
+        buttons.find(button => button.label === 'Refresh').click();
+        await flush();
+        expect(manage.disabled).toBe(true);
+        manage.click();
+        expect(managed).toHaveBeenCalledTimes(1);
+        finishRead({ records: [], hasMore: false });
+        await flush();
+    });
 });

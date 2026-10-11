@@ -8,15 +8,15 @@ This document describes the current checkout, not a verified live-org inventory.
 
 This is a Salesforce-native app: LWC screens call Apex or Lightning Data Service, Salesforce custom objects store records, and triggers enforce write invariants. Frankfurter is the optional external exchange-rate provider; there is no separate application server or external database.
 
-| Owner | Responsibility |
-| --- | --- |
-| `budgetExpenseManager` | Entry readiness routing, Expense Group selection, navigation/sidebar, shared lookups, and cross-screen refresh coordination |
-| `appSetup` | Read-only setup check, administrator currency confirmation, optional group/category creation, and completion |
-| `workspaceManage` | Permanent group/category/bank/assignment management, bounded reads, permission-aware LDS editors |
-| `expenseDashboard` | Selected month, dashboard/trend/budget-history requests, loading/errors, and dashboard view model |
-| `expenseList` | Filters/search, pagination, selection, deletion/rollback, expense modal state, and CSV/print workflows |
-| `recurringExpenses` | Overview wire and refresh, template state, recurring modal, deactivation, and batch launch |
-| `budgetExpenseSettings` | Separate settings tab, configuration load/save, scheduler status, and manual run action |
+| Owner                   | Responsibility                                                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `budgetExpenseManager`  | Entry readiness routing, Expense Group selection, navigation/sidebar, shared lookups, and cross-screen refresh coordination           |
+| `appSetup`              | Read-only setup check, administrator currency confirmation, optional group/category creation, and completion                          |
+| `workspaceManage`       | Retained management component with separate App Management and Group Settings scopes, bounded reads, and permission-aware LDS editors |
+| `expenseDashboard`      | Selected month, dashboard/trend/budget-history requests, loading/errors, and dashboard view model                                     |
+| `expenseList`           | Filters/search, pagination, selection, deletion/rollback, expense modal state, and CSV/print workflows                                |
+| `recurringExpenses`     | Overview wire and refresh, template state, recurring modal, deactivation, and batch launch                                            |
+| `budgetExpenseSettings` | Separate settings tab, configuration load/save, scheduler status, and manual run action                                               |
 
 The three workspace screens stay mounted across navigation, preserving local state and pending work. Group changes reset their scoped data while retaining a tracked global recurring run. The expense modal is outside the expense screen's hidden section so Dashboard can open it without navigating away. Dashboard emits `addexpense` and `viewexpenses`; the list emits `expenseschanged`; recurring emits `generationcompleted` after the batch reaches a terminal state. The manager refreshes the dashboard, expense list, and category lookup after completion, including failed or aborted runs that may have partial writes. Shared lookup refresh/retry requests return to the manager.
 
@@ -31,7 +31,7 @@ Expense_Group__c
        - Amount__c
        - Description__c (optional)
        - Budget_Key__c (generated unique group/month key)
-  -> Expense_Group_Bank__c (Bank assignment; master-detail child)
+  -> Expense_Group_Bank__c (Expense Group Bank Assignment; master-detail child)
        - Bank__c (required restricted lookup to the global Bank record)
        - Active__c
        - Expense_Group_Bank_Key__c (generated unique group/bank key)
@@ -221,6 +221,15 @@ do not require that query. Scheduled-automation administration needs separate su
 permission verification; this setup change does not expand platform permissions.
 
 ## Pages And Tabs
+
+The workspace separates App Management (Expense Groups and the shared Bank Directory) from Group
+Settings (Categories and Banks & Payment Methods for the selected group). App Management hides
+the sidebar group selector and caption while retaining that selection for the other views. Each
+Expense Group row provides Manage this group, which selects that group and opens Group Settings.
+Both views use the same retained `workspaceManage` component; a scope change resets list context
+without disconnecting a pending LDS save. The assignment object display label is Expense Group
+Bank Assignment, with Bank Assignments on the Expense Group related list. Its API name remains
+`Expense_Group_Bank__c`.
 
 Standard record layouts organize identity, payment methods, recurrence, currency details, and audit
 fields into separate sections. Expense Groups relate Categories, Budgets, and Bank Assignments;

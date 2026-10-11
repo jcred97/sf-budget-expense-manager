@@ -1,5 +1,43 @@
 # Testing And Tooling
 
+## Management Scope Verification — 2026-10-11
+
+- App Management lists accessible Expense Groups and the shared Bank Directory without showing
+  the sidebar group selector or caption. Group Settings lists Categories and Banks & Payment
+  Methods for the selected group and names that group in its heading. Visiting App Management
+  preserves the selected group for other views.
+- Manage this group works from desktop rows and mobile cards, including readable groups without
+  update permission. Both management areas retain one child component; scope changes invalidate
+  stale list replies and preserve any submitted LDS form until its completion callback.
+- The assignment object is displayed as Expense Group Bank Assignment; its Expense Group related
+  list is Bank Assignments. API names, relationships, permissions, and numbering are unchanged.
+- Full Jest passed **269 tests across 24 suites**; lint passed. Salesforce check-only validation
+  `0AfgK00000W1N0ASAV` against `mainDevOrg` compiled **13/13 components** and passed **7/7 management
+  Apex tests**. Check-only validation made no deployment or scheduler changes.
+- Deployment to `mainDevOrg` succeeded (`0AfgK00000W2O5RSAV`): **13/13 components** deployed and
+  **7/7 management Apex tests** passed. No temporary Deployment Settings change was needed.
+- Live LDS writes, subscriber layout assignments, and namespaced installation remain manual
+  verification boundaries.
+
+### Manual Management Scope Checks After Deployment
+
+1. Open App Management. Verify no group dropdown or group caption appears; Expense Groups and
+   Bank Directory should be the only tabs. Create or rename a permitted group.
+2. Select Manage this group on that row. Verify Group Settings opens, its heading names the chosen
+   group, and the sidebar dropdown shows that group. Only Categories and Banks & Payment Methods
+   should appear. Repeat on a group reached through Search or Load more.
+3. Create/edit a category and a bank assignment. Confirm expense and recurring selectors refresh
+   and show that group's categories and configured payment methods.
+4. Return to App Management, then Dashboard or Expenses. Confirm the selected group is retained
+   and the Bank Directory is shared rather than filtered by that group.
+5. As a normal app User, verify Bank Directory has no New/Edit controls. Manage this group should
+   remain available for readable groups; other editors follow object and field permissions.
+6. Switch management scopes or groups during a submitted save. Confirm it saves to its original
+   context, refreshes the current view afterward, and offers retry after validation failure. Test
+   desktop tables and small-form-factor cards.
+7. Check the assignment's standard record display label and the Expense Group Bank Assignments
+   related list. API integrations should continue using `Expense_Group_Bank__c`.
+
 ## Manage Workspace And Record Layout Verification — 2026-10-09
 
 - Added permanent Manage tabs for Expense Groups, Categories, global Banks, and Group Banks. Standard LDS editors create/edit permitted records and configure the four assignment payment methods. Bank catalog writes remain unavailable under the normal User permission set. Financial record creation continues through the existing expense, recurring, and monthly-budget flows.
@@ -9,15 +47,6 @@
 - Final combined Salesforce check-only validation `0AfgK00000Vs7DzSAJ` against `mainDevOrg` compiled all **19 components** and passed **7/7 Apex tests**. Management controller coverage is **100%** (130/130 executable lines); page DTO coverage is **100%**. The record DTO has no executable locations. Check-only validation made no deployment or scheduler changes.
 - Deployment to `mainDevOrg` succeeded on 2026-10-09 (`0AfgK00000VsCf3SAF`): all **19 components** deployed and **7/7 Apex tests** passed. No temporary Deployment Settings change was needed. A live browser smoke check could not start because the local automation runtime failed on a BitLocker-locked drive; live creation/editing and profile-specific layout display remain manual checks.
 - A read-only live UI API check confirmed the object and field `createable`/`updateable` properties used by the editor. Form submissions, permissions metadata, mobile form factor, and Apex replies are mocked in frontend tests; actual browser create/edit and a fresh namespaced package installation remain unverified.
-
-### Manual Manage Checks After Deployment
-
-1. Open Manage in the main app. Create or rename an Expense Group, select it in the sidebar, and verify Manage stays selected.
-2. Create/edit a category in that group. Verify it appears in expense and recurring category choices after saving.
-3. As an app Admin, create an active Bank. Assign it under Group Banks, choose supported payment methods, and verify the expense/recurring payment options reflect them.
-4. As a normal app User, verify Banks has no New/Edit controls, while permitted groups/categories/assignments can be maintained. Check validation errors preserve form input for retry.
-5. Switch groups during a pending save and navigate away before it completes. Verify it retains its original group context, and Manage refreshes on return. Check Search and Load more with enough matching records to span pages.
-6. Review standard New/Edit/Details pages and related lists for each business object under the intended subscriber profile assignments. Verify small-form-factor Manage cards support editing.
 
 ## Guided First-Time Setup Verification — 2026-10-07
 

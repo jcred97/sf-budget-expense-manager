@@ -12,7 +12,7 @@
                         </span>
                         <div class="brand-copy">
                             <span class="brand-name">Budget &amp; Expense Manager</span>
-                            <span class="brand-caption">{selectedExpenseGroupName}</span>
+                            <span class="brand-caption">{workspaceCaption}</span>
                         </div>
                         <button
                             class="sidebar-toggle"
@@ -29,16 +29,26 @@
                         </button>
                     </div>
 
-                    <div class="workspace-context">
+                    <div lwc:if={showGroupContext} class="workspace-context">
                         <lightning-combobox
                             label="Expense Group"
                             value={expenseGroupId}
                             options={expenseGroupOptions}
-                            variant="label-hidden"
                             onchange={handleWorkspaceGroupChange}
                         >
                         </lightning-combobox>
-                        <span class="context-caption">Current group</span>
+                        <span class="context-caption">Working expense group</span>
+                        <div
+                            lwc:if={groupContextError}
+                            class="slds-text-color_error slds-m-top_small"
+                            role="alert"
+                        >
+                            {groupContextError}
+                            <lightning-button
+                                label="Retry"
+                                onclick={handleRetryGroupContext}
+                            ></lightning-button>
+                        </div>
                     </div>
 
                     <nav class="workspace-nav" aria-label="Budget and Expense Manager views">
@@ -108,9 +118,11 @@
                     <section class="workspace-view non-print-view" hidden={isManageHidden}>
                         <c-workspace-manage
                             active={isManageView}
+                            scope={manageScope}
                             expense-group-id={expenseGroupId}
                             expense-group-name={selectedExpenseGroupName}
                             onconfigurationchange={handleConfigurationChange}
+                            onmanagegroup={handleManageGroup}
                         ></c-workspace-manage>
                     </section>
                 </main>

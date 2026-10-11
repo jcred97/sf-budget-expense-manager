@@ -49,15 +49,27 @@ const infos = (bankWrite = true) => ({
 const button = (element, label) =>
     [...element.shadowRoot.querySelectorAll('lightning-button')].find(item => item.label === label);
 const select = async (element, kind) => {
+    const scope = ['Categories', 'Assignments'].includes(kind) ? 'group' : 'app';
+    if (element.scope !== scope) {
+        element.scope = scope;
+        await flush();
+    }
     const tab = [...element.shadowRoot.querySelectorAll('lightning-tab')].find(
         item => item.value === kind
     );
     tab.dispatchEvent(new CustomEvent('active'));
     await flush();
 };
-const mount = async ({ groupId = 'group-one', active = true, bankWrite = true } = {}) => {
+const mount = async ({
+    groupId = 'group-one',
+    active = true,
+    bankWrite = true,
+    scope = 'app'
+} = {}) => {
     const element = createElement('c-workspace-manage', { is: WorkspaceManage });
     element.expenseGroupId = groupId;
+    element.expenseGroupName = 'Personal';
+    element.scope = scope;
     element.active = active;
     document.body.appendChild(element);
     getObjectInfos.emit(infos(bankWrite));
@@ -76,6 +88,106 @@ describe('workspace management', () => {
         getRecordsPage.mockResolvedValue(page([]));
     });
     afterEach(() => document.body.replaceChildren());
+    it('separates app-wide records from the selected group settings', async () => {
+        const element = await mount();
+        const labels = () =>
+            [...element.shadowRoot.querySelectorAll('lightning-tab')].map(tab => tab.label);
+        expect(labels()).toEqual(['Expense Groups', 'Bank Directory']);
+        expect(element.shadowRoot.querySelector('lightning-card').title).toBe('App Management');
+        element.scope = 'group';
+        await flush();
+        expect(labels()).toEqual(['Categories', 'Banks & Payment Methods']);
+        expect(element.shadowRoot.querySelector('lightning-card').title).toBe(
+            'Settings for Personal'
+        );
+        expect(element.shadowRoot.querySelector('lightning-tabset').activeTabValue).toBe(
+            'Categories'
+        );
+        expect(getRecordsPage.mock.calls.at(-1)[0].objectKind).toBe('Categories');
+        element.scope = 'app';
+        await flush();
+        expect(element.shadowRoot.querySelector('lightning-tabset').activeTabValue).toBe('Groups');
+    });
+    it('resets search and paging on scope changes and ignores an older response', async () => {
+        getRecordsPage.mockResolvedValueOnce({
+            records: [{ id: 'group', name: 'Family' }],
+            hasMore: true,
+            nextPageToken: 'app-token'
+        });
+        const element = await mount();
+        const search = element.shadowRoot.querySelector('lightning-input');
+        search.value = ' Family ';
+        search.dispatchEvent(new CustomEvent('change'));
+        let resolveOld;
+        getRecordsPage.mockImplementationOnce(
+            () =>
+                new Promise(resolve => {
+                    resolveOld = resolve;
+                })
+        );
+        button(element, 'Search').click();
+        await flush();
+        getRecordsPage.mockResolvedValueOnce(page([{ id: 'category', name: 'Food' }]));
+        element.scope = 'group';
+        await flush();
+        expect(getRecordsPage.mock.calls.at(-1)[0]).toMatchObject({
+            objectKind: 'Categories',
+            searchTerm: '',
+            pageToken: null
+        });
+        expect(button(element, 'Load more')).toBeUndefined();
+        resolveOld(page([{ id: 'stale', name: 'Stale group' }]));
+        await flush();
+        expect(element.shadowRoot.querySelector('lightning-datatable').data[0].id).toBe('category');
+    });
+    it('offers manage-group navigation without update permission and ignores it during a save', async () => {
+        getRecordsPage.mockResolvedValue(page([{ id: 'group-one', name: 'Personal' }]));
+        const element = await mount();
+        const readOnly = infos();
+        readOnly.results[0].result.updateable = false;
+        getObjectInfos.emit(readOnly);
+        await flush();
+        const table = element.shadowRoot.querySelector('lightning-datatable');
+        expect(
+            table.columns
+                .filter(column => column.type === 'button')
+                .map(column => column.typeAttributes.name)
+        ).toEqual(['managegroup']);
+        const managed = jest.fn();
+        element.addEventListener('managegroup', managed);
+        const navigate = () =>
+            table.dispatchEvent(
+                new CustomEvent('rowaction', {
+                    detail: { action: { name: 'managegroup' }, row: table.data[0] }
+                })
+            );
+        navigate();
+        expect(managed.mock.calls[0][0].detail).toEqual({
+            expenseGroupId: 'group-one',
+            expenseGroupName: 'Personal'
+        });
+        button(element, 'New').click();
+        await flush();
+        submit(formOf(element), { Name: 'Other' });
+        navigate();
+        expect(managed).toHaveBeenCalledTimes(1);
+    });
+    it('keeps the submitted editor during scope changes and discards it on an error in another scope', async () => {
+        const element = await mount({ scope: 'group' });
+        button(element, 'New').click();
+        await flush();
+        const form = formOf(element);
+        submit(form, { Name: 'Food' });
+        element.scope = 'app';
+        element.expenseGroupName = 'Other';
+        await flush();
+        expect(formOf(element)).toBe(form);
+        expect(element.shadowRoot.textContent).toContain('Expense group: Personal');
+        form.dispatchEvent(new CustomEvent('error', { detail: { message: 'Offline' } }));
+        await flush();
+        expect(formOf(element)).toBeNull();
+        expect(element.shadowRoot.textContent).toContain('current view to retry');
+    });
     it('loads only after activation, and gives Users a read-only Bank directory', async () => {
         const element = await mount({ active: false, bankWrite: false });
         expect(getRecordsPage).not.toHaveBeenCalled();
@@ -83,7 +195,7 @@ describe('workspace management', () => {
         await flush();
         expect(getRecordsPage).toHaveBeenCalledWith({
             objectKind: 'Groups',
-            expenseGroupId: 'group-one',
+            expenseGroupId: null,
             searchTerm: '',
             pageToken: null
         });

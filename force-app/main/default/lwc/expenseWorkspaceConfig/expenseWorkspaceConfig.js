@@ -2,7 +2,8 @@ export const WORKSPACE_VIEWS = Object.freeze({
     DASHBOARD: 'dashboard',
     EXPENSES: 'expenses',
     RECURRING: 'recurring',
-    MANAGE: 'manage'
+    GROUP_SETTINGS: 'group-settings',
+    APP_MANAGEMENT: 'app-management'
 });
 
 const WORKSPACE_VIEW_CONFIG = Object.freeze([
@@ -22,9 +23,14 @@ const WORKSPACE_VIEW_CONFIG = Object.freeze([
         iconName: 'utility:sync'
     },
     {
-        key: WORKSPACE_VIEWS.MANAGE,
-        label: 'Manage',
+        key: WORKSPACE_VIEWS.GROUP_SETTINGS,
+        label: 'Group Settings',
         iconName: 'utility:settings'
+    },
+    {
+        key: WORKSPACE_VIEWS.APP_MANAGEMENT,
+        label: 'App Management',
+        iconName: 'utility:apps'
     }
 ]);
 

@@ -13,13 +13,13 @@
     <enableSharing>true</enableSharing>
     <enableStreamingApi>true</enableStreamingApi>
     <externalSharingModel>ControlledByParent</externalSharingModel>
-    <label>Expense Group Bank</label>
+    <label>Expense Group Bank Assignment</label>
     <nameField>
         <displayFormat>EGB-{000000}</displayFormat>
         <label>Bank Assignment Number</label>
         <type>AutoNumber</type>
     </nameField>
-    <pluralLabel>Expense Group Banks</pluralLabel>
+    <pluralLabel>Expense Group Bank Assignments</pluralLabel>
     <searchLayouts />
     <sharingModel>ControlledByParent</sharingModel>
     <visibility>Public</visibility>

@@ -2,6 +2,8 @@ import { LightningElement, wire } from 'lwc';
 import { refreshApex } from '@salesforce/apex';
 import { loadStyle } from 'lightning/platformResourceLoader';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { getRecord, getFieldValue, notifyRecordUpdateAvailable } from 'lightning/uiRecordApi';
+import GROUP_NAME from '@salesforce/schema/Expense_Group__c.Name';
 import removeDateFormatStyle from '@salesforce/resourceUrl/RemoveDateFormatStyle';
 
 import getAllExpenseGroups from '@salesforce/apex/ExpenseController.getAllExpenseGroups';
@@ -32,11 +34,13 @@ export default class BudgetExpenseManager extends LightningElement {
 
     // Workspace and shared lookup state.
     activeView = WORKSPACE_VIEWS.DASHBOARD;
+    _manageScope = 'group';
     isSidebarCollapsed = false;
     expenseGroupId = '';
 
     expenseGroups = [];
-    expenseGroupOptions = [];
+    _managedGroup;
+    groupContextError = '';
     categoryOptions = [{ label: 'All Categories', value: 'All' }];
     bankOptions = [];
 
@@ -67,7 +71,37 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     get isManageView() {
-        return this.activeView === WORKSPACE_VIEWS.MANAGE;
+        return (
+            this.activeView === WORKSPACE_VIEWS.GROUP_SETTINGS ||
+            this.activeView === WORKSPACE_VIEWS.APP_MANAGEMENT
+        );
+    }
+
+    get manageScope() {
+        return this._manageScope;
+    }
+
+    get showGroupContext() {
+        return this.activeView !== WORKSPACE_VIEWS.APP_MANAGEMENT;
+    }
+
+    get workspaceCaption() {
+        return this.showGroupContext ? this.selectedExpenseGroupName : 'App Management';
+    }
+
+    get expenseGroupOptions() {
+        const options = this.expenseGroups.map(group => ({ label: group.Name, value: group.Id }));
+        if (this.managedGroupRecordId) {
+            options.push({ label: this._managedGroup.Name, value: this._managedGroup.Id });
+        }
+        return options;
+    }
+
+    get managedGroupRecordId() {
+        return this._managedGroup?.Id === this.expenseGroupId &&
+            !this.expenseGroups.some(group => group.Id === this.expenseGroupId)
+            ? this.expenseGroupId
+            : undefined;
     }
 
     get isManageHidden() {
@@ -77,7 +111,9 @@ export default class BudgetExpenseManager extends LightningElement {
     get selectedExpenseGroupName() {
         return (
             this.expenseGroups.find(expenseGroup => expenseGroup.Id === this.expenseGroupId)
-                ?.Name || ''
+                ?.Name ||
+            this._managedGroup?.Name ||
+            ''
         );
     }
 
@@ -122,16 +158,16 @@ export default class BudgetExpenseManager extends LightningElement {
         const { error, data } = result;
         if (data) {
             this.expenseGroups = data;
-            this.expenseGroupOptions = data.map(expenseGroup => ({
-                label: expenseGroup.Name,
-                value: expenseGroup.Id
-            }));
-
             if (
                 this.expenseGroupId &&
-                !data.some(expenseGroup => expenseGroup.Id === this.expenseGroupId)
+                !data.some(expenseGroup => expenseGroup.Id === this.expenseGroupId) &&
+                this._managedGroup?.Id !== this.expenseGroupId
             ) {
                 this.clearWorkspaceContext();
+            }
+            if (data.some(group => group.Id === this.expenseGroupId)) {
+                this._managedGroup = undefined;
+                this.groupContextError = '';
             }
 
             if (!this.expenseGroupId && data.length > 0) {
@@ -143,6 +179,49 @@ export default class BudgetExpenseManager extends LightningElement {
                 getErrorMessage(error, 'Failed to load expense groups.'),
                 'error'
             );
+        }
+    }
+
+    // Paginated management can select a group beyond the bounded sidebar list.
+    @wire(getRecord, { recordId: '$managedGroupRecordId', fields: [GROUP_NAME] })
+    wiredManagedGroup({ data, error }) {
+        if (!this.managedGroupRecordId) return;
+        if (data && data.id === this.expenseGroupId) {
+            this._managedGroup = { Id: data.id, Name: getFieldValue(data, GROUP_NAME) };
+            this.groupContextError = '';
+        } else if (error) {
+            if (Number(error.status) === 403 || Number(error.status) === 404) {
+                this.clearWorkspaceContext();
+                if (this.expenseGroups.length) {
+                    this.setExpenseGroupContext(this.expenseGroups[0].Id);
+                }
+                this.showToast(
+                    'Group unavailable',
+                    'This expense group is no longer accessible.',
+                    'warning'
+                );
+            } else {
+                this.groupContextError = getErrorMessage(
+                    error,
+                    'Could not verify the selected expense group.'
+                );
+            }
+        }
+    }
+
+    async handleRetryGroupContext() {
+        const recordId = this.managedGroupRecordId;
+        if (!recordId) return;
+        this.groupContextError = '';
+        try {
+            await notifyRecordUpdateAvailable([{ recordId }]);
+        } catch (error) {
+            if (recordId === this.managedGroupRecordId) {
+                this.groupContextError = getErrorMessage(
+                    error,
+                    'Could not verify the selected expense group.'
+                );
+            }
         }
     }
 
@@ -235,11 +314,23 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     activateView(viewName) {
+        if (viewName === WORKSPACE_VIEWS.APP_MANAGEMENT) this._manageScope = 'app';
+        if (viewName === WORKSPACE_VIEWS.GROUP_SETTINGS) this._manageScope = 'group';
         this.activeView = viewName;
     }
 
     handleWorkspaceGroupChange(event) {
         this.setExpenseGroupContext(event.detail.value);
+    }
+
+    handleManageGroup(event) {
+        const { expenseGroupId, expenseGroupName } = event.detail || {};
+        if (!expenseGroupId || !expenseGroupName) return;
+        this.activateView(WORKSPACE_VIEWS.GROUP_SETTINGS);
+        this._managedGroup = this.expenseGroups.some(group => group.Id === expenseGroupId)
+            ? undefined
+            : { Id: expenseGroupId, Name: expenseGroupName };
+        this.setExpenseGroupContext(expenseGroupId);
     }
 
     setExpenseGroupContext(expenseGroupId) {
@@ -248,6 +339,8 @@ export default class BudgetExpenseManager extends LightningElement {
         }
 
         this.invalidateCategoryRefresh();
+        if (this._managedGroup?.Id !== expenseGroupId) this._managedGroup = undefined;
+        this.groupContextError = '';
         this._wiredCategoriesResult = undefined;
         this.expenseGroupId = expenseGroupId;
         this.clearBankOptions();
@@ -259,6 +352,8 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     clearWorkspaceContext() {
+        this._managedGroup = undefined;
+        this.groupContextError = '';
         this.invalidateCategoryRefresh();
         this._wiredCategoriesResult = undefined;
         this.expenseGroupId = '';

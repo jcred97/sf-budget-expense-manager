@@ -2,6 +2,7 @@ import { createElement } from 'lwc';
 import { readFileSync } from 'fs';
 import { resolve as resolvePath } from 'path';
 import BudgetExpenseManager from 'c/budgetExpenseManager';
+import getRecordsPage from '@salesforce/apex/WorkspaceManagementController.getRecordsPage';
 jest.mock(
     '@salesforce/apex/WorkspaceManagementController.getRecordsPage',
     () => ({
@@ -23,6 +24,7 @@ import { loadStyle } from 'lightning/platformResourceLoader';
 import LightningConfirm from 'lightning/confirm';
 import deleteExpense from '@salesforce/apex/ExpenseController.deleteExpense';
 import { refreshApex } from '@salesforce/apex';
+import { getFieldValue, getRecord, notifyRecordUpdateAvailable } from 'lightning/uiRecordApi';
 import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
 import getRecurringRunStatus from '@salesforce/apex/RecurringExpenseAutomationController.getRecurringRunStatus';
 jest.mock(
@@ -153,6 +155,7 @@ describe('workspace coordination', () => {
     beforeEach(() => {
         jest.resetAllMocks();
         getSetupStatus.mockResolvedValue({ ready: true });
+        getRecordsPage.mockResolvedValue({ records: [], hasMore: false });
         LightningConfirm.open.mockResolvedValue(true);
         loadStyle.mockResolvedValue();
         fetchExpensePage.mockResolvedValue(firstPage());
@@ -163,6 +166,8 @@ describe('workspace coordination', () => {
             budgets: []
         });
         fetchBankOptions.mockResolvedValue([]);
+        notifyRecordUpdateAvailable.mockResolvedValue();
+        getFieldValue.mockImplementation(record => record.fields?.Name?.value);
     });
     afterEach(() => {
         document.body.replaceChildren();
@@ -352,7 +357,8 @@ describe('workspace coordination', () => {
             'dashboard',
             'expenses',
             'recurring',
-            'manage',
+            'group-settings',
+            'app-management',
             'expenses',
             'dashboard'
         ]) {
@@ -360,7 +366,18 @@ describe('workspace coordination', () => {
             // eslint-disable-next-line no-await-in-loop
             await navigate(element, selected);
             for (const [view, panel] of Object.entries(panels)) {
-                expect(panel.hidden).toBe(view !== selected);
+                const selectedPanel = ['group-settings', 'app-management'].includes(selected)
+                    ? 'manage'
+                    : selected;
+                expect(panel.hidden).toBe(view !== selectedPanel);
+            }
+            for (const view of [
+                'dashboard',
+                'expenses',
+                'recurring',
+                'group-settings',
+                'app-management'
+            ]) {
                 expect(
                     element.shadowRoot
                         .querySelector(`[data-view="${view}"]`)
@@ -399,21 +416,22 @@ describe('workspace coordination', () => {
         }
     });
 
-    it('keeps Manage open when the selected expense group changes', async () => {
+    it('keeps Group Settings open when the selected expense group changes', async () => {
         const element = await mount();
-        await navigate(element, 'manage');
+        await navigate(element, 'group-settings');
         const manage = element.shadowRoot.querySelector('c-workspace-manage');
         changeGroup(element);
         await flush();
         expect(manage.expenseGroupId).toBe('other-group');
         expect(manage.active).toBe(true);
+        expect(manage.scope).toBe('group');
         expect(manage.parentElement.hidden).toBe(false);
         expect(dashboard(element).active).toBe(false);
     });
 
     it('refreshes shared choices and financial screens after a saved management record', async () => {
         const element = await mount();
-        await navigate(element, 'manage');
+        await navigate(element, 'app-management');
         refreshApex.mockClear();
         fetchBankOptions.mockClear();
         fetchDashboardData.mockClear();
@@ -430,6 +448,154 @@ describe('workspace coordination', () => {
         expect(fetchDashboardData).toHaveBeenCalledTimes(1);
         expect(fetchExpensePage).toHaveBeenCalledTimes(1);
         expect(element.shadowRoot.querySelector('c-workspace-manage').active).toBe(true);
+    });
+    const manage = element => element.shadowRoot.querySelector('c-workspace-manage');
+    const manageGroup = async (
+        element,
+        expenseGroupId = 'off-page',
+        expenseGroupName = 'Family'
+    ) => {
+        manage(element).dispatchEvent(
+            new CustomEvent('managegroup', { detail: { expenseGroupId, expenseGroupName } })
+        );
+        await flush();
+    };
+    const selectedGroup = element => element.shadowRoot.querySelector('lightning-combobox');
+    const emitGroupRecord = (recordId, name, currentId = recordId) => {
+        getRecord.emit(
+            { id: recordId, apiName: 'Expense_Group__c', fields: { Name: { value: name } } },
+            config => config.recordId === currentId
+        );
+    };
+    it('hides the group selector in App Management while preserving selection for group views', async () => {
+        const element = await mount();
+        getAllExpenseGroups.emit([
+            { Id: 'group', Name: 'Personal' },
+            { Id: 'other-group', Name: 'Shared' }
+        ]);
+        changeGroup(element);
+        await flush();
+        await navigate(element, 'app-management');
+        expect(selectedGroup(element)).toBeNull();
+        expect(element.shadowRoot.querySelector('.brand-caption').textContent).toBe(
+            'App Management'
+        );
+        expect(manage(element).scope).toBe('app');
+        expect(manage(element).expenseGroupId).toBe('other-group');
+        await navigate(element, 'group-settings');
+        expect(selectedGroup(element).value).toBe('other-group');
+        expect(element.shadowRoot.querySelector('.brand-caption').textContent).toBe('Shared');
+        expect(manage(element).scope).toBe('group');
+        expect(manage(element).expenseGroupName).toBe('Shared');
+    });
+    it('retains the app-management tab and search when visiting financial views', async () => {
+        const element = await mount();
+        await navigate(element, 'app-management');
+        const management = manage(element);
+        [...management.shadowRoot.querySelectorAll('lightning-tab')]
+            .find(tab => tab.value === 'Banks')
+            .dispatchEvent(new CustomEvent('active'));
+        await flush();
+        const search = management.shadowRoot.querySelector('lightning-input');
+        search.value = ' BPI ';
+        search.dispatchEvent(new CustomEvent('change'));
+        [...management.shadowRoot.querySelectorAll('lightning-button')]
+            .find(button => button.label === 'Search')
+            .click();
+        await flush();
+        expect(getRecordsPage.mock.calls.at(-1)[0]).toMatchObject({
+            objectKind: 'Banks',
+            searchTerm: 'BPI',
+            expenseGroupId: null
+        });
+        await navigate(element, 'dashboard');
+        expect(management.scope).toBe('app');
+        await navigate(element, 'app-management');
+        expect(manage(element)).toBe(management);
+        expect(management.shadowRoot.querySelector('lightning-tabset').activeTabValue).toBe(
+            'Banks'
+        );
+        expect(management.shadowRoot.querySelector('lightning-input').value).toBe(' BPI ');
+    });
+    it('opens the clicked group in Group Settings and retains off-page choices after a bounded list refresh', async () => {
+        const element = await mount();
+        await navigate(element, 'app-management');
+        await manageGroup(element);
+        expect(
+            element.shadowRoot
+                .querySelector('[data-view="group-settings"]')
+                .getAttribute('aria-current')
+        ).toBe('page');
+        expect(manage(element).scope).toBe('group');
+        expect(manage(element).expenseGroupId).toBe('off-page');
+        expect(selectedGroup(element).options).toContainEqual({
+            label: 'Family',
+            value: 'off-page'
+        });
+        getAllExpenseGroups.emit([{ Id: 'group', Name: 'Personal' }]);
+        await flush();
+        expect(selectedGroup(element).value).toBe('off-page');
+        expect(manage(element).expenseGroupName).toBe('Family');
+        expect(fetchBankOptions.mock.calls.at(-1)[0]).toBe('off-page');
+    });
+    it('uses verified record names and ignores stale group records after another group is selected', async () => {
+        const element = await mount();
+        await manageGroup(element);
+        emitGroupRecord('off-page', 'Verified Family');
+        await flush();
+        expect(manage(element).expenseGroupName).toBe('Verified Family');
+        expect(selectedGroup(element).options).toContainEqual({
+            label: 'Verified Family',
+            value: 'off-page'
+        });
+        await manageGroup(element, 'next-page', 'Work');
+        emitGroupRecord('off-page', 'Stale Family', 'next-page');
+        await flush();
+        expect(selectedGroup(element).value).toBe('next-page');
+        expect(manage(element).expenseGroupName).toBe('Work');
+        emitGroupRecord('next-page', 'Verified Work');
+        await flush();
+        expect(manage(element).expenseGroupName).toBe('Verified Work');
+    });
+    it.each([403, 404])(
+        'resets an inaccessible off-page group on UI API status %s',
+        async status => {
+            const element = await mount();
+            await manageGroup(element);
+            getRecord.emitError(
+                { status, body: [{ message: 'Unavailable' }] },
+                config => config.recordId === 'off-page'
+            );
+            await flush();
+            expect(selectedGroup(element).value).toBe('group');
+            expect(manage(element).expenseGroupName).toBe('Personal');
+            expect(selectedGroup(element).options).not.toContainEqual({
+                label: 'Family',
+                value: 'off-page'
+            });
+            expect(manage(element).active).toBe(true);
+        }
+    );
+    it('preserves off-page context after a transient verification failure and retries through LDS', async () => {
+        const element = await mount();
+        await manageGroup(element);
+        getRecord.emitError(
+            { status: 503, body: [{ message: 'Temporary service outage' }] },
+            config => config.recordId === 'off-page'
+        );
+        await flush();
+        expect(selectedGroup(element).value).toBe('off-page');
+        expect(manage(element).expenseGroupName).toBe('Family');
+        expect(
+            element.shadowRoot.querySelector('.workspace-context [role="alert"]').textContent
+        ).toContain('Temporary service outage');
+        element.shadowRoot.querySelector('.workspace-context lightning-button').click();
+        await flush();
+        expect(notifyRecordUpdateAvailable).toHaveBeenCalledWith([{ recordId: 'off-page' }]);
+        emitGroupRecord('off-page', 'Verified Family');
+        await flush();
+        expect(element.shadowRoot.querySelector('.workspace-context [role="alert"]')).toBeNull();
+        expect(manage(element).expenseGroupName).toBe('Verified Family');
     });
     const dashboardButton = (element, label) =>
         [...dashboard(element).shadowRoot.querySelectorAll('lightning-button')].find(
