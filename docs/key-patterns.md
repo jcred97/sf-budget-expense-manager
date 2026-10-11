@@ -80,7 +80,12 @@ reserved for app-level controls.
 Custom views should stay close to Salesforce Lightning styling: neutral card
 borders, light typography, compact headings, and restrained custom shadows.
 Buttons use Lightning base components or SLDS button classes for hover and keyboard focus.
-Avoid component CSS hover overrides or button-border hooks that duplicate the platform defaults.
+The sidebar adds a restrained grey hover highlight to inactive views while preserving selected
+and keyboard-focus states. Management buttons retain theme hover colors but suppress Cosmos
+hover translation through two scoped shared motion hooks on `workspaceManage`. These hooks are
+internal Salesforce variables and must be rechecked on platform upgrades; `disable-animation`
+controls Kinetics effects and does not suppress the separate Cosmos hover transform.
+Avoid other component CSS hover overrides or button-border hooks that duplicate platform defaults.
 Record links inherit Salesforce link colors and interaction styles; custom CSS handles layout
 and truncation. Navigation retains a separate selected-view highlight.
 Dashboard rows should share the same workspace edges; avoid adding horizontal

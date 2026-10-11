@@ -1,0 +1,7 @@
+:host {
+    /* Cosmos hover lift is separate from lightning-button's disable-animation API.
+       These internal SLDS shared hooks inherit into the native buttons and table cells.
+       Recheck them on Salesforce upgrades; keep hover colors and focus styles intact. */
+    --slds-s-button-bordered-transform-hover: none;
+    --slds-s-button-brand-transform-hover: none;
+}

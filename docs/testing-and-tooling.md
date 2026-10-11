@@ -1,5 +1,20 @@
 # Testing And Tooling
 
+## Management Hover Motion Verification — 2026-10-12
+
+- Inactive sidebar views regain a restrained grey hover highlight. Management buttons keep their
+  theme colors and focus styles while suppressing hover translation through two scoped shared
+  transform hooks. These Salesforce hooks are internal and require review on platform upgrades.
+- Source inspection of Salesforce's `@salesforce-ux/design-system-2` package (2.264.2) confirmed
+  Cosmos hover translation of 1.5px for neutral buttons and 2px for brand buttons. The variables
+  inherit into native Lightning buttons, including table cells. `disable-animation` only controls
+  the separate Kinetics effects, so it is not added to the management markup.
+- All **269 Jest tests across 24 suites**, lint, formatting, and diff checks passed. Check-only
+  validation `0AfgK00000W1zYUSAZ` compiled **2/2 LWC bundles** with `NoTestRun`. No Apex changed.
+- Deployment to `mainDevOrg` succeeded (`0AfgK00000W2bibSAB`), updating **2/2 LWC bundles** with
+  `NoTestRun`. No temporary Deployment Settings change was needed. Live hover verification remains
+  pending because browser automation cannot start on the BitLocker-locked runtime drive.
+
 ## Salesforce Button Styling Verification — 2026-10-11
 
 - Sidebar buttons use SLDS button classes without custom hover colors. The collapse control uses

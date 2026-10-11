@@ -135,6 +135,11 @@
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
 }
 
+.workspace-nav-item:hover:not(.is-active) {
+    background: var(--slds-g-color-surface-2, #f3f3f3);
+    color: var(--slds-g-color-on-surface-3, #032d60);
+}
+
 .workspace-nav-item.is-active {
     background: var(--slds-g-color-accent-light-1, #eaf4ff);
     border-left-color: var(--slds-g-color-border-accent-1, #0176d3);
