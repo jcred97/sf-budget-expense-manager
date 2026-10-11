@@ -150,7 +150,6 @@
 }
 
 .dashboard-expense-row a {
-    color: var(--slds-g-color-on-surface-2, #181818);
     display: block;
     /* Preserves the established row-label scale because SLDS has no 0.9375rem font hook. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
@@ -158,14 +157,8 @@
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-weight: var(--slds-g-font-weight-6, 600);
     overflow: hidden;
-    text-decoration: none;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.dashboard-expense-row a:hover {
-    color: var(--slds-g-color-accent-1, #0176d3);
-    text-decoration: underline;
 }
 
 .dashboard-expense-row p,

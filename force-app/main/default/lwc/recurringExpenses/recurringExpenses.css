@@ -176,7 +176,6 @@
 
 .recurring-title-row a {
     flex: 1 1 auto;
-    color: var(--slds-g-color-on-surface-2, #181818);
     /* The 15px record title has no equivalent SLDS typography hook. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-size: 0.9375rem;
@@ -187,14 +186,8 @@
     min-width: 6rem;
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     overflow: hidden;
-    text-decoration: none;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.recurring-title-row a:hover {
-    color: var(--slds-g-color-accent-1, #0176d3);
-    text-decoration: underline;
 }
 
 .recurring-status,
@@ -309,10 +302,6 @@
     display: flex;
     gap: 0.25rem;
     justify-content: flex-end;
-}
-
-.recurring-actions lightning-button-menu {
-    --slds-c-button-color-border: #c9c9c9;
 }
 
 /* Stack recurring rows before the sidebar makes their columns overflow. */

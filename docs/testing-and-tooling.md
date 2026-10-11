@@ -1,5 +1,16 @@
 # Testing And Tooling
 
+## Salesforce Button Styling Verification — 2026-10-11
+
+- Sidebar buttons use SLDS button classes without custom hover colors. The collapse control uses
+  the standard bordered icon button; selected navigation and responsive layout remain intact.
+  Record links and expense/recurring action menus inherit Salesforce interaction and border styles.
+- Existing **269 Jest tests across 24 suites**, lint, and targeted formatting passed. Check-only
+  validation `0AfgK00000W2Pj3SAF` compiled **5/5 LWC bundles** with `NoTestRun`; no Apex changed.
+  These checks do not establish the live org's themed appearance.
+- Deployment to `mainDevOrg` succeeded (`0AfgK00000W2GfmSAF`), updating **5/5 LWC bundles** with
+  `NoTestRun`. No Apex tests or temporary Deployment Settings changes were needed.
+
 ## Management Scope Verification — 2026-10-11
 
 - App Management lists accessible Expense Groups and the shared Bank Directory without showing

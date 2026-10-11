@@ -309,7 +309,6 @@
 }
 
 .expense-name {
-    color: var(--slds-g-color-on-surface-2, #181818);
     display: block;
     /* The 15px expense label has no equivalent SLDS typography hook. */
     /* code-analyzer-suppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
@@ -317,14 +316,8 @@
     /* code-analyzer-unsuppress eslint:@salesforce-ux/slds/no-hardcoded-values-slds2 */
     font-weight: var(--slds-g-font-weight-4, 400);
     overflow: hidden;
-    text-decoration: none;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.expense-name:hover {
-    color: var(--slds-g-color-accent-1, #0176d3);
-    text-decoration: underline;
 }
 
 .expense-meta {
@@ -387,10 +380,6 @@
 .expense-actions {
     display: flex;
     justify-content: flex-end;
-}
-
-.expense-actions lightning-button-menu {
-    --slds-c-button-color-border: #c9c9c9;
 }
 
 /* lightning-input exposes no supported API to hide its automatic date-format hint. */

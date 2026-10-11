@@ -79,6 +79,10 @@ reserved for app-level controls.
 
 Custom views should stay close to Salesforce Lightning styling: neutral card
 borders, light typography, compact headings, and restrained custom shadows.
+Buttons use Lightning base components or SLDS button classes for hover and keyboard focus.
+Avoid component CSS hover overrides or button-border hooks that duplicate the platform defaults.
+Record links inherit Salesforce link colors and interaction styles; custom CSS handles layout
+and truncation. Navigation retains a separate selected-view highlight.
 Dashboard rows should share the same workspace edges; avoid adding horizontal
 padding inside child dashboard row components unless the adjacent rows use the
 same inset.

@@ -37,7 +37,7 @@ const WORKSPACE_VIEW_CONFIG = Object.freeze([
 export function buildWorkspaceNavItems(activeView) {
     return WORKSPACE_VIEW_CONFIG.map(view => ({
         ...view,
-        className: `workspace-nav-item ${activeView === view.key ? 'is-active' : ''}`,
+        className: `slds-button slds-button_reset workspace-nav-item ${activeView === view.key ? 'is-active' : ''}`,
         ariaCurrent: activeView === view.key ? 'page' : null
     }));
 }
