@@ -15,7 +15,6 @@
     <tabs>Expense__c</tabs>
     <tabs>Recurring_Expense__c</tabs>
     <tabs>Category__c</tabs>
-    <tabs>Budget_Expense_Manager_Settings</tabs>
     <uiType>Lightning</uiType>
     <utilityBar>Budget_Expense_Manager_UtilityBar</utilityBar>
 </CustomApplication>

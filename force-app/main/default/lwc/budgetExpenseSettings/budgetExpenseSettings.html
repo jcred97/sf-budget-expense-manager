@@ -2,8 +2,8 @@
     <div class="settings-page">
         <div class="settings-header">
             <div>
-                <h1 class="settings-title">Settings</h1>
-                <p class="settings-subtitle">Automation and app controls</p>
+                <h1 class="settings-title">Global Automation Settings</h1>
+                <p class="settings-subtitle">Applies to all Expense Groups</p>
             </div>
             <div class="header-actions">
                 <lightning-button
@@ -25,6 +25,11 @@
             </div>
         </div>
 
+        <p class="slds-m-bottom_medium">
+            One app-wide recurring schedule controls automation for all Expense Groups. These
+            settings apply regardless of your selected group.
+        </p>
+        <p lwc:if={hasUnsavedChanges} class="slds-m-bottom_medium" role="status">Unsaved changes</p>
         <template lwc:if={loadError}>
             <p class="slds-text-color_error slds-m-bottom_medium" role="alert">
                 {loadError} Select Retry to load settings before making changes.
@@ -52,7 +57,7 @@
 
                 <lightning-input
                     type="toggle"
-                    label="Recurring Expenses"
+                    label="Enable recurring automation for all groups"
                     checked={recurringExpensesEnabled}
                     message-toggle-active="Enabled"
                     message-toggle-inactive="Disabled"
@@ -64,7 +69,7 @@
                 <lightning-input
                     class="run-time-input"
                     type="time"
-                    label="Global Run Time"
+                    label="Daily automation run time"
                     value={globalRecurringRunTime}
                     onchange={handleGlobalRunTimeChange}
                     disabled={isSaveDisabled}

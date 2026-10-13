@@ -2,6 +2,10 @@ import { createElement } from 'lwc';
 import WorkspaceManage from 'c/workspaceManage';
 import getRecordsPage from '@salesforce/apex/WorkspaceManagementController.getRecordsPage';
 import { getObjectInfos } from 'lightning/uiObjectInfoApi';
+import getSettings from '@salesforce/apex/SettingsController.getSettings';
+jest.mock('@salesforce/apex/SettingsController.getSettings', () => ({ default: jest.fn() }), {
+    virtual: true
+});
 jest.mock(
     '@salesforce/apex/WorkspaceManagementController.getRecordsPage',
     () => ({ default: jest.fn() }),
@@ -64,12 +68,14 @@ const mount = async ({
     groupId = 'group-one',
     active = true,
     bankWrite = true,
-    scope = 'app'
+    scope = 'app',
+    canManageSettings = false
 } = {}) => {
     const element = createElement('c-workspace-manage', { is: WorkspaceManage });
     element.expenseGroupId = groupId;
     element.expenseGroupName = 'Personal';
     element.scope = scope;
+    element.canManageSettings = canManageSettings;
     element.active = active;
     document.body.appendChild(element);
     getObjectInfos.emit(infos(bankWrite));
@@ -86,20 +92,147 @@ describe('workspace management', () => {
     beforeEach(() => {
         jest.resetAllMocks();
         getRecordsPage.mockResolvedValue(page([]));
+        getSettings.mockResolvedValue({
+            recurringExpensesEnabled: false,
+            globalRecurringRunTime: '08:00'
+        });
     });
     afterEach(() => document.body.replaceChildren());
+    it('labels Global Automation Settings before opening and only mounts it with permission', async () => {
+        const element = await mount();
+        expect(element.shadowRoot.querySelector('c-budget-expense-settings')).toBeNull();
+        expect(getSettings).not.toHaveBeenCalled();
+        expect(
+            [...element.shadowRoot.querySelectorAll('lightning-tab')].some(
+                tab => tab.value === 'Automation'
+            )
+        ).toBe(false);
+        const tab = element.shadowRoot.querySelector('lightning-tab');
+        tab.value = 'Automation';
+        tab.dispatchEvent(new CustomEvent('active'));
+        await flush();
+        expect(element.shadowRoot.querySelector('c-budget-expense-settings')).toBeNull();
+        tab.value = 'Groups';
+        element.canManageSettings = true;
+        await flush();
+        expect(element.shadowRoot.querySelector('c-budget-expense-settings')).toBeNull();
+        expect(
+            [...element.shadowRoot.querySelectorAll('lightning-tab')].find(
+                item => item.value === 'Automation'
+            ).label
+        ).toBe('Global Automation Settings');
+        expect(element.shadowRoot.textContent).toContain('App-wide management');
+        expect(element.shadowRoot.textContent).toContain('global recurring automation');
+        getRecordsPage.mockClear();
+        await select(element, 'Automation');
+        const settings = element.shadowRoot.querySelector('c-budget-expense-settings');
+        expect(settings.active).toBe(true);
+        expect(settings.embedded).toBe(true);
+        expect(settings.parentElement.hidden).toBe(false);
+        expect(settings.parentElement.getAttribute('aria-label')).toBe(
+            'Global Automation Settings'
+        );
+        expect(button(element, 'Search')).toBeUndefined();
+        expect(button(element, 'New')).toBeUndefined();
+        expect(getRecordsPage).not.toHaveBeenCalled();
+        expect(getSettings).toHaveBeenCalledTimes(1);
+        const changed = jest.fn();
+        element.addEventListener('settingschange', changed);
+        settings.dispatchEvent(new CustomEvent('settingschange', { detail: { saved: true } }));
+        expect(changed).toHaveBeenCalledTimes(1);
+        expect(changed.mock.calls[0][0].detail).toEqual({ saved: true });
+    });
+    it('retains one settings instance when switching tabs, scopes, or workspace activation', async () => {
+        const element = await mount({ canManageSettings: true });
+        await select(element, 'Automation');
+        const settings = element.shadowRoot.querySelector('c-budget-expense-settings');
+        const time = [...settings.shadowRoot.querySelectorAll('lightning-input')].find(
+            input => input.type === 'time'
+        );
+        time.value = '11:15';
+        time.dispatchEvent(new CustomEvent('change'));
+        await flush();
+        await select(element, 'Banks');
+        expect(element.shadowRoot.querySelector('c-budget-expense-settings')).toBe(settings);
+        expect(settings.active).toBe(false);
+        expect(settings.parentElement.hidden).toBe(true);
+        await select(element, 'Categories');
+        expect(element.shadowRoot.querySelector('c-budget-expense-settings')).toBe(settings);
+        await select(element, 'Automation');
+        expect(settings.active).toBe(true);
+        expect(
+            [...settings.shadowRoot.querySelectorAll('lightning-input')].find(
+                input => input.type === 'time'
+            ).value
+        ).toBe('11:15');
+        element.active = false;
+        await flush();
+        expect(settings.active).toBe(false);
+        element.active = true;
+        await flush();
+        expect(element.shadowRoot.querySelector('c-budget-expense-settings')).toBe(settings);
+        expect(settings.active).toBe(true);
+    });
+    it('keeps a submitting record editor mounted when opening Automation and reloads records on return', async () => {
+        const element = await mount({ canManageSettings: true });
+        button(element, 'New').click();
+        await flush();
+        const form = formOf(element);
+        submit(form, { Name: 'Family' });
+        getRecordsPage.mockClear();
+        await select(element, 'Automation');
+        expect(formOf(element)).toBe(form);
+        expect(form.parentElement.hidden).toBe(true);
+        form.dispatchEvent(new CustomEvent('success', { detail: { id: 'saved-group' } }));
+        await flush();
+        expect(formOf(element)).toBeNull();
+        expect(getRecordsPage).not.toHaveBeenCalled();
+        getRecordsPage.mockResolvedValue(page([{ id: 'saved-group', name: 'Family' }]));
+        await select(element, 'Groups');
+        expect(element.shadowRoot.querySelector('lightning-datatable').data[0].id).toBe(
+            'saved-group'
+        );
+    });
+    it('ignores an old record response after opening Automation and falls back when permission is withdrawn', async () => {
+        const element = await mount({ canManageSettings: true });
+        let finishRead;
+        getRecordsPage.mockImplementationOnce(
+            () =>
+                new Promise(resolve => {
+                    finishRead = resolve;
+                })
+        );
+        await select(element, 'Banks');
+        await select(element, 'Automation');
+        finishRead(page([{ id: 'stale', name: 'Stale Bank' }]));
+        await flush();
+        expect(element.shadowRoot.querySelector('lightning-datatable')).toBeNull();
+        element.canManageSettings = false;
+        await flush();
+        expect(element.shadowRoot.querySelector('c-budget-expense-settings')).toBeNull();
+        expect(element.shadowRoot.querySelector('lightning-tabset').activeTabValue).toBe('Groups');
+        expect(getRecordsPage.mock.calls.at(-1)[0].objectKind).toBe('Groups');
+    });
     it('separates app-wide records from the selected group settings', async () => {
         const element = await mount();
         const labels = () =>
             [...element.shadowRoot.querySelectorAll('lightning-tab')].map(tab => tab.label);
         expect(labels()).toEqual(['Expense Groups', 'Bank Directory']);
         expect(element.shadowRoot.querySelector('lightning-card').title).toBe('App Management');
+        expect(element.shadowRoot.textContent).toContain('App-wide management');
+        expect(element.shadowRoot.textContent).not.toContain('global recurring automation');
         element.scope = 'group';
         await flush();
         expect(labels()).toEqual(['Categories', 'Banks & Payment Methods']);
         expect(element.shadowRoot.querySelector('lightning-card').title).toBe(
             'Settings for Personal'
         );
+        expect(element.shadowRoot.textContent).toContain('Applies to: Personal');
+        expect(element.shadowRoot.textContent).not.toContain('App-wide management');
+        element.expenseGroupName = 'Family';
+        await flush();
+        expect(element.shadowRoot.textContent).toContain('Applies to: Family');
+        expect(element.shadowRoot.textContent).not.toContain('Applies to: Personal');
         expect(element.shadowRoot.querySelector('lightning-tabset').activeTabValue).toBe(
             'Categories'
         );

@@ -89,7 +89,11 @@ export default class AppSetup extends LightningElement {
     applyStatus(status, completed = false) {
         this.status = status;
         if (status.ready === true)
-            this.dispatchEvent(new CustomEvent('ready', { detail: { completed } }));
+            this.dispatchEvent(
+                new CustomEvent('ready', {
+                    detail: { completed, canManageSettings: status.canManageSettings === true }
+                })
+            );
     }
     handleConfirmation(event) {
         this.confirmed = event.target.checked;

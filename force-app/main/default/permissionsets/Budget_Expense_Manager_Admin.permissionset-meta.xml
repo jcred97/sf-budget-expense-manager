@@ -356,10 +356,6 @@
         <tab>Bank__c</tab>
         <visibility>Visible</visibility>
     </tabSettings>
-    <tabSettings>
-        <tab>Budget_Expense_Manager_Settings</tab>
-        <visibility>Visible</visibility>
-    </tabSettings>
 
     <!-- Apex Class Access -->
     <externalCredentialPrincipalAccesses>

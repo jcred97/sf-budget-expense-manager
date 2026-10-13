@@ -11,6 +11,13 @@ jest.mock(
     { virtual: true }
 );
 import getSetupStatus from '@salesforce/apex/AppSetupController.getSetupStatus';
+import getSettings from '@salesforce/apex/SettingsController.getSettings';
+jest.mock('@salesforce/apex/SettingsController.getSettings', () => ({ default: jest.fn() }), {
+    virtual: true
+});
+jest.mock('@salesforce/apex/SettingsController.saveSettings', () => ({ default: jest.fn() }), {
+    virtual: true
+});
 jest.mock('@salesforce/apex/AppSetupController.getSetupStatus', () => ({ default: jest.fn() }), {
     virtual: true
 });
@@ -155,6 +162,10 @@ describe('workspace coordination', () => {
     beforeEach(() => {
         jest.resetAllMocks();
         getSetupStatus.mockResolvedValue({ ready: true });
+        getSettings.mockResolvedValue({
+            recurringExpensesEnabled: false,
+            globalRecurringRunTime: '08:00'
+        });
         getRecordsPage.mockResolvedValue({ records: [], hasMore: false });
         LightningConfirm.open.mockResolvedValue(true);
         loadStyle.mockResolvedValue();
@@ -467,6 +478,70 @@ describe('workspace coordination', () => {
             config => config.recordId === currentId
         );
     };
+    it('keeps automation inaccessible and makes no settings read for a standard user', async () => {
+        const element = await mount();
+        await navigate(element, 'app-management');
+        const management = manage(element);
+        expect(management.canManageSettings).toBe(false);
+        expect(
+            [...management.shadowRoot.querySelectorAll('lightning-tab')].map(tab => tab.value)
+        ).toEqual(['Groups', 'Banks']);
+        expect(management.shadowRoot.querySelector('c-budget-expense-settings')).toBeNull();
+        await navigate(element, 'group-settings');
+        changeGroup(element);
+        await flush();
+        await navigate(element, 'app-management');
+        expect(getSettings).not.toHaveBeenCalled();
+    });
+    it('passes administrator settings access and loads automation only when first opened', async () => {
+        getSetupStatus.mockResolvedValue({ ready: true, canManageSettings: true });
+        const element = await mount();
+        const management = manage(element);
+        expect(management.canManageSettings).toBe(true);
+        expect(getSettings).not.toHaveBeenCalled();
+        await navigate(element, 'app-management');
+        const automation = [...management.shadowRoot.querySelectorAll('lightning-tab')].find(
+            tab => tab.value === 'Automation'
+        );
+        expect(automation.label).toBe('Global Automation Settings');
+        expect(management.shadowRoot.querySelector('c-budget-expense-settings')).toBeNull();
+        expect(getSettings).not.toHaveBeenCalled();
+        automation.dispatchEvent(new CustomEvent('active'));
+        await flush();
+        await flush();
+        const settings = management.shadowRoot.querySelector('c-budget-expense-settings');
+        expect(settings).not.toBeNull();
+        expect(settings.active).toBe(true);
+        expect(settings.parentElement.hidden).toBe(false);
+        expect(getSettings).toHaveBeenCalledTimes(1);
+        const runTime = [...settings.shadowRoot.querySelectorAll('lightning-input')].find(
+            input => input.type === 'time'
+        );
+        runTime.value = '14:30';
+        runTime.dispatchEvent(new CustomEvent('change'));
+        await flush();
+        await navigate(element, 'dashboard');
+        expect(management.shadowRoot.querySelector('c-budget-expense-settings')).toBe(settings);
+        expect(settings.active).toBe(false);
+        await navigate(element, 'app-management');
+        expect(management.shadowRoot.querySelector('c-budget-expense-settings')).toBe(settings);
+        expect(settings.active).toBe(true);
+        await navigate(element, 'group-settings');
+        expect(settings.active).toBe(false);
+        changeGroup(element);
+        await flush();
+        expect(management.shadowRoot.querySelector('c-budget-expense-settings')).toBe(settings);
+        await navigate(element, 'app-management');
+        [...management.shadowRoot.querySelectorAll('lightning-tab')]
+            .find(tab => tab.value === 'Automation')
+            .dispatchEvent(new CustomEvent('active'));
+        await flush();
+        expect(settings.active).toBe(true);
+        expect(management.shadowRoot.querySelector('c-budget-expense-settings')).toBe(settings);
+        expect(getSettings).toHaveBeenCalledTimes(1);
+        expect(runTime.value).toBe('14:30');
+        expect(settings.shadowRoot.textContent).toContain('Unsaved changes');
+    });
     it('hides the group selector in App Management while preserving selection for group views', async () => {
         const element = await mount();
         getAllExpenseGroups.emit([
@@ -478,7 +553,7 @@ describe('workspace coordination', () => {
         await navigate(element, 'app-management');
         expect(selectedGroup(element)).toBeNull();
         expect(element.shadowRoot.querySelector('.brand-caption').textContent).toBe(
-            'App Management'
+            'App-wide management'
         );
         expect(manage(element).scope).toBe('app');
         expect(manage(element).expenseGroupId).toBe('other-group');

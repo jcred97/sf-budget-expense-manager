@@ -26,7 +26,7 @@ private class AppSetupServiceTest {
             }
         }
         List<User> users = new List<User>();
-        for (String role : new List<String>{ 'SetupAdmin', 'SetupUser' }) {
+        for (String role : new List<String>{ 'SetupAdmin', 'SetupUser', 'SettingsAdditiveUser', 'SettingsMissingFieldUser' }) {
             users.add(
                 new User(
                     Alias = role == 'SetupAdmin' ? 'setadmin' : 'setuser',
@@ -53,6 +53,49 @@ private class AppSetupServiceTest {
             ];
             insert new PermissionSetAssignment(AssigneeId = users[index].Id, PermissionSetId = permission.Id);
         }
+        grantSettingsAccess(users[2].Id, 'SettingsAdditiveRegression', true);
+        grantSettingsAccess(users[3].Id, 'SettingsMissingFieldRegression', false);
+    }
+
+    private static void grantSettingsAccess(Id userId, String name, Boolean canEditRunTime) {
+        PermissionSet permission = new PermissionSet(Name = name, Label = name);
+        insert permission;
+        String objectName = Budget_Expense_Manager_Setting__c.SObjectType.getDescribe().getName();
+        insert new ObjectPermissions(ParentId = permission.Id, SObjectType = objectName, PermissionsRead = true, PermissionsEdit = true);
+        List<FieldPermissions> fields = new List<FieldPermissions>();
+        for (
+            Schema.SObjectField field : new List<Schema.SObjectField>{
+                Budget_Expense_Manager_Setting__c.Base_Currency_Code__c,
+                Budget_Expense_Manager_Setting__c.Recurring_Expenses_Enabled__c,
+                Budget_Expense_Manager_Setting__c.Global_Recurring_Run_Time__c,
+                Budget_Expense_Manager_Setting__c.Last_Recurring_Run_DateTime__c,
+                Budget_Expense_Manager_Setting__c.Last_Recurring_Run_Status__c,
+                Budget_Expense_Manager_Setting__c.Last_Recurring_Run_Message__c
+            }
+        ) {
+            Boolean editable =
+                field == Budget_Expense_Manager_Setting__c.Recurring_Expenses_Enabled__c ||
+                (canEditRunTime && field == Budget_Expense_Manager_Setting__c.Global_Recurring_Run_Time__c);
+            fields.add(
+                new FieldPermissions(
+                    ParentId = permission.Id,
+                    SObjectType = objectName,
+                    Field = objectName + '.' + field.getDescribe().getName(),
+                    PermissionsRead = true,
+                    PermissionsEdit = editable
+                )
+            );
+        }
+        insert fields;
+        ApexClass controller = [
+            SELECT Id
+            FROM ApexClass
+            WHERE Name = 'SettingsController' AND (NamespacePrefix = 'bemgr' OR NamespacePrefix = NULL)
+            ORDER BY NamespacePrefix DESC NULLS LAST
+            LIMIT 1
+        ];
+        insert new SetupEntityAccess(ParentId = permission.Id, SetupEntityId = controller.Id);
+        insert new PermissionSetAssignment(AssigneeId = userId, PermissionSetId = permission.Id);
     }
 
     private static User actor(String role) {
@@ -70,6 +113,7 @@ private class AppSetupServiceTest {
             AppSetupStatus status = AppSetupController.getSetupStatus();
             System.assertEquals(false, status.ready);
             System.assertEquals(true, status.canManageSetup);
+            System.assertEquals(true, status.canManageSettings);
             System.assertEquals(true, status.canCompleteSetup);
             System.assertEquals('PHP', status.organizationCurrencyCode);
         }
@@ -82,11 +126,40 @@ private class AppSetupServiceTest {
             AppSetupStatus status = AppSetupController.getSetupStatus();
             System.assertEquals(false, status.ready);
             System.assertEquals(false, status.canManageSetup);
+            System.assertEquals(false, status.canManageSettings);
             System.assertEquals(false, status.canCompleteSetup);
             assertFailure(true, 'An app administrator must complete setup.');
         }
         System.assertEquals(0, [SELECT COUNT() FROM Budget_Expense_Manager_Setting__c]);
         System.assertEquals(existingSchedules, scheduleIds(), 'Readiness reads must preserve any existing schedule identity and count.');
+    }
+
+    @IsTest
+    static void testSettingsCapabilityHonorsAdditiveGrantsAndRequiredFieldAccess() {
+        currency('PHP');
+        System.runAs(actor('SettingsAdditiveUser')) {
+            AppSetupStatus status = AppSetupController.getSetupStatus();
+            System.assertEquals(false, status.canManageSetup, 'Global settings access does not authorize initial setup.');
+            System.assertEquals(
+                true,
+                status.canManageSettings,
+                'Additional settings permissions must be honored independently of app role.'
+            );
+            System.assertEquals(
+                false,
+                FeatureManagement.checkPermission('Manage_Recurring_Expense_Automation'),
+                'Settings access must not confer manual-run authorization.'
+            );
+        }
+        System.runAs(actor('SettingsMissingFieldUser')) {
+            System.assertEquals(true, Budget_Expense_Manager_Setting__c.SObjectType.getDescribe().isUpdateable());
+            System.assertEquals(
+                false,
+                AppSetupController.getSetupStatus().canManageSettings,
+                'Object edit permission alone is insufficient when daily run time is read-only.'
+            );
+        }
+        System.assertEquals(0, [SELECT COUNT() FROM Budget_Expense_Manager_Setting__c], 'Capability reads must never create settings.');
     }
 
     @IsTest

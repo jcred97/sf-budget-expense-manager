@@ -5,3 +5,7 @@
     --slds-s-button-bordered-transform-hover: none;
     --slds-s-button-brand-transform-hover: none;
 }
+
+[hidden] {
+    display: none !important;
+}

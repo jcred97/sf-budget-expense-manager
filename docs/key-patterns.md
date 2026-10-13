@@ -25,10 +25,13 @@ create sample records automatically, or run through an install handler.
 
 ## Workspace Shell
 
-After setup, App Management provides Expense Groups and Bank Directory tabs. Its sidebar group
+After setup, App Management provides Expense Groups, Bank Directory, and permission-gated
+Global Automation Settings tabs. Its sidebar group
 selector and group caption are hidden because these lists span accessible groups or the shared
 catalog. Group Settings provides Categories and Banks & Payment Methods for the selected Expense
-Group, with an explicit Settings for [group name] heading. The selected group remains unchanged
+Group, with an explicit Settings for [group name] heading and Applies to: [group name] scope label.
+App Management displays App-wide management before its tabs; Global Automation Settings states
+Applies to all Expense Groups and explains the single app-wide recurring schedule. The selected group remains unchanged
 when visiting App Management. Manage this group on an Expense Group row selects that group and
 opens Group Settings, including groups outside the bounded sidebar lookup.
 An off-page selection is added to the dropdown and verified through LDS rather than discarded
@@ -36,6 +39,11 @@ when the bounded group wire refreshes. Confirmed loss of access clears that cont
 verification failure retains it and offers Retry.
 Object and field metadata control create/edit affordances, while LDS enforces save permissions.
 The normal User permission set can maintain groups, categories, and assignments but reads Banks only.
+The ready event forwards `canManageSettings`, based on existing Settings CRUD/FLS; it does not
+grant access or replace Apex class and user-mode authorization. Ordinary Users never mount the
+settings component. Permitted users open it lazily and retain unsaved edits and pending actions
+through management scopes and financial navigation. Diagnostic refreshes preserve edited values;
+hidden run completion refreshes diagnostics on return. The standalone Settings tab is removed.
 Assignment editors configure the four supported bank payment methods and preserve historical bank
 references. Internal keys and run-outcome records have no management editor.
 

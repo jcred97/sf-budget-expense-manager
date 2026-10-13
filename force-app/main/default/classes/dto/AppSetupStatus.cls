@@ -1,9 +1,11 @@
-/** Sanitized setup state available to all app users without settings-object access. */
+/** Sanitized setup state and UI capabilities available to all app users without settings-object access. */
 public class AppSetupStatus {
     @AuraEnabled
     public Boolean ready = false;
     @AuraEnabled
     public Boolean canManageSetup = false;
+    @AuraEnabled
+    public Boolean canManageSettings = false;
     @AuraEnabled
     public Boolean canCompleteSetup = false;
     @AuraEnabled

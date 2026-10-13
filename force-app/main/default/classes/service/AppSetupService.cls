@@ -1,4 +1,4 @@
-/** Narrow system access exposes readiness only and initializes settings after explicit authorization. */
+/** Narrow system access exposes sanitized readiness/capabilities and initializes settings after explicit authorization. */
 public without sharing class AppSetupService {
     private static final String SETUP_PERMISSION = 'Manage_App_Setup';
     private static final String SINGLETON_KEY = 'Default';
@@ -90,6 +90,7 @@ public without sharing class AppSetupService {
     private static AppSetupStatus buildStatus(List<Budget_Expense_Manager_Setting__c> records, Boolean canManage) {
         AppSetupStatus status = new AppSetupStatus();
         status.canManageSetup = canManage;
+        status.canManageSettings = canManageSettings();
         if (records.size() > 1) {
             status.message = canManage
                 ? 'Multiple settings records exist. An administrator must resolve the configuration before setup.'
@@ -138,6 +139,30 @@ public without sharing class AppSetupService {
         return error.getDmlStatusCode(0) == 'DUPLICATE_VALUE' ||
             (error.getDmlStatusCode(0) == 'FIELD_CUSTOM_VALIDATION_EXCEPTION' &&
             error.getDmlMessage(0).contains('Only one Budget & Expense Manager settings record can exist.'));
+    }
+
+    /** UI capability only; SettingsController class access, sharing, and USER_MODE still authorize actual requests. */
+    private static Boolean canManageSettings() {
+        Schema.DescribeSObjectResult settings = Budget_Expense_Manager_Setting__c.SObjectType.getDescribe();
+        if (!settings.isAccessible() || !settings.isUpdateable()) {
+            return false;
+        }
+        for (
+            Schema.SObjectField field : new List<Schema.SObjectField>{
+                Budget_Expense_Manager_Setting__c.Base_Currency_Code__c,
+                Budget_Expense_Manager_Setting__c.Recurring_Expenses_Enabled__c,
+                Budget_Expense_Manager_Setting__c.Global_Recurring_Run_Time__c,
+                Budget_Expense_Manager_Setting__c.Last_Recurring_Run_DateTime__c,
+                Budget_Expense_Manager_Setting__c.Last_Recurring_Run_Status__c,
+                Budget_Expense_Manager_Setting__c.Last_Recurring_Run_Message__c
+            }
+        ) {
+            if (!field.getDescribe().isAccessible()) {
+                return false;
+            }
+        }
+        return Budget_Expense_Manager_Setting__c.Recurring_Expenses_Enabled__c.getDescribe().isUpdateable() &&
+            Budget_Expense_Manager_Setting__c.Global_Recurring_Run_Time__c.getDescribe().isUpdateable();
     }
 
     private static AuraHandledException handled(String message) {

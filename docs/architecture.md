@@ -16,7 +16,7 @@ This is a Salesforce-native app: LWC screens call Apex or Lightning Data Service
 | `expenseDashboard`      | Selected month, dashboard/trend/budget-history requests, loading/errors, and dashboard view model                                     |
 | `expenseList`           | Filters/search, pagination, selection, deletion/rollback, expense modal state, and CSV/print workflows                                |
 | `recurringExpenses`     | Overview wire and refresh, template state, recurring modal, deactivation, and batch launch                                            |
-| `budgetExpenseSettings` | Separate settings tab, configuration load/save, scheduler status, and manual run action                                               |
+| `budgetExpenseSettings` | Retained Global Automation Settings inside App Management, configuration load/save, scheduler status, and manual run action           |
 
 The three workspace screens stay mounted across navigation, preserving local state and pending work. Group changes reset their scoped data while retaining a tracked global recurring run. The expense modal is outside the expense screen's hidden section so Dashboard can open it without navigating away. Dashboard emits `addexpense` and `viewexpenses`; the list emits `expenseschanged`; recurring emits `generationcompleted` after the batch reaches a terminal state. The manager refreshes the dashboard, expense list, and category lookup after completion, including failed or aborted runs that may have partial writes. Shared lookup refresh/retry requests return to the manager.
 
@@ -166,7 +166,7 @@ entry points live under `classes/async` without changing their Salesforce metada
 ## Apex Methods
 
 - `WorkspaceManagementController.getRecordsPage(objectKind, expenseGroupId, searchTerm, pageToken)` - non-cacheable, read-only user-mode pages for Groups/Categories/Banks/Assignments; 50-row name/ID cursor paging, normalized rows, inactive records included. Category and assignment lists are group-scoped. Writes use LDS instead of Apex mutation methods.
-- `AppSetupController.getSetupStatus()` - non-cacheable, read-only sanitized setup status available to all app permission sets; no initialization or scheduling.
+- `AppSetupController.getSetupStatus()` - non-cacheable, read-only sanitized setup status and `canManageSettings` UI capability available to all app permission sets; no initialization or scheduling. The capability reflects Settings object/field read and update permissions; controller class access and user-mode reads remain authoritative for actual Settings requests.
 - `AppSetupController.completeSetup(confirmed)` - requires `Manage_App_Setup` and explicit confirmation; initializes supported fresh configuration idempotently and preserves existing initialized records.
 - `ExpenseController.getAllExpenseGroups()` - cacheable user-mode lookup returning the bounded workspace list ordered by Name.
 - `BankController.getAvailableExpenseGroupBanks(expenseGroupId)` - non-cacheable, returns fresh active global Banks assigned to the requested accessible Expense Group; modal loads are request-guarded to ignore stale responses.
@@ -200,7 +200,7 @@ entry points live under `classes/async` without changing their Salesforce metada
 
 ## Custom Application
 
-`Budget_Expense_Manager.app-meta.xml` supports Small and Large form factors. Its tabs are `Budget_Expense_Manager`, `Expense_Group__c`, `Bank__c`, `Budget__c`, `Expense__c`, `Recurring_Expense__c`, `Category__c`, and `Budget_Expense_Manager_Settings`; its utility bar is `Budget_Expense_Manager_UtilityBar`. The renamed `budgetExpenseManagerLogo` content asset is retained in source but is not currently referenced by the application metadata.
+`Budget_Expense_Manager.app-meta.xml` supports Small and Large form factors. Its tabs are `Budget_Expense_Manager`, `Expense_Group__c`, `Bank__c`, `Budget__c`, `Expense__c`, `Recurring_Expense__c`, and `Category__c`; its utility bar is `Budget_Expense_Manager_UtilityBar`. Global Automation Settings is inside the main workspace's App Management view. The renamed `budgetExpenseManagerLogo` content asset is retained in source but is not currently referenced by the application metadata.
 
 ## Permission Sets
 
@@ -222,7 +222,7 @@ permission verification; this setup change does not expand platform permissions.
 
 ## Pages And Tabs
 
-The workspace separates App Management (Expense Groups and the shared Bank Directory) from Group
+The workspace separates App Management (Expense Groups, the shared Bank Directory, and Global Automation Settings for permitted users) from Group
 Settings (Categories and Banks & Payment Methods for the selected group). App Management hides
 the sidebar group selector and caption while retaining that selection for the other views. Each
 Expense Group row provides Manage this group, which selects that group and opens Group Settings.
@@ -230,6 +230,13 @@ Both views use the same retained `workspaceManage` component; a scope change res
 without disconnecting a pending LDS save. The assignment object display label is Expense Group
 Bank Assignment, with Bank Assignments on the Expense Group related list. Its API name remains
 `Expense_Group_Bank__c`.
+
+Global Automation Settings opens lazily and retains one `budgetExpenseSettings` instance across navigation.
+Unsaved inputs survive navigation and diagnostic refreshes; pending saves/runs remain connected.
+Hidden run completion marks the settings diagnostics for refresh when reopened. A completion
+generation prevents an earlier settings response from clearing that pending refresh. Embedded
+settings show inline run status; the existing recurring screen owns workspace completion toasts
+and financial refreshes. Settings and schedule records are global and independent of the working group.
 
 Standard record layouts organize identity, payment methods, recurrence, currency details, and audit
 fields into separate sections. Expense Groups relate Categories, Budgets, and Bank Assignments;
@@ -240,7 +247,7 @@ View; unrelated CRM actions are removed. Layout assignment remains controlled by
 and record types and is not changed through package permission sets.
 
 - `Budget_Expense_Manager` - LWC custom tab backed directly by `budgetExpenseManager`, which avoids the standard Lightning App Page title strip.
-- `Budget_Expense_Manager_Settings` - LWC custom tab backed directly by `budgetExpenseSettings`.
+- The obsolete standalone `Budget_Expense_Manager_Settings` tab is removed; its settings LWC is reused inside App Management.
 - `Bank__c` - standard Banks tab for Admin/All Access catalog maintenance; group assignments remain contextual on Expense Group records and have no standalone tab.
 - `Budget__c` - standard Budgets tab for list-view and record-level administration.
 - `Budget_Expense_Manager_UtilityBar` - UtilityBar, left-aligned desktop.

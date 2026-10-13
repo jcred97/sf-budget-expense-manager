@@ -21,7 +21,9 @@ export default class BudgetExpenseManager extends LightningElement {
     _dateFormatStyleLoadPromise;
     _wiredGroupsResult;
     isSetupReady = false;
+    canManageSettings = false;
     async handleSetupReady(event) {
+        this.canManageSettings = event.detail?.canManageSettings === true;
         this.isSetupReady = true;
         if (event.detail?.completed && this._wiredGroupsResult) {
             try {
@@ -86,7 +88,7 @@ export default class BudgetExpenseManager extends LightningElement {
     }
 
     get workspaceCaption() {
-        return this.showGroupContext ? this.selectedExpenseGroupName : 'App Management';
+        return this.showGroupContext ? this.selectedExpenseGroupName : 'App-wide management';
     }
 
     get expenseGroupOptions() {

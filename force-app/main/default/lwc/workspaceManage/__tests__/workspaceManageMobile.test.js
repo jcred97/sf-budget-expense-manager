@@ -2,6 +2,10 @@ import { createElement } from 'lwc';
 import WorkspaceManage from 'c/workspaceManage';
 import getRecordsPage from '@salesforce/apex/WorkspaceManagementController.getRecordsPage';
 import { getObjectInfos } from 'lightning/uiObjectInfoApi';
+import getSettings from '@salesforce/apex/SettingsController.getSettings';
+jest.mock('@salesforce/apex/SettingsController.getSettings', () => ({ default: jest.fn() }), {
+    virtual: true
+});
 jest.mock('@salesforce/client/formFactor', () => ({ default: 'Small' }), { virtual: true });
 jest.mock(
     '@salesforce/apex/WorkspaceManagementController.getRecordsPage',
@@ -17,6 +21,40 @@ describe('mobile workspace management', () => {
     afterEach(() => {
         document.body.replaceChildren();
         jest.resetAllMocks();
+    });
+    it('opens permitted automation settings on mobile and retains them when returning to record cards', async () => {
+        getRecordsPage.mockResolvedValue({
+            records: [{ id: 'group', name: 'Personal' }],
+            hasMore: false
+        });
+        getSettings.mockResolvedValue({
+            recurringExpensesEnabled: false,
+            globalRecurringRunTime: '08:00'
+        });
+        const element = createElement('c-workspace-manage', { is: WorkspaceManage });
+        element.active = true;
+        element.canManageSettings = true;
+        document.body.appendChild(element);
+        await flush();
+        expect(element.shadowRoot.querySelector('c-budget-expense-settings')).toBeNull();
+        const tab = value =>
+            [...element.shadowRoot.querySelectorAll('lightning-tab')].find(
+                item => item.value === value
+            );
+        expect(tab('Automation').label).toBe('Global Automation Settings');
+        expect(element.shadowRoot.textContent).toContain('App-wide management');
+        tab('Automation').dispatchEvent(new CustomEvent('active'));
+        await flush();
+        const settings = element.shadowRoot.querySelector('c-budget-expense-settings');
+        expect(settings.active).toBe(true);
+        expect(element.shadowRoot.querySelector('li')).toBeNull();
+        expect(getRecordsPage).toHaveBeenCalledTimes(1);
+        tab('Groups').dispatchEvent(new CustomEvent('active'));
+        await flush();
+        expect(element.shadowRoot.querySelector('li').textContent).toContain('Personal');
+        expect(element.shadowRoot.querySelector('c-budget-expense-settings')).toBe(settings);
+        expect(settings.active).toBe(false);
+        expect(settings.parentElement.hidden).toBe(true);
     });
     it('uses SLDS record cards with permitted editing instead of an unsupported mobile datatable', async () => {
         getRecordsPage.mockResolvedValue({

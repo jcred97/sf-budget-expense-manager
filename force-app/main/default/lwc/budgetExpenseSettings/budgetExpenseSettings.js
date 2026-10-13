@@ -1,4 +1,4 @@
-import { LightningElement } from 'lwc';
+import { LightningElement, api } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 import getSettings from '@salesforce/apex/SettingsController.getSettings';
@@ -38,6 +38,32 @@ export default class BudgetExpenseSettings extends LightningElement {
     isRunning = false;
     hasLoadedSettings = false;
     loadError;
+    _active = true;
+    _needsRefresh = true;
+    _refreshVersion = 0;
+    _savedValues;
+    @api embedded = false;
+
+    @api
+    get active() {
+        return this._active;
+    }
+    set active(value) {
+        const active = value === true || value === 'true';
+        if (active === this._active) return;
+        this._active = active;
+        if (active && this.isConnected && this._needsRefresh && !this.isSaving && !this.isLoading) {
+            this.loadSettings({ preserveEdits: true });
+        }
+    }
+
+    get hasUnsavedChanges() {
+        return Boolean(
+            this._savedValues &&
+            (this.recurringExpensesEnabled !== this._savedValues.enabled ||
+                this.globalRecurringRunTime?.slice(0, 5) !== this._savedValues.time?.slice(0, 5))
+        );
+    }
 
     connectedCallback() {
         let initialState = true;
@@ -56,12 +82,14 @@ export default class BudgetExpenseSettings extends LightningElement {
             }
             initialState = false;
         });
-        this.loadSettings();
+        if (this._active && !this.isSaving) this.loadSettings({ preserveEdits: true });
+        else this.isLoading = false;
     }
 
     disconnectedCallback() {
         this._unsubscribeRun?.();
         this._loadVersion += 1;
+        this._needsRefresh = true;
     }
     _loadVersion = 0;
     runState = {};
@@ -90,17 +118,20 @@ export default class BudgetExpenseSettings extends LightningElement {
     }
 
     async onRecurringRunCompleted(state) {
-        this.showToast(
-            state.label === 'Completed'
-                ? 'Recurring run completed'
-                : 'Recurring run needs attention',
-            state.label === 'Completed'
-                ? 'Recurring expenses have finished generating.'
-                : state.message ||
-                      `Run status: ${state.label}. Some expenses may have been generated.`,
-            state.label === 'Completed' ? 'success' : 'warning'
-        );
-        await this.loadSettings();
+        if (this._active && !this.embedded)
+            this.showToast(
+                state.label === 'Completed'
+                    ? 'Recurring run completed'
+                    : 'Recurring run needs attention',
+                state.label === 'Completed'
+                    ? 'Recurring expenses have finished generating.'
+                    : state.message ||
+                          `Run status: ${state.label}. Some expenses may have been generated.`,
+                state.label === 'Completed' ? 'success' : 'warning'
+            );
+        this._refreshVersion += 1;
+        this._needsRefresh = true;
+        if (this._active && !this.isSaving) await this.loadSettings({ preserveEdits: true });
     }
 
     get runButtonLabel() {
@@ -206,7 +237,12 @@ export default class BudgetExpenseSettings extends LightningElement {
         return this.scheduleTimeZone || '-';
     }
 
-    async loadSettings() {
+    async loadSettings({ preserveEdits = false } = {}) {
+        const refreshVersion = this._refreshVersion;
+        const edits =
+            preserveEdits && this.hasUnsavedChanges
+                ? { enabled: this.recurringExpensesEnabled, time: this.globalRecurringRunTime }
+                : undefined;
         const version = ++this._loadVersion;
         this.isLoading = true;
         this.hasLoadedSettings = false;
@@ -218,6 +254,11 @@ export default class BudgetExpenseSettings extends LightningElement {
                 throw new Error('Failed to load settings.');
             }
             this.applySettings(settings);
+            if (edits) {
+                this.recurringExpensesEnabled = edits.enabled;
+                this.globalRecurringRunTime = edits.time;
+            }
+            this._needsRefresh = refreshVersion !== this._refreshVersion;
             this.hasLoadedSettings = true;
         } catch (error) {
             if (!this.isConnected || version !== this._loadVersion) return;
@@ -230,14 +271,16 @@ export default class BudgetExpenseSettings extends LightningElement {
 
     async handleRefresh() {
         if (this.isRefreshDisabled) return;
-        await this.loadSettings();
+        await this.loadSettings({ preserveEdits: true });
     }
 
     handleRecurringToggle(event) {
+        if (this.isSaveDisabled) return;
         this.recurringExpensesEnabled = event.target.checked;
     }
 
     handleGlobalRunTimeChange(event) {
+        if (this.isSaveDisabled) return;
         this.globalRecurringRunTime = event.target.value || '08:00';
     }
 
@@ -252,11 +295,14 @@ export default class BudgetExpenseSettings extends LightningElement {
                 }
             });
             this.applySettings(settings);
+            this.dispatchEvent(new CustomEvent('settingschange'));
             this.showToast('Saved', 'Settings saved.', 'success');
         } catch (error) {
             this.showToast('Error', getErrorMessage(error, 'Failed to save settings.'), 'error');
         } finally {
             this.isSaving = false;
+            if (this._active && this._needsRefresh)
+                await this.loadSettings({ preserveEdits: true });
         }
     }
 
@@ -277,6 +323,10 @@ export default class BudgetExpenseSettings extends LightningElement {
         this.settingsId = settings?.settingsId;
         this.recurringExpensesEnabled = settings?.recurringExpensesEnabled ?? true;
         this.globalRecurringRunTime = settings?.globalRecurringRunTime || '08:00';
+        this._savedValues = {
+            enabled: this.recurringExpensesEnabled,
+            time: this.globalRecurringRunTime
+        };
         this.lastRunStatus = settings?.lastRecurringRunStatus || '-';
         this.lastRunDateTime = settings?.lastRecurringRunDateTime;
         this.lastRunMessage = settings?.lastRecurringRunMessage || '-';

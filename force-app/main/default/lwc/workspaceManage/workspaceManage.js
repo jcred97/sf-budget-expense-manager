@@ -51,6 +51,39 @@ export default class WorkspaceManage extends LightningElement {
     _active = false;
     _requestVersion = 0;
     _loaded = false;
+    _canManageSettings = false;
+    _settingsOpened = false;
+
+    @api
+    get canManageSettings() {
+        return this._canManageSettings;
+    }
+    set canManageSettings(value) {
+        this._canManageSettings = value === true || value === 'true';
+        if (!this._canManageSettings && this.kind === 'Automation') {
+            this.kind = 'Groups';
+            this.resetAndLoad();
+        }
+    }
+    get showingAutomation() {
+        return this.isAppScope && this.kind === 'Automation' && this.canManageSettings;
+    }
+    get showingRecords() {
+        return !this.showingAutomation;
+    }
+    get mountSettings() {
+        return this.canManageSettings && this._settingsOpened;
+    }
+    get settingsActive() {
+        return this._active && this.showingAutomation;
+    }
+    get settingsHidden() {
+        return !this.settingsActive;
+    }
+    handleSettingsChange(event) {
+        event.stopPropagation();
+        this.dispatchEvent(new CustomEvent('settingschange', { detail: event.detail }));
+    }
 
     @api
     get scope() {
@@ -81,7 +114,14 @@ export default class WorkspaceManage extends LightningElement {
     get scopeDescription() {
         return this.isGroupScope
             ? 'Manage categories and banks with their payment methods for this expense group.'
-            : 'Manage all accessible expense groups and the shared bank directory.';
+            : this.canManageSettings
+              ? 'Manage all accessible expense groups, the shared bank directory, and global recurring automation.'
+              : 'Manage all accessible expense groups and the shared bank directory.';
+    }
+    get scopeLabel() {
+        return this.isGroupScope
+            ? `Applies to: ${this.expenseGroupName || 'current expense group'}`
+            : 'App-wide management';
     }
     get showingGroups() {
         return this.kind === 'Groups';
@@ -286,9 +326,12 @@ export default class WorkspaceManage extends LightningElement {
     }
     handleTab(event) {
         const kind = event.target.value;
-        const kinds = this.isGroupScope ? ['Categories', 'Assignments'] : ['Groups', 'Banks'];
+        const kinds = this.isGroupScope
+            ? ['Categories', 'Assignments']
+            : ['Groups', 'Banks', ...(this.canManageSettings ? ['Automation'] : [])];
         if (!kinds.includes(kind) || kind === this.kind) return;
         this.kind = kind;
+        if (kind === 'Automation') this._settingsOpened = true;
         this.searchTerm = '';
         this.appliedSearchTerm = '';
         if (!this.isSaving) this.closeEditor();
@@ -321,7 +364,7 @@ export default class WorkspaceManage extends LightningElement {
         if (this._active && this.isConnected) this.loadRecords();
     }
     async loadRecords(append = false) {
-        if (!this._active || !this.isConnected) return;
+        if (!this._active || !this.isConnected || this.showingAutomation) return;
         const version = ++this._requestVersion;
         if (this.needsGroup) {
             this.records = [];

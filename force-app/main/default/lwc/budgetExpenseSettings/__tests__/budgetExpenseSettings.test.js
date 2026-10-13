@@ -4,7 +4,7 @@ import getSettings from '@salesforce/apex/SettingsController.getSettings';
 import saveSettings from '@salesforce/apex/SettingsController.saveSettings';
 import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
 import getRecurringRunStatus from '@salesforce/apex/RecurringExpenseAutomationController.getRecurringRunStatus';
-import { subscribeRecurringRun } from 'c/recurringRunMonitor';
+import { subscribeRecurringRun, startRecurringRun } from 'c/recurringRunMonitor';
 jest.mock(
     '@salesforce/apex/RecurringExpenseAutomationController.getRecurringRunStatus',
     () => ({ default: jest.fn() }),
@@ -39,10 +39,19 @@ const flush = async () => {
 const button = (element, label) =>
     [...element.shadowRoot.querySelectorAll('lightning-button')].find(item => item.label === label);
 const click = (element, label) => button(element, label).dispatchEvent(new CustomEvent('click'));
-const mount = () => {
+const mount = (active = true, embedded = false) => {
     const element = createElement('c-budget-expense-settings', { is: BudgetExpenseSettings });
+    element.active = active;
+    element.embedded = embedded;
     document.body.appendChild(element);
     return element;
+};
+const timeInput = element =>
+    [...element.shadowRoot.querySelectorAll('lightning-input')].find(item => item.type === 'time');
+const editTime = (element, value) => {
+    const input = timeInput(element);
+    input.value = value;
+    input.dispatchEvent(new CustomEvent('change'));
 };
 
 describe('settings loading protection', () => {
@@ -60,6 +69,216 @@ describe('settings loading protection', () => {
     });
     afterEach(() => document.body.replaceChildren());
 
+    it('defers the first settings read until its embedded tab is activated', async () => {
+        const element = mount(false);
+        await flush();
+        expect(getSettings).not.toHaveBeenCalled();
+        expect(button(element, 'Save').disabled).toBe(true);
+        expect(element.shadowRoot.querySelector('h1').textContent).toBe(
+            'Global Automation Settings'
+        );
+        expect(element.shadowRoot.querySelector('.settings-subtitle').textContent).toBe(
+            'Applies to all Expense Groups'
+        );
+        expect(element.shadowRoot.textContent).toContain('One app-wide recurring schedule');
+        expect(
+            [...element.shadowRoot.querySelectorAll('lightning-input')].find(
+                item => item.type === 'toggle'
+            ).label
+        ).toBe('Enable recurring automation for all groups');
+        expect(timeInput(element).label).toBe('Daily automation run time');
+        element.active = true;
+        await flush();
+        expect(getSettings).toHaveBeenCalledTimes(1);
+        expect(timeInput(element).value).toBe('14:30');
+        element.active = false;
+        element.active = true;
+        await flush();
+        expect(getSettings).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps unsaved automation inputs when its tab is hidden and reopened', async () => {
+        const element = mount();
+        await flush();
+        editTime(element, '10:45');
+        const toggle = [...element.shadowRoot.querySelectorAll('lightning-input')].find(
+            item => item.type === 'toggle'
+        );
+        toggle.checked = true;
+        toggle.dispatchEvent(new CustomEvent('change'));
+        element.active = false;
+        await flush();
+        element.active = true;
+        await flush();
+        expect(timeInput(element).value).toBe('10:45');
+        expect(toggle.checked).toBe(true);
+        expect(getSettings).toHaveBeenCalledTimes(1);
+        click(element, 'Save');
+        await flush();
+        expect(saveSettings).toHaveBeenCalledWith({
+            request: { recurringExpensesEnabled: 'true', globalRecurringRunTime: '10:45' }
+        });
+    });
+
+    it('settles a pending save and reports one change while its tab is inactive', async () => {
+        let finishSave;
+        saveSettings.mockImplementationOnce(
+            () =>
+                new Promise(resolve => {
+                    finishSave = resolve;
+                })
+        );
+        const element = mount();
+        const changed = jest.fn();
+        element.addEventListener('settingschange', changed);
+        await flush();
+        editTime(element, '09:15');
+        click(element, 'Save');
+        element.active = false;
+        await flush();
+        expect(button(element, 'Save').disabled).toBe(true);
+        finishSave({ ...settings, globalRecurringRunTime: '09:15' });
+        await flush();
+        expect(changed).toHaveBeenCalledTimes(1);
+        expect(button(element, 'Save').disabled).toBe(false);
+        expect(timeInput(element).value).toBe('09:15');
+        element.active = true;
+        await flush();
+        expect(getSettings).toHaveBeenCalledTimes(1);
+        expect(timeInput(element).value).toBe('09:15');
+    });
+
+    it('retains unsaved inputs after a pending save fails while inactive', async () => {
+        let failSave;
+        saveSettings.mockImplementationOnce(
+            () =>
+                new Promise((resolve, reject) => {
+                    failSave = reject;
+                })
+        );
+        const element = mount();
+        const changed = jest.fn();
+        const toast = jest.fn();
+        element.addEventListener('settingschange', changed);
+        element.addEventListener('lightning__showtoast', toast);
+        await flush();
+        editTime(element, '09:15');
+        click(element, 'Save');
+        element.active = false;
+        failSave(new Error('Save unavailable'));
+        await flush();
+        expect(changed).not.toHaveBeenCalled();
+        expect(toast.mock.calls[0][0].detail.message).toBe('Save unavailable');
+        element.active = true;
+        await flush();
+        expect(timeInput(element).value).toBe('09:15');
+        expect(button(element, 'Save').disabled).toBe(false);
+        expect(getSettings).toHaveBeenCalledTimes(1);
+    });
+
+    it('defers a hidden recurring completion refresh and preserves edits when reopening', async () => {
+        jest.useFakeTimers();
+        getSettings.mockResolvedValue({ ...settings, recurringExpensesEnabled: true });
+        runDueExpensesBatch.mockResolvedValue('job-id');
+        getRecurringRunStatus
+            .mockResolvedValueOnce({ jobId: 'job-id', status: 'Processing', isTerminal: false })
+            .mockResolvedValue({ jobId: 'job-id', status: 'Completed', isTerminal: true });
+        const element = mount();
+        const toast = jest.fn();
+        element.addEventListener('lightning__showtoast', toast);
+        await flush();
+        editTime(element, '11:20');
+        click(element, 'Run Recurring');
+        await flush();
+        element.active = false;
+        jest.advanceTimersByTime(2000);
+        await flush();
+        await flush();
+        expect(getSettings).toHaveBeenCalledTimes(1);
+        expect(toast).not.toHaveBeenCalled();
+        getSettings.mockResolvedValueOnce({
+            ...settings,
+            recurringExpensesEnabled: true,
+            lastRecurringRunMessage: 'Generated three expenses.'
+        });
+        element.active = true;
+        await flush();
+        expect(getSettings).toHaveBeenCalledTimes(2);
+        expect(timeInput(element).value).toBe('11:20');
+        expect(element.shadowRoot.textContent).toContain('Generated three expenses.');
+        expect(button(element, 'Save').disabled).toBe(false);
+        jest.useRealTimers();
+    });
+
+    it('does not let an older read clear the refresh required by a run that finishes while hidden', async () => {
+        jest.useFakeTimers();
+        getSettings.mockResolvedValue({ ...settings, recurringExpensesEnabled: true });
+        runDueExpensesBatch.mockResolvedValue('job-id');
+        getRecurringRunStatus
+            .mockResolvedValueOnce({ jobId: 'job-id', status: 'Processing', isTerminal: false })
+            .mockResolvedValue({ jobId: 'job-id', status: 'Completed', isTerminal: true });
+        const element = mount();
+        await flush();
+        editTime(element, '11:20');
+        let finishOlderRead;
+        getSettings.mockImplementationOnce(
+            () =>
+                new Promise(resolve => {
+                    finishOlderRead = resolve;
+                })
+        );
+        click(element, 'Refresh');
+        await startRecurringRun();
+        await flush();
+        element.active = false;
+        jest.advanceTimersByTime(2000);
+        await flush();
+        await flush();
+        expect(getSettings).toHaveBeenCalledTimes(2);
+        finishOlderRead({
+            ...settings,
+            recurringExpensesEnabled: true,
+            lastRecurringRunMessage: 'Older diagnostics.'
+        });
+        await flush();
+        getSettings.mockResolvedValueOnce({
+            ...settings,
+            recurringExpensesEnabled: true,
+            lastRecurringRunMessage: 'Latest completed run.'
+        });
+        element.active = true;
+        await flush();
+        expect(getSettings).toHaveBeenCalledTimes(3);
+        expect(element.shadowRoot.textContent).toContain('Latest completed run.');
+        expect(timeInput(element).value).toBe('11:20');
+        jest.useRealTimers();
+    });
+
+    it('refreshes schedule diagnostics while preserving unsaved automation inputs', async () => {
+        const element = mount();
+        await flush();
+        editTime(element, '12:50');
+        getSettings.mockResolvedValueOnce({
+            ...settings,
+            globalRecurringRunTime: '16:00',
+            lastRecurringRunStatus: 'Completed',
+            lastRecurringRunMessage: 'Updated status from another administrator.',
+            recurringScheduleTimeZone: 'Asia/Manila'
+        });
+        click(element, 'Refresh');
+        await flush();
+        expect(timeInput(element).value).toBe('12:50');
+        expect(element.shadowRoot.textContent).toContain(
+            'Updated status from another administrator.'
+        );
+        expect(element.shadowRoot.textContent).toContain('Asia/Manila');
+        click(element, 'Save');
+        await flush();
+        expect(saveSettings).toHaveBeenCalledWith({
+            request: { recurringExpensesEnabled: 'false', globalRecurringRunTime: '12:50' }
+        });
+    });
+
     it('runs enabled automation with permission and refreshes settings', async () => {
         getSettings.mockResolvedValue({ ...settings, recurringExpensesEnabled: true });
         runDueExpensesBatch.mockResolvedValue('job-id');
@@ -70,6 +289,23 @@ describe('settings loading protection', () => {
         await flush();
         expect(runDueExpensesBatch).toHaveBeenCalledTimes(1);
         expect(getSettings).toHaveBeenCalledTimes(2);
+    });
+
+    it('refreshes embedded run status without duplicating the workspace completion toast', async () => {
+        getSettings.mockResolvedValue({ ...settings, recurringExpensesEnabled: true });
+        runDueExpensesBatch.mockResolvedValue('job-id');
+        const element = mount(true, true);
+        const toast = jest.fn();
+        element.addEventListener('lightning__showtoast', toast);
+        await flush();
+        click(element, 'Run Recurring');
+        await flush();
+        await flush();
+        expect(getSettings).toHaveBeenCalledTimes(2);
+        expect(toast).not.toHaveBeenCalled();
+        expect(element.shadowRoot.querySelector('[role="status"]').textContent).toContain(
+            'Completed'
+        );
     });
 
     it('keeps controls locked until a failed run finishes and refreshes partial results once', async () => {

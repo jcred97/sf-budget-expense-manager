@@ -1,5 +1,55 @@
 # Testing And Tooling
 
+## Global And Group Scope Labels — 2026-10-13
+
+- App Management shows App-wide management in the sidebar caption and above its tabs. Group
+  Settings shows Applies to: [selected group]. The permission-gated tab and settings header are
+  Global Automation Settings, with Applies to all Expense Groups visible in the settings page.
+  The enable switch and daily-time labels explicitly describe global recurring automation.
+- Existing desktop/mobile/navigation/settings tests were updated for the wording. All **286 Jest
+  tests across 24 suites**, lint, formatting, and diff checks passed. Check-only validation
+  `0AfgK00000WETMHSA5` compiled **3/3 LWC bundles** with `NoTestRun`; no Apex or permissions changed.
+- Deployment `0AfgK00000WETqvSAH` to `mainDevOrg` succeeded, updating **3/3 LWC bundles** with
+  `NoTestRun`. The embedded feature and obsolete-component cleanup below were already deployed.
+
+## Embedded Automation Settings And Org Cleanup — 2026-10-13
+
+- App Management now includes Automation Settings for users with the existing Settings object and
+  field read/update permissions. The readiness response carries the UI capability; Apex class
+  access, sharing, user-mode checks, and the separate manual-run permission remain enforced.
+  Standard Users do not mount or read settings. No permission grants were broadened.
+- Settings opens lazily and retains one instance, unsaved inputs, and pending Save/Run work across
+  tabs, scopes, and group changes. Diagnostics refreshes preserve drafts. Hidden completion defers
+  refresh until return; a completion-generation guard prevents an older response from clearing
+  that refresh. The existing recurring screen owns workspace completion notification and refresh.
+- Full Jest passed **286 tests across 24 suites**; lint, targeted formatting, and diff checks passed.
+  Final combined check-only validation `0AfgK00000WEOsrSAH` compiled/validated **16/16 components**
+  and passed **36/36 Apex tests**. AppSetupService coverage is **95.33%** (102/107); its controller
+  and status DTO are **100%**.
+- Deployment `0AfgK00000WEPSLSA5` to `mainDevOrg` succeeded with **36/36 Apex tests**. It updated
+  **11 components** and removed five confirmed obsolete components: the standalone
+  `Budget_Expense_Manager_Settings` CustomTab, `recurringExpenseTransforms` LWC, and `BankService`,
+  `CategorySelector`, and `ExpenseGroupSelector` Apex classes. Read-back confirmed their absence
+  and retained `budgetExpenseSettings`. The app and Admin/All Access tab references were removed.
+- Historical source removals, deployed imports, and dependency/reference inspection informed the
+  cleanup. Exact backups remain in ignored `.localdevserver` files. The post-destructive manifest
+  `manifest/obsolete-settings-cleanup.xml` records this one-time cleanup; inspect the target before
+  reusing it. Business-object metadata was outside the cleanup scope.
+- The existing daily job retained its identity, owner, timezone, and cron; no temporary Deployment
+  Settings change was needed. Live browser testing remains unavailable because the automation
+  runtime drive is BitLocker-locked. Actual subscriber installation/layout checks remain separate.
+
+### Manual Automation Settings Checks
+
+1. Refresh the app as an administrator and open App Management > Global Automation Settings. Check the
+   global enablement, daily time, schedule diagnostics, and last-run information.
+2. Change the time without saving, navigate to another tab or group, then return. The draft and
+   Unsaved changes indicator should remain. Refresh should update diagnostics and retain the draft.
+3. Submit Save or Run, then navigate away before it completes. Return and check the saved values
+   or final run status. Workspace financial views should refresh after the run completes.
+4. As a standard app User, confirm Global Automation Settings is absent while Expense Groups and Bank
+   Directory remain available under their existing record permissions.
+
 ## Management Hover Motion Verification — 2026-10-12
 
 - Inactive sidebar views regain a restrained grey hover highlight. Management buttons keep their
@@ -48,7 +98,8 @@
 ### Manual Management Scope Checks After Deployment
 
 1. Open App Management. Verify no group dropdown or group caption appears; Expense Groups and
-   Bank Directory should be the only tabs. Create or rename a permitted group.
+   Bank Directory remain available, with Global Automation Settings also shown for permitted
+   users. Create or rename a permitted group.
 2. Select Manage this group on that row. Verify Group Settings opens, its heading names the chosen
    group, and the sidebar dropdown shows that group. Only Categories and Banks & Payment Methods
    should appear. Repeat on a group reached through Search or Load more.

@@ -31,7 +31,7 @@
 | `lwc/expenseFormatters`                                                       | Non-exposed pure utilities for PHP/generic ISO currency, compact currency, date/time and ranges, ISO dates, month labels/bounds, and parsing                                                |
 | `lwc/expenseTransforms`                                                       | Non-exposed pure utilities for PHP/FX expense mapping, grouping, summaries, chart construction, colors, totals, and count labels                                                            |
 | `lwc/expenseModal`                                                            | Add/Edit Expense modal: atomic loading, optional FX conversion, animations, focus management, and document-level lifecycle cleanup                                                          |
-| `lwc/budgetExpenseSettings`                                                   | Settings page for recurring automation controls, global run time, and last-run status                                                                                                       |
+| `lwc/budgetExpenseSettings`                                                   | Retained Global Automation Settings inside App Management, with drafts, lazy reads, schedule diagnostics, and pending run tracking                                                          |
 | `classes/controller/AppSetupController.cls`                                   | Read-only readiness endpoint for all app users and explicitly authorized setup completion                                                                                                   |
 | `classes/controller/WorkspaceManagementController.cls`                        | Sharing-enforced user-mode management pages, including inactive banks/assignments and scoped category/assignment lists                                                                      |
 | `classes/dto/WorkspaceManagementPage.cls` and `WorkspaceManagementRecord.cls` | Normalized management rows and continuation token contract                                                                                                                                  |
@@ -67,14 +67,19 @@ initialized installations enter without repeating setup. Newly completed setup a
 the manager's group wire to include records created in the optional setup forms.
 
 The three financial screens and one `workspaceManage` child stay mounted across navigation.
-The manager supplies `scope="app"` for App Management (Expense Groups and Bank Directory) or
+The manager supplies `scope="app"` for App Management (Expense Groups, Bank Directory, and permitted Global Automation Settings) or
 `scope="group"` for Group Settings (Categories and Banks & Payment Methods). Scope changes reset
 search, pagination, and list request guards. Lists load on activation; create/edit forms use current
 object/field metadata and retain the original record/group context during an in-flight save.
 Visiting a financial view preserves the hidden management scope, selected tab, and loaded pages.
 The child's `managegroup` event carries the selected accessible group ID and name; the manager
 selects it and opens Group Settings. Management success refreshes shared lookups and financial
-reads; Recurring refreshes its overview on next activation.
+reads; Recurring refreshes its overview on next activation. `appSetup` carries `canManageSettings`
+from the read-only readiness response; the manager forwards it without inferring profile names.
+Global Automation Settings mounts only after permitted first activation and retains its instance, drafts,
+and pending saves/runs. `budgetExpenseSettings.active` defers hidden completion refreshes, while
+its saved baseline preserves unsaved edits during diagnostics reads. Embedded completion toasts
+are suppressed because the mounted recurring screen already announces and refreshes the run.
 
 The manager hides Dashboard
 and Recurring sections; `expenseList` hides its interactive screen internally. This preserves
@@ -91,8 +96,8 @@ modal opener even while the list screen is hidden. Budget changes stay within th
 
 `expenseModal` and `recurringExpenseModal` save through Lightning Data Service record forms.
 The list owns its modal and complete print report outside the hidden interactive section;
-the recurring screen owns its modal. The standalone settings component is a separate page,
-not a workspace view.
+the recurring screen owns its modal. The settings component is reused under App Management;
+the duplicate standalone Settings custom tab is retired.
 
 ## Verification Boundaries
 

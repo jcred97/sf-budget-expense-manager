@@ -357,10 +357,6 @@
         <tab>Budget_Expense_Manager</tab>
         <visibility>Visible</visibility>
     </tabSettings>
-    <tabSettings>
-        <tab>Budget_Expense_Manager_Settings</tab>
-        <visibility>Visible</visibility>
-    </tabSettings>
     <!-- Apex Class Access -->
     <externalCredentialPrincipalAccesses>
         <enabled>true</enabled>

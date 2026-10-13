@@ -22,6 +22,7 @@ jest.mock(
 const adminStatus = {
     ready: false,
     canManageSetup: true,
+    canManageSettings: true,
     canCompleteSetup: true,
     organizationCurrencyCode: 'PHP',
     message: 'Confirm PHP reporting currency.'
@@ -61,7 +62,10 @@ describe('guided app setup', () => {
         });
         const { ready } = await mount();
         expect(ready).toHaveBeenCalledTimes(1);
-        expect(ready.mock.calls[0][0].detail).toEqual({ completed: false });
+        expect(ready.mock.calls[0][0].detail).toEqual({
+            completed: false,
+            canManageSettings: false
+        });
         expect(completeSetup).not.toHaveBeenCalled();
     });
     it('requires explicit currency confirmation and leaves optional configuration out of readiness', async () => {
@@ -77,7 +81,25 @@ describe('guided app setup', () => {
         button(element, 'Finish setup').click();
         await flush();
         expect(completeSetup).toHaveBeenCalledWith({ confirmed: true });
-        expect(ready.mock.calls[0][0].detail).toEqual({ completed: true });
+        expect(ready.mock.calls[0][0].detail).toEqual({ completed: true, canManageSettings: true });
+    });
+    it('propagates settings access from the ready status independently of setup permission', async () => {
+        getSetupStatus.mockResolvedValue({
+            ready: true,
+            canManageSetup: false,
+            canManageSettings: true
+        });
+        const { ready } = await mount();
+        expect(ready.mock.calls[0][0].detail).toEqual({
+            completed: false,
+            canManageSettings: true
+        });
+        expect(completeSetup).not.toHaveBeenCalled();
+    });
+    it('does not grant settings access from truthy non-boolean status values', async () => {
+        getSetupStatus.mockResolvedValue({ ready: true, canManageSettings: 'true' });
+        const { ready } = await mount();
+        expect(ready.mock.calls[0][0].detail.canManageSettings).toBe(false);
     });
     it('keeps normal users in an administrator-wait state and allows read-only Refresh', async () => {
         getSetupStatus
