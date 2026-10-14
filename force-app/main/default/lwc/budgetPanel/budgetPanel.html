@@ -102,21 +102,17 @@
                     </template>
                 </template>
                 <template lwc:else>
-                    <div class="slds-media slds-media_center slds-media_responsive">
-                        <div class="slds-media__figure">
-                            <lightning-icon
-                                icon-name="utility:moneybag"
-                                size="small"
-                                alternative-text="Optional budget"
-                            ></lightning-icon>
-                        </div>
-                        <div class="slds-media__body">
-                            <p class="slds-text-heading_small">Track a monthly spending target</p>
+                    <div
+                        class="slds-grid slds-wrap slds-grid_vertical-align-center slds-gutters_small"
+                    >
+                        <div class="slds-col slds-size_1-of-1 slds-small-size_3-of-4">
                             <p class="slds-text-body_small slds-text-color_weak">
                                 {emptyStateMessage}
                             </p>
                         </div>
-                        <div class="slds-media__figure slds-media__figure_reverse">
+                        <div
+                            class="slds-col slds-size_1-of-1 slds-small-size_1-of-4 slds-text-align_right"
+                        >
                             <lightning-button
                                 data-budget-opener
                                 variant="brand-outline"
