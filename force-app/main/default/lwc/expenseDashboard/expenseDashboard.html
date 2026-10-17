@@ -12,13 +12,15 @@
                 onnext={handleNextMonth}
             >
             </c-expense-month-navigator>
-            <lightning-button
-                variant="brand"
-                label="Add Expense"
-                icon-name="utility:add"
-                onclick={handleAddExpense}
-            >
-            </lightning-button>
+            <template lwc:if={canAddExpense}>
+                <lightning-button
+                    variant="brand"
+                    label="Add Expense"
+                    icon-name="utility:add"
+                    onclick={handleAddExpense}
+                >
+                </lightning-button>
+            </template>
         </div>
     </div>
 
@@ -65,14 +67,16 @@
         </section>
     </template>
     <template lwc:else>
-        <c-budget-panel
-            expense-group-id={viewModel.budgetContext.expenseGroupId}
-            expense-group-name={viewModel.budgetContext.expenseGroupName}
-            budget-month={viewModel.budgetContext.budgetMonth}
-            spent-amount={viewModel.budgetContext.spentAmount}
-            onbudgetchange={handleBudgetChange}
-        >
-        </c-budget-panel>
+        <template lwc:if={canReadBudgets}>
+            <c-budget-panel
+                expense-group-id={viewModel.budgetContext.expenseGroupId}
+                expense-group-name={viewModel.budgetContext.expenseGroupName}
+                budget-month={viewModel.budgetContext.budgetMonth}
+                spent-amount={viewModel.budgetContext.spentAmount}
+                onbudgetchange={handleBudgetChange}
+            >
+            </c-budget-panel>
+        </template>
 
         <template lwc:if={viewModel.showEmptyState}>
             <section class="dashboard-empty-callout slds-box slds-theme_default">
@@ -113,9 +117,24 @@
             </c-expense-bar-chart>
         </div>
 
-        <div class="slds-var-m-top_medium">
-            <c-budget-history history-data={viewModel.budgetHistoryData}></c-budget-history>
-        </div>
+        <template lwc:if={canReadBudgets}>
+            <template lwc:if={budgetHistoryError}>
+                <section class="slds-notify slds-notify_alert slds-alert_error" role="alert">
+                    <p>{budgetHistoryError}</p>
+                    <lightning-button
+                        class="slds-var-m-left_small"
+                        variant="inverse"
+                        label="Retry budget history"
+                        onclick={handleRetryDashboard}
+                    ></lightning-button>
+                </section>
+            </template>
+            <template lwc:else>
+                <div class="slds-var-m-top_medium">
+                    <c-budget-history history-data={viewModel.budgetHistoryData}></c-budget-history>
+                </div>
+            </template>
+        </template>
 
         <div class="dashboard-detail-grid">
             <section class="dashboard-panel slds-box slds-theme_default slds-p-around_none">

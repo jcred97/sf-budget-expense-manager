@@ -12,11 +12,7 @@ private class ExpenseControllerTest {
         Bank__c bpi = new Bank__c(Name = 'BPI', Active__c = true);
         Bank__c bdo = new Bank__c(Name = 'BDO', Active__c = true);
         insert new List<Bank__c>{ bpi, bdo };
-        Expense_Group_Bank__c foodBpi = new Expense_Group_Bank__c(
-            Expense_Group__c = eg1.Id,
-            Bank__c = bpi.Id,
-            Active__c = true
-        );
+        Expense_Group_Bank__c foodBpi = new Expense_Group_Bank__c(Expense_Group__c = eg1.Id, Bank__c = bpi.Id, Active__c = true);
         insert foodBpi;
 
         // Categories
@@ -71,18 +67,8 @@ private class ExpenseControllerTest {
                 Expense_Date__c = Date.today().addDays(-5),
                 Amount__c = 100
             ),
-            new Expense__c(
-                Name = 'Expense 2',
-                Category__c = c2.Id,
-                Expense_Date__c = Date.today().addDays(-2),
-                Amount__c = 200
-            ),
-            new Expense__c(
-                Name = 'Expense 3',
-                Category__c = c3.Id,
-                Expense_Date__c = Date.today(),
-                Amount__c = 300
-            )
+            new Expense__c(Name = 'Expense 2', Category__c = c2.Id, Expense_Date__c = Date.today().addDays(-2), Amount__c = 200),
+            new Expense__c(Name = 'Expense 3', Category__c = c3.Id, Expense_Date__c = Date.today(), Amount__c = 300)
         };
         insert expenses;
     }
@@ -119,36 +105,28 @@ private class ExpenseControllerTest {
             List<Category__c> result = ExpenseController.getCategoriesByExpenseGroup(null);
             Test.stopTest();
 
-            System.assertEquals(
-                3,
-                result.size(),
-                'The compatibility path should return all categories'
-            );
+            System.assertEquals(3, result.size(), 'The compatibility path should return all categories');
             System.assertEquals('Dining', result[0].Name, 'Categories should be ordered by name');
-            System.assertEquals(
-                'Groceries',
-                result[1].Name,
-                'Categories should be ordered by name'
-            );
+            System.assertEquals('Groceries', result[1].Name, 'Categories should be ordered by name');
             System.assertEquals('Taxi', result[2].Name, 'Categories should be ordered by name');
         }
     }
 
-    // getExpensesByFilters() - No filters
+    // getExpensePage() - No filters
     @IsTest
     static void testGetExpensesNoFilters() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             ExpenseFilterRequest filters = new ExpenseFilterRequest();
 
             Test.startTest();
-            List<Expense__c> result = ExpenseController.getExpensesByFilters(filters);
+            List<Expense__c> result = ExpenseController.getExpensePage(filters, null).rows;
             Test.stopTest();
 
             System.assertEquals(3, result.size(), 'Should return all expenses');
         }
     }
 
-    // getExpensesByFilters() - Expense Group Filter
+    // getExpensePage() - Expense Group Filter
     @IsTest
     static void testGetExpensesByExpenseGroup() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
@@ -157,14 +135,14 @@ private class ExpenseControllerTest {
             filters.expenseGroupId = food.Id;
 
             Test.startTest();
-            List<Expense__c> result = ExpenseController.getExpensesByFilters(filters);
+            List<Expense__c> result = ExpenseController.getExpensePage(filters, null).rows;
             Test.stopTest();
 
             System.assertEquals(2, result.size(), 'Food expense group should return 2 expenses');
         }
     }
 
-    // getExpensesByFilters() - Category + Date Filter
+    // getExpensePage() - Category + Date Filter
     @IsTest
     static void testGetExpensesByCategoryAndDate() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
@@ -178,7 +156,7 @@ private class ExpenseControllerTest {
             filters.endDate = endDate;
 
             Test.startTest();
-            List<Expense__c> result = ExpenseController.getExpensesByFilters(filters);
+            List<Expense__c> result = ExpenseController.getExpensePage(filters, null).rows;
             Test.stopTest();
 
             System.assertEquals(1, result.size(), 'Should return only Groceries expense');
@@ -187,16 +165,8 @@ private class ExpenseControllerTest {
                 result[0].Bank_Assignment__c,
                 'The expense query should return the assignment ID needed for editing.'
             );
-            System.assertEquals(
-                'BPI',
-                result[0].Bank_Assignment__r.Bank__r.Name,
-                'The expense query should return the global Bank name.'
-            );
-            System.assertEquals(
-                true,
-                result[0].Bank_Assignment__r.Active__c,
-                'The expense query should return assignment availability.'
-            );
+            System.assertEquals('BPI', result[0].Bank_Assignment__r.Bank__r.Name, 'The expense query should return the global Bank name.');
+            System.assertEquals(true, result[0].Bank_Assignment__r.Active__c, 'The expense query should return assignment availability.');
         }
     }
 
@@ -223,40 +193,16 @@ private class ExpenseControllerTest {
             filters.endDate = expenseDate;
 
             Test.startTest();
-            List<Expense__c> result = ExpenseController.getExpensesByFilters(filters);
+            List<Expense__c> result = ExpenseController.getExpensePage(filters, null).rows;
             Test.stopTest();
 
             System.assertEquals(1, result.size(), 'The exact-date filter should return the row.');
-            System.assertEquals(
-                567.5,
-                result[0].Amount__c,
-                'The query should return canonical PHP.'
-            );
-            System.assertEquals(
-                10,
-                result[0].Original_Amount__c,
-                'The query should return the preserved original amount.'
-            );
-            System.assertEquals(
-                'USD',
-                result[0].Original_Currency_Code__c,
-                'The query should return the preserved original currency.'
-            );
-            System.assertEquals(
-                56.75,
-                result[0].Exchange_Rate_To_PHP__c,
-                'The query should return the persisted conversion rate.'
-            );
-            System.assertEquals(
-                expenseDate,
-                result[0].Exchange_Rate_Date__c,
-                'The query should return the effective rate date.'
-            );
-            System.assertEquals(
-                'ECB via Frankfurter',
-                result[0].Exchange_Rate_Source__c,
-                'The query should return provider attribution.'
-            );
+            System.assertEquals(567.5, result[0].Amount__c, 'The query should return canonical PHP.');
+            System.assertEquals(10, result[0].Original_Amount__c, 'The query should return the preserved original amount.');
+            System.assertEquals('USD', result[0].Original_Currency_Code__c, 'The query should return the preserved original currency.');
+            System.assertEquals(56.75, result[0].Exchange_Rate_To_PHP__c, 'The query should return the persisted conversion rate.');
+            System.assertEquals(expenseDate, result[0].Exchange_Rate_Date__c, 'The query should return the effective rate date.');
+            System.assertEquals('ECB via Frankfurter', result[0].Exchange_Rate_Source__c, 'The query should return provider attribution.');
         }
     }
 
@@ -288,14 +234,10 @@ private class ExpenseControllerTest {
             filters.endDate = expenseDate;
 
             Test.startTest();
-            List<Expense__c> result = ExpenseController.getExpensesByFilters(filters);
+            List<Expense__c> result = ExpenseController.getExpensePage(filters, null).rows;
             Test.stopTest();
 
-            System.assertEquals(
-                'Evening Expense',
-                result[0].Name,
-                'Later same-day expense should sort first'
-            );
+            System.assertEquals('Evening Expense', result[0].Name, 'Later same-day expense should sort first');
             System.assertEquals(
                 Time.newInstance(18, 30, 0, 0),
                 result[0].Transaction_Time__c,
@@ -334,11 +276,7 @@ private class ExpenseControllerTest {
                 exceptionThrown = true;
             }
 
-            System.assertEquals(
-                true,
-                exceptionThrown,
-                'Exception should have been thrown for null Id'
-            );
+            System.assertEquals(true, exceptionThrown, 'Exception should have been thrown for null Id');
         }
     }
 
@@ -372,6 +310,22 @@ private class ExpenseControllerTest {
             }
             System.assertEquals(true, exceptionThrown, 'Exception should be thrown for empty list');
         }
+    }
+
+    @IsTest
+    static void testDeleteExpensesNullListPreservesRecords() {
+        Integer originalCount = [SELECT COUNT() FROM Expense__c];
+        Boolean rejected = false;
+        Test.startTest();
+        try {
+            ExpenseController.deleteExpenses(null);
+        } catch (AuraHandledException error) {
+            rejected = true;
+            System.assertEquals('No expense IDs provided.', error.getMessage(), 'Explain the invalid bulk-delete request.');
+        }
+        Test.stopTest();
+        System.assert(rejected, 'A null selection must fail instead of deleting or reporting success.');
+        System.assertEquals(originalCount, [SELECT COUNT() FROM Expense__c], 'An invalid selection must preserve all expenses.');
     }
 
     // getMonthlyTrend() - All expense groups
@@ -417,16 +371,8 @@ private class ExpenseControllerTest {
             List<MonthlyExpenseTotalDto> result = ExpenseController.getMonthlyTrend(filters);
             Test.stopTest();
 
-            System.assertEquals(
-                1,
-                result.size(),
-                'Should return one monthly bucket for the filtered category'
-            );
-            System.assertEquals(
-                100,
-                result[0].total,
-                'Trend total should match the filtered expense amount'
-            );
+            System.assertEquals(1, result.size(), 'Should return one monthly bucket for the filtered category');
+            System.assertEquals(100, result[0].total, 'Trend total should match the filtered expense amount');
         }
     }
 
@@ -434,23 +380,13 @@ private class ExpenseControllerTest {
     static void testGetRecurringExpenseOverviewAll() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
             Test.startTest();
-            RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(
-                null
-            );
+            RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(null);
             Test.stopTest();
 
-            System.assertEquals(
-                3,
-                result.rows.size(),
-                'Should return all recurring expense templates'
-            );
+            System.assertEquals(3, result.rows.size(), 'Should return all recurring expense templates');
             System.assertEquals(2, result.activeCount, 'Should count active templates only');
             System.assertEquals(1, result.dueTodayCount, 'Should count active templates due today');
-            System.assertEquals(
-                200,
-                result.monthlyTotal,
-                'Monthly estimate should normalize monthly and yearly templates'
-            );
+            System.assertEquals(200, result.monthlyTotal, 'Monthly estimate should normalize monthly and yearly templates');
         }
     }
 
@@ -476,9 +412,7 @@ private class ExpenseControllerTest {
             );
 
             Test.startTest();
-            RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(
-                category.Expense_Group__c
-            );
+            RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(category.Expense_Group__c);
             Test.stopTest();
 
             RecurringExpenseRowDto endedRow;
@@ -489,16 +423,8 @@ private class ExpenseControllerTest {
                 }
             }
             System.assertNotEquals(null, endedRow, 'The ended template should remain visible.');
-            System.assertEquals(
-                false,
-                endedRow.dueToday,
-                'A next run after the End Date must not be reported as due.'
-            );
-            System.assertEquals(
-                1,
-                result.dueTodayCount,
-                'The ended template must not increase the existing due count.'
-            );
+            System.assertEquals(false, endedRow.dueToday, 'A next run after the End Date must not be reported as due.');
+            System.assertEquals(1, result.dueTodayCount, 'The ended template must not increase the existing due count.');
         }
     }
 
@@ -508,31 +434,17 @@ private class ExpenseControllerTest {
             Expense_Group__c food = [SELECT Id FROM Expense_Group__c WHERE Name = 'Food' LIMIT 1];
 
             Test.startTest();
-            RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(
-                food.Id
-            );
+            RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(food.Id);
             Test.stopTest();
 
-            System.assertEquals(
-                2,
-                result.rows.size(),
-                'Food group should return only related recurring templates'
-            );
-            System.assertEquals(
-                2,
-                result.activeCount,
-                'Food group active count should match related templates'
-            );
+            System.assertEquals(2, result.rows.size(), 'Food group should return only related recurring templates');
+            System.assertEquals(2, result.activeCount, 'Food group active count should match related templates');
             Map<String, RecurringExpenseRowDto> rowsByName = new Map<String, RecurringExpenseRowDto>();
             for (RecurringExpenseRowDto row : result.rows) {
                 rowsByName.put(row.name, row);
             }
             RecurringExpenseRowDto assignedRow = rowsByName.get('Monthly Groceries');
-            System.assertEquals(
-                'BPI',
-                assignedRow.bank,
-                'The assignment Bank should win over a conflicting legacy picklist.'
-            );
+            System.assertEquals('BPI', assignedRow.bank, 'The assignment Bank should win over a conflicting legacy picklist.');
             System.assertEquals(
                 'BDO',
                 rowsByName.get('Yearly Dining').bank,
@@ -560,11 +472,7 @@ private class ExpenseControllerTest {
                 FROM Recurring_Expense__c
                 WHERE Id = :recurringExpense.Id
             ];
-            System.assertEquals(
-                false,
-                recurringExpense.Active__c,
-                'Recurring template should be inactive'
-            );
+            System.assertEquals(false, recurringExpense.Active__c, 'Recurring template should be inactive');
         }
     }
 
@@ -573,11 +481,17 @@ private class ExpenseControllerTest {
         Category__c category = [SELECT Id, Expense_Group__c FROM Category__c WHERE Name = 'Groceries'];
         List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
         for (Integer i = 0; i < 505; i++) {
-            templates.add(new Recurring_Expense__c(
-                Name = 'Same recurring name', Category__c = category.Id,
-                Active__c = i < 500, Amount__c = 10, Frequency__c = 'Monthly',
-                Start_Date__c = Date.today().addDays(-2), Next_Run_Date__c = Date.today()
-            ));
+            templates.add(
+                new Recurring_Expense__c(
+                    Name = 'Same recurring name',
+                    Category__c = category.Id,
+                    Active__c = i < 500,
+                    Amount__c = 10,
+                    Frequency__c = 'Monthly',
+                    Start_Date__c = Date.today().addDays(-2),
+                    Next_Run_Date__c = Date.today()
+                )
+            );
         }
         insert templates;
         // A null pointer is valid after an explicit update; insert defaults it to Start Date.
@@ -587,7 +501,8 @@ private class ExpenseControllerTest {
         }
         update clearPointers;
         List<Recurring_Expense__c> expected = [
-            SELECT Id FROM Recurring_Expense__c
+            SELECT Id
+            FROM Recurring_Expense__c
             WHERE Category__r.Expense_Group__c = :category.Expense_Group__c
             ORDER BY Active__c DESC, Next_Run_Date__c ASC NULLS LAST, Name ASC, Id ASC
         ];
@@ -627,15 +542,35 @@ private class ExpenseControllerTest {
         Category__c category = [SELECT Id, Expense_Group__c FROM Category__c WHERE Name = 'Taxi'];
         Date start = Date.today().addDays(-10);
         insert new List<Recurring_Expense__c>{
-            new Recurring_Expense__c(Name = 'Daily catchup', Category__c = category.Id, Active__c = true,
-                Amount__c = 1.01, Frequency__c = 'Daily', Start_Date__c = start,
-                Next_Run_Date__c = Date.today().addDays(-3), End_Date__c = Date.today().addDays(-2)),
-            new Recurring_Expense__c(Name = 'Weekly', Category__c = category.Id, Active__c = true,
-                Amount__c = 12, Frequency__c = 'Weekly', Start_Date__c = start,
-                Next_Run_Date__c = Date.today().addDays(1)),
-            new Recurring_Expense__c(Name = 'Yearly ended', Category__c = category.Id, Active__c = true,
-                Amount__c = 120, Frequency__c = 'Yearly', Start_Date__c = start,
-                Next_Run_Date__c = Date.today(), End_Date__c = Date.today().addDays(-2))
+            new Recurring_Expense__c(
+                Name = 'Daily catchup',
+                Category__c = category.Id,
+                Active__c = true,
+                Amount__c = 1.01,
+                Frequency__c = 'Daily',
+                Start_Date__c = start,
+                Next_Run_Date__c = Date.today().addDays(-3),
+                End_Date__c = Date.today().addDays(-2)
+            ),
+            new Recurring_Expense__c(
+                Name = 'Weekly',
+                Category__c = category.Id,
+                Active__c = true,
+                Amount__c = 12,
+                Frequency__c = 'Weekly',
+                Start_Date__c = start,
+                Next_Run_Date__c = Date.today().addDays(1)
+            ),
+            new Recurring_Expense__c(
+                Name = 'Yearly ended',
+                Category__c = category.Id,
+                Active__c = true,
+                Amount__c = 120,
+                Frequency__c = 'Yearly',
+                Start_Date__c = start,
+                Next_Run_Date__c = Date.today(),
+                End_Date__c = Date.today().addDays(-2)
+            )
         };
         Test.startTest();
         RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(category.Expense_Group__c);
@@ -670,25 +605,23 @@ private class ExpenseControllerTest {
             }
             System.assert(rejected, 'Malformed and different-group cursors are rejected');
         }
-        Map<String, Object> parsed = (Map<String, Object>) JSON.deserializeUntyped(
-            EncodingUtil.base64Decode(first.nextCursor).toString()
-        );
+        Map<String, Object> parsed = (Map<String, Object>) JSON.deserializeUntyped(EncodingUtil.base64Decode(first.nextCursor).toString());
         parsed.put('recordId', food.Id);
         Boolean wrongObjectRejected = false;
         try {
-            RecurringExpenseController.getRecurringExpensePage(food.Id,
-                EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(parsed))), 1);
+            RecurringExpenseController.getRecurringExpensePage(food.Id, EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(parsed))), 1);
         } catch (AuraHandledException error) {
             wrongObjectRejected = true;
         }
         System.assert(wrongObjectRejected, 'Cursor IDs must refer to recurring templates');
-        parsed.put('recordId', ((Map<String, Object>) JSON.deserializeUntyped(
-            EncodingUtil.base64Decode(first.nextCursor).toString())).get('recordId'));
+        parsed.put(
+            'recordId',
+            ((Map<String, Object>) JSON.deserializeUntyped(EncodingUtil.base64Decode(first.nextCursor).toString())).get('recordId')
+        );
         parsed.put('unexpectedQuery', 'OR Id != null');
         Boolean extraFieldRejected = false;
         try {
-            RecurringExpenseController.getRecurringExpensePage(food.Id,
-                EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(parsed))), 1);
+            RecurringExpenseController.getRecurringExpensePage(food.Id, EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(parsed))), 1);
         } catch (AuraHandledException error) {
             extraFieldRejected = true;
         }
@@ -709,34 +642,36 @@ private class ExpenseControllerTest {
                 exceptionThrown = true;
             }
 
-            System.assertEquals(
-                true,
-                exceptionThrown,
-                'Null recurring expense Id should throw an exception'
-            );
+            System.assertEquals(true, exceptionThrown, 'Null recurring expense Id should throw an exception');
         }
     }
 
     @IsTest
-    static void testDeleteExpenseForcedDmlFailure() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
-            Boolean exceptionThrown = false;
-
-            try {
-                Test.startTest();
-                // Passing UserId triggers forced exception
-                ExpenseController.deleteExpense(UserInfo.getUserId());
-                Test.stopTest();
-            } catch (Exception e) {
-                exceptionThrown = true;
-            }
-
+    static void testDeactivateDeletedRecurringExpensePreservesOtherTemplates() {
+        Recurring_Expense__c deletedTemplate = [SELECT Id FROM Recurring_Expense__c WHERE Active__c = TRUE LIMIT 1];
+        delete deletedTemplate;
+        Integer activeCount = [SELECT COUNT() FROM Recurring_Expense__c WHERE Active__c = TRUE];
+        Integer remainingCount = [SELECT COUNT() FROM Recurring_Expense__c];
+        Boolean rejected = false;
+        Test.startTest();
+        try {
+            RecurringExpenseController.deactivateRecurringExpense(deletedTemplate.Id);
+        } catch (AuraHandledException error) {
+            rejected = true;
             System.assertEquals(
-                true,
-                exceptionThrown,
-                'Forced DML exception should have been thrown'
+                'Recurring Expense not found or already deleted.',
+                error.getMessage(),
+                'A stale template selection should explain that the record no longer exists.'
             );
         }
+        Test.stopTest();
+        System.assert(rejected, 'A stale template ID must not report successful deactivation.');
+        System.assertEquals(remainingCount, [SELECT COUNT() FROM Recurring_Expense__c], 'Other templates must remain intact.');
+        System.assertEquals(
+            activeCount,
+            [SELECT COUNT() FROM Recurring_Expense__c WHERE Active__c = TRUE],
+            'Other active templates must not be deactivated.'
+        );
     }
 
     @IsTest
@@ -752,17 +687,10 @@ private class ExpenseControllerTest {
                 Test.stopTest();
             } catch (AuraHandledException e) {
                 exceptionThrown = true;
-                System.assert(
-                    e.getMessage().contains('already deleted'),
-                    'Should surface a friendly missing-record message'
-                );
+                System.assert(e.getMessage().contains('already deleted'), 'Should surface a friendly missing-record message');
             }
 
-            System.assertEquals(
-                true,
-                exceptionThrown,
-                'Missing records should throw a handled exception'
-            );
+            System.assertEquals(true, exceptionThrown, 'Missing records should throw a handled exception');
         }
     }
 }

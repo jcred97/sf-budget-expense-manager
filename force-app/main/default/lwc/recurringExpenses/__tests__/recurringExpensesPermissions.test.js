@@ -1,5 +1,6 @@
 import { createElement } from 'lwc';
 import RecurringExpenses from 'c/recurringExpenses';
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import getRecurringExpenseOverview from '@salesforce/apex/RecurringExpenseController.getRecurringExpenseOverview';
 import runDueExpensesBatch from '@salesforce/apex/RecurringExpenseAutomationController.runDueExpensesBatch';
 import { refreshApex } from '@salesforce/apex';
@@ -38,6 +39,7 @@ describe('recurring automation permission', () => {
         const element = createElement('c-recurring-expenses', { is: RecurringExpenses });
         element.expenseGroupId = 'group';
         document.body.appendChild(element);
+        getObjectInfo.emit({ queryable: true, createable: true, updateable: true, fields: {} });
         getRecurringExpenseOverview.emit({ expenseGroupId: 'group', rows: [] });
         await flush();
         const buttons = [...element.shadowRoot.querySelectorAll('lightning-button')];

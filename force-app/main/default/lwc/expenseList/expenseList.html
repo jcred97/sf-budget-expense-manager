@@ -34,11 +34,15 @@
                     label="Add Expense"
                     icon-name="utility:add"
                     onclick={openExpenseModal}
+                    disabled={isAddExpenseDisabled}
                 >
                 </lightning-button>
             </div>
         </div>
 
+        <template lwc:if={permissionError}>
+            <p class="slds-text-color_error slds-p-around_small" role="alert">{permissionError}</p>
+        </template>
         <template lwc:if={isReportLoading}>
             <p class="slds-p-around_small" role="status">
                 Preparing all matching expenses for your report...
@@ -165,6 +169,7 @@
                                             label="Add Expense"
                                             icon-name="utility:add"
                                             onclick={openExpenseModal}
+                                            disabled={isAddExpenseDisabled}
                                         >
                                         </lightning-button>
                                     </template>
@@ -182,6 +187,7 @@
                                         label="Delete Selected"
                                         icon-name="utility:delete"
                                         onclick={handleBulkExpenseDelete}
+                                        disabled={isDeleteExpenseDisabled}
                                     >
                                     </lightning-button>
                                 </div>
@@ -212,6 +218,7 @@
                                                                 data-id={row.id}
                                                                 checked={row.isSelected}
                                                                 onchange={handleExpenseSelect}
+                                                                disabled={isDeleteExpenseDisabled}
                                                             />
                                                         </label>
 
@@ -258,6 +265,7 @@
                                                             aria-label="Expense actions"
                                                         >
                                                             <lightning-button-menu
+                                                                lwc:if={hasExpenseActions}
                                                                 alternative-text="Expense actions"
                                                                 icon-size="x-small"
                                                                 menu-alignment="right"
@@ -266,18 +274,21 @@
                                                                 onselect={handleRowAction}
                                                             >
                                                                 <lightning-menu-item
+                                                                    lwc:if={canUpdateExpense}
                                                                     value="edit"
                                                                     label="Edit"
                                                                     icon-name="utility:edit"
                                                                 >
                                                                 </lightning-menu-item>
                                                                 <lightning-menu-item
+                                                                    lwc:if={canCreateExpense}
                                                                     value="duplicate"
                                                                     label="Duplicate"
                                                                     icon-name="utility:copy_to_clipboard"
                                                                 >
                                                                 </lightning-menu-item>
                                                                 <lightning-menu-item
+                                                                    lwc:if={canDeleteExpense}
                                                                     value="delete"
                                                                     label="Delete"
                                                                     icon-name="utility:delete"

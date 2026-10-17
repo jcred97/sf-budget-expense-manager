@@ -1,19 +1,6 @@
-/** Coordinates manual, synchronous, and batch recurring-expense generation. */
+/** Coordinates batch recurring-expense generation. */
 public with sharing class RecurringExpenseService {
-    @TestVisible
-    private static final Integer MAX_SYNCHRONOUS_EXPENSES = 200;
-    @TestVisible
-    private static final Integer MAX_BATCH_EXPENSES = 9000;
-
-    /**
-     * Generates due recurring expenses for today using the synchronous run cap.
-     *
-     * @return Generation counts and limit status.
-     */
-    public static RecurringExpenseGenerationResult generateDueExpenses() {
-        requireRecurringExpensesEnabled();
-        return generateDueExpenses(Date.today());
-    }
+    public static final Integer MAX_BATCH_EXPENSES = 9000;
 
     /**
      * Queues the recurring-expense batch and records its queued status.
@@ -22,9 +9,10 @@ public with sharing class RecurringExpenseService {
      */
     public static Id runDueExpensesBatch() {
         requireRecurringExpensesEnabled();
+        RecurringExpenseGenerator.requireGenerationAccess();
 
         Id jobId = Database.executeBatch(new RecurringExpenseBatch(), RecurringExpenseBatch.DEFAULT_BATCH_SIZE);
-        BudgetExpenseSettingsService.markRecurringRunQueued(jobId);
+        BudgetExpenseSettingsService.markRecurringRunQueued();
         return jobId;
     }
 
@@ -32,54 +20,6 @@ public with sharing class RecurringExpenseService {
         if (!BudgetExpenseSettingsService.areRecurringExpensesEnabled()) {
             throw handledException('Recurring expenses are disabled in Budget & Expense Manager Settings.');
         }
-    }
-
-    @TestVisible
-    private static RecurringExpenseGenerationResult generateDueExpenses(Date runDate) {
-        if (runDate == null) {
-            throw new AuraHandledException('Run date is required.');
-        }
-
-        List<Recurring_Expense__c> eligibleTemplates = findSynchronousCandidates(runDate);
-        if (eligibleTemplates.isEmpty()) {
-            return new RecurringExpenseGenerationResult(runDate);
-        }
-        return generateDueExpenses(eligibleTemplates, runDate, MAX_SYNCHRONOUS_EXPENSES);
-    }
-
-    private static List<Recurring_Expense__c> findSynchronousCandidates(Date runDate) {
-        List<Recurring_Expense__c> eligibleTemplates = new List<Recurring_Expense__c>();
-        // Stream past ended templates before applying the candidate cap. One extra
-        // eligible template lets the generator report remaining work at the limit.
-        for (Recurring_Expense__c recurringExpense : [
-            SELECT
-                Id,
-                Name,
-                Active__c,
-                Amount__c,
-                Bank__c,
-                Bank_Assignment__c,
-                Category__c,
-                Description__c,
-                End_Date__c,
-                Frequency__c,
-                Next_Run_Date__c,
-                Start_Date__c,
-                Transaction_Type__c
-            FROM Recurring_Expense__c
-            WHERE Active__c = TRUE AND Next_Run_Date__c != NULL AND Next_Run_Date__c <= :runDate
-            WITH USER_MODE
-            ORDER BY Next_Run_Date__c ASC, CreatedDate ASC, Id ASC
-        ]) {
-            if (RecurringExpenseCalculator.shouldGenerateForDate(recurringExpense, recurringExpense.Next_Run_Date__c, runDate)) {
-                eligibleTemplates.add(recurringExpense);
-                if (eligibleTemplates.size() > MAX_SYNCHRONOUS_EXPENSES) {
-                    break;
-                }
-            }
-        }
-
-        return eligibleTemplates;
     }
 
     /**

@@ -1,3 +1,6 @@
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
+import saveMonthlyBudget from '@salesforce/apex/BudgetController.saveMonthlyBudget';
+import deleteMonthlyBudget from '@salesforce/apex/BudgetController.deleteMonthlyBudget';
 import { createElement } from 'lwc';
 import BudgetPanel from 'c/budgetPanel';
 import getMonthlyBudget from '@salesforce/apex/BudgetController.getMonthlyBudget';
@@ -35,6 +38,19 @@ const deferred = () => {
     });
     return { promise, resolve, reject };
 };
+const budgetInfo = {
+    apiName: 'Budget__c',
+    queryable: true,
+    createable: true,
+    updateable: true,
+    deletable: true,
+    fields: Object.fromEntries(
+        ['Amount__c', 'Budget_Month__c', 'Expense_Group__c', 'Description__c'].map(name => [
+            name,
+            { createable: true, updateable: true }
+        ])
+    )
+};
 const budget = { id: 'budget-b', amount: 200, description: 'Current selection budget' };
 
 async function mount() {
@@ -42,6 +58,8 @@ async function mount() {
     element.expenseGroupId = 'group-a';
     element.budgetMonth = '2026-10-01';
     document.body.appendChild(element);
+    await flush();
+    getObjectInfo.emit(budgetInfo);
     await flush();
     getMonthlyBudget.error({ message: 'Initial load failed' });
     await flush();
@@ -179,5 +197,93 @@ describe('monthly budget retry isolation', () => {
         await flush();
         expect(element.shadowRoot.querySelector('[role="alert"]')).toBeNull();
         expect(element.shadowRoot.textContent).toContain(budget.description);
+    });
+});
+
+describe('budget schema capabilities', () => {
+    beforeEach(() => jest.resetAllMocks());
+    afterEach(() => document.body.replaceChildren());
+
+    it('suppresses the budget request and actions when metadata is missing or denied', async () => {
+        const element = createElement('c-budget-panel', { is: BudgetPanel });
+        element.expenseGroupId = 'group-a';
+        element.budgetMonth = '2026-10-01';
+        document.body.appendChild(element);
+        await flush();
+        expect(getMonthlyBudget.getLastConfig()).toEqual({
+            expenseGroupId: undefined,
+            budgetMonth: undefined
+        });
+        expect(element.shadowRoot.querySelector('section')).toBeNull();
+        getObjectInfo.error();
+        await flush();
+        expect(element.shadowRoot.querySelector('section')).toBeNull();
+        expect(saveMonthlyBudget).not.toHaveBeenCalled();
+    });
+
+    it('shows a read-only budget without mutation controls', async () => {
+        const element = await mount();
+        getObjectInfo.emit({
+            ...budgetInfo,
+            createable: false,
+            updateable: false,
+            deletable: false
+        });
+        await flush();
+        getMonthlyBudget.emit(budget);
+        await flush();
+        expect(element.shadowRoot.textContent).toContain(budget.description);
+        expect(button(element, 'Edit')).toBeUndefined();
+        expect(button(element, 'Remove')).toBeUndefined();
+        getMonthlyBudget.emit(null);
+        await flush();
+        expect(button(element, 'Set Budget')).toBeUndefined();
+        expect(deleteMonthlyBudget).not.toHaveBeenCalled();
+    });
+
+    it('preserves a restricted description when saving an otherwise editable amount', async () => {
+        const element = await mount();
+        getObjectInfo.emit({
+            ...budgetInfo,
+            fields: {
+                ...budgetInfo.fields,
+                Description__c: { createable: false, updateable: false }
+            }
+        });
+        await flush();
+        getMonthlyBudget.emit(budget);
+        await flush();
+        saveMonthlyBudget.mockResolvedValue({ ...budget, amount: 300 });
+        button(element, 'Edit').click();
+        await flush();
+        element.shadowRoot
+            .querySelector('c-budget-modal')
+            .dispatchEvent(
+                new CustomEvent('save', { detail: { amount: 300, description: 'Do not apply' } })
+            );
+        await flush();
+        expect(saveMonthlyBudget).toHaveBeenCalledWith({
+            request: {
+                budgetId: budget.id,
+                expenseGroupId: 'group-a',
+                budgetMonth: '2026-10-01',
+                amount: 300,
+                descriptionProvided: false
+            }
+        });
+    });
+
+    it('rejects an already-open modal save after amount edit access is removed', async () => {
+        const element = await mount();
+        getMonthlyBudget.emit(budget);
+        await flush();
+        button(element, 'Edit').click();
+        await flush();
+        const modal = element.shadowRoot.querySelector('c-budget-modal');
+        getObjectInfo.emit({ ...budgetInfo, updateable: false });
+        await flush();
+        modal.dispatchEvent(new CustomEvent('save', { detail: { amount: 300 } }));
+        await flush();
+        expect(saveMonthlyBudget).not.toHaveBeenCalled();
     });
 });

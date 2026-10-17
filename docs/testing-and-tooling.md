@@ -1,5 +1,112 @@
 # Testing And Tooling
 
+## Architecture Cleanup — 2026-10-17
+
+- Both financial dialogs now share payment selection and bank payload preparation
+  through `expensePaymentMethods`. Existing cross-dialog tests cover historical
+  Cash and blank methods, disabled methods, bank changes, duplicates, and read-only
+  bank preservation. FX snapshot and native LDS behavior remain form-specific.
+- Retired the unpaginated expense Lightning method and synchronous recurring
+  Lightning method after a repository caller and main-branch history audit. Filter
+  tests use the paginated API; generation tests exercise the surviving scope API
+  and retain cap, catch-up, ended-template, and no-replay assertions. External
+  consumers cannot be verified from this repository; see the migration note in
+  [architecture](architecture.md#query-and-automation-limits).
+- Removed the test-only forced DML branch from `ExpenseCommandService`. A restricted
+  user regression now checks single and bulk delete denial against readable records
+  and verifies no records were deleted. Null bulk requests and stale recurring
+  template IDs have explicit preservation assertions.
+- Removed an unused generation-result alias and queued-status argument, and made
+  the recurring service's transaction cap authoritative for batch execution.
+- Full frontend regression passed **320/320 Jest tests across 26 suites**. ESLint,
+  targeted formatting, and whitespace checks passed.
+- Final check-only validation `0AfgK00000Wm5SoSAJ` against `mainDevOrg` passed
+  **30/30 components** and **205/205 Apex tests across all 23 repository classes**.
+  Command-service coverage is **88.68%** (47/53 executable lines); all validated
+  production classes meet the repository's 85% minimum. Deployment Settings was
+  temporarily enabled for validation and restored to its original disabled value;
+  the daily schedule's identity, owner, timezone, cron, and state were preserved.
+- Deployment `0AfgK00000WmIRdSAN` to `mainDevOrg` succeeded for **30/30 components**
+  with **205/205 Apex tests**. The temporary deployment setting was restored and
+  the daily schedule's identity, owner, timezone, cron, and state were verified
+  unchanged. The retired Lightning APIs are removed from the deployed classes.
+
+## Shared Schema Access Guards — 2026-10-16
+
+- Added always-on Apex `AppAccessChecks` for object CRUD and explicit field-token access. Ordinary
+  queries and writes retain user mode. Settings saves reuse the guards; budget saves and recurring
+  deactivation reject denied changes before mutation. Optional budget descriptions support
+  explicit omission (`descriptionProvided=false`) versus an authorized null clear, and unreadable
+  descriptions are excluded from read projections.
+- Recurring generation checks ordinary source reads, recurring Edit, Expense Create, and copied
+  Expense field create permissions. Manual submission checks access before enqueue; scheduled
+  selection and template reload use the same policy. Only managed links/pointers and the existing
+  internal outcome/status writes retain their documented system-mode exceptions.
+- Added LWC `appSchemaAccess` and applied it to management, expense/recurring actions and forms,
+  budget controls, and Dashboard Add Expense. Metadata pending/error states fail closed. Native
+  and custom payload fields are filtered by create/edit mode; entirely read-only forms reject
+  empty updates. Partial FX permissions preserve stored snapshots and retain a readable canonical
+  PHP amount when the detail section cannot be shown. Required record IDs use schema imports;
+  helper/dashboard metadata tests cover namespaced names.
+- Missing Budget access skips its requests without blocking spending. Real budget-history failures
+  retain the spending results and show an independent error/retry. Existing pagination, navigation,
+  modal state, payment methods, and refresh regressions remain in the frontend suite.
+- New restricted-user Apex fixtures cover CRUD/FLS denials, explicit note clears/omissions,
+  preserved values, deactivation denial, generation preflight, and managed-field exceptions.
+  The target's Minimum Access profile has an additive Next Run Date edit grant; its test fixture
+  normalizes that one grant only inside the rolled-back test transaction to test the exception.
+  Persistent profile permissions are outside this change.
+- Combined check-only validation `0AfgK00000WZqcRSAT` against `mainDevOrg` succeeded for **27/27
+  components** and **205/205 repository Apex tests across 23 classes**. `AppAccessChecks`, batch,
+  and automation controller coverage are **100%**. Budget service is **94.87%**, command service
+  **89.47%**, generator **98.73%**, recurring service **96.36%**, and settings service **94.38%**.
+- Full frontend regression passed **320/320 Jest tests across 26 suites**; lint, targeted
+  formatting, and diff checks passed. No client-repository code was copied or modified.
+- Deployment Settings was backed up, temporarily enabled for validation, and restored afterward.
+  Read-back verified the original setting, daily job identity/owner/timezone/cron/state, and
+  persistent profile pointer permissions were unchanged.
+  Actual browser/LDS interactions and fresh namespaced package installation remain separate checks.
+- Deployed to `mainDevOrg` on **2026-10-17** (`0AfgK00000Wm9UnSAJ`): all **27/27 components**
+  deployed and **205/205 repository Apex tests** passed. Read-back verified the shared Apex/LWC
+  helpers, server automation permission gate, and Admin application visibility. A read-only live
+  UI API check confirmed the capability metadata expected for Expenses, Recurring Expenses,
+  and Budgets. The temporary deployment setting was restored after release.
+
+## Permission Boundaries And Restricted Admins — 2026-10-16
+
+- All three app permission sets explicitly assign the Budget & Expense Manager Lightning app.
+  Admin and All Access retain their existing identical capabilities; object CRUD, field access,
+  and Salesforce platform permissions are unchanged.
+- Manual generation, batch submission, and job-status endpoints require
+  `Manage_Recurring_Expense_Automation` in Apex. Status reads enforce caller ownership, batch job
+  type, and the namespace-qualified app class before returning internal job metadata.
+- Settings configuration remains under user-mode CRUD/FLS. Missing edit access to either
+  configurable field rejects a save before any configuration or scheduler change. Private
+  scheduler metadata reads use system mode for the reserved app job name and Apex job type.
+  Internal status writes bypass edit FLS only for the three read-only run-summary fields after
+  a user-mode settings lookup; batch completion reads its framework-provided job in system mode.
+- New Apex regressions exercise Minimum Access - Salesforce with the packaged User/Admin sets:
+  settings reads, enablement, time changes, unchanged schedule identity/owner/timezone, replacement
+  of another administrator's schedule, unrelated-job preservation, synchronous generation,
+  queued-to-completed batch tracking, persisted summaries, direct summary-edit denial, and
+  denied automation calls despite an additive controller-access grant. Existing management and
+  setup tests cover normal User record access and setup authorization. Schedule-writing service
+  tests use isolated job names rather than the live daily schedule.
+- Check-only validation `0AfgK00000Wa31lSAB` against `mainDevOrg` succeeded for **10/10 components**
+  with all **197 repository Apex tests across 22 classes** passing. Settings service coverage is
+  **94.64%** (159/168); the automation controller and batch are **100%** (50/50 and 45/45).
+  Targeted formatting and diff checks passed. No LWC changed in this permission fix.
+- The broader `RunLocalTests` validation `0AfgK00000Wa245SAB` failed three unrelated methods in the
+  org's `PortfolioLeadEmailActionTest` (missing configuration, null request, and configuration
+  override assumptions); all repository tests passed within that run. No portfolio code was changed.
+- Initial validations were blocked before tests by the existing daily job. Deployment Settings was
+  backed up, temporarily enabled for validation, and restored afterward; read-back confirmed
+  `doesSkipAsyncApexValidation=false`. The daily job retained its identity, owner, timezone, cron,
+  and state. These permission/Apex changes were subsequently included in the successful
+  2026-10-17 shared-schema deployment recorded above.
+- Actual browser app-launch checks and a fresh namespaced package installation remain separate
+  verification steps; Apex permission regressions do not establish either result.
+
 ## Global And Group Scope Labels — 2026-10-13
 
 - App Management shows App-wide management in the sidebar caption and above its tabs. Group

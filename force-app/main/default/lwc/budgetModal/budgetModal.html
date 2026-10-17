@@ -39,29 +39,33 @@
                         {modalDescription}
                     </p>
 
-                    <lightning-input
-                        data-field="amount"
-                        type="number"
-                        label="Monthly budget"
-                        formatter="currency"
-                        currency-code="PHP"
-                        min="0.01"
-                        step="0.01"
-                        value={amountValue}
-                        required
-                        disabled={isSaving}
-                        onchange={handleAmountChange}
-                    ></lightning-input>
+                    <template lwc:if={showAmount}>
+                        <lightning-input
+                            data-field="amount"
+                            type="number"
+                            label="Monthly budget"
+                            formatter="currency"
+                            currency-code="PHP"
+                            min="0.01"
+                            step="0.01"
+                            value={amountValue}
+                            required
+                            disabled={isSaveDisabled}
+                            onchange={handleAmountChange}
+                        ></lightning-input>
+                    </template>
 
-                    <lightning-textarea
-                        class="slds-var-m-top_small"
-                        label="Description"
-                        field-level-help="Optional note about this budget."
-                        max-length="32768"
-                        value={descriptionValue}
-                        disabled={isSaving}
-                        onchange={handleDescriptionChange}
-                    ></lightning-textarea>
+                    <template lwc:if={showDescription}>
+                        <lightning-textarea
+                            class="slds-var-m-top_small"
+                            label="Description"
+                            field-level-help="Optional note about this budget."
+                            max-length="32768"
+                            value={descriptionValue}
+                            disabled={isDescriptionDisabled}
+                            onchange={handleDescriptionChange}
+                        ></lightning-textarea>
+                    </template>
 
                     <template lwc:if={isSaving}>
                         <div
@@ -92,7 +96,7 @@
                         variant="brand"
                         type="submit"
                         label={saveButtonLabel}
-                        disabled={isSaving}
+                        disabled={isSaveDisabled}
                     ></lightning-button>
                 </footer>
             </form>

@@ -1,9 +1,62 @@
-import { LightningElement, api } from 'lwc';
+import { LightningElement, api, wire } from 'lwc';
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
+import BUDGET_OBJECT from '@salesforce/schema/Budget__c';
+import {
+    canCreateObject,
+    canUpdateObject,
+    canReadField,
+    canWriteField,
+    hasWritableFields
+} from 'c/appSchemaAccess';
 
 import { formatMonthLabel, parseDateString } from 'c/expenseFormatters';
 import { getFocusableElements, trapTabFocus } from 'c/modalFocusUtils';
 
 export default class BudgetModal extends LightningElement {
+    @wire(getObjectInfo, { objectApiName: BUDGET_OBJECT }) objectMetadata;
+
+    get objectInfo() {
+        return this.objectMetadata?.data;
+    }
+
+    get writeMode() {
+        return this.isEditMode ? 'update' : 'create';
+    }
+
+    get canSave() {
+        return this.isEditMode
+            ? canUpdateObject(this.objectInfo) &&
+                  canWriteField(this.objectInfo, 'Amount__c', 'update')
+            : canCreateObject(this.objectInfo) &&
+                  hasWritableFields(
+                      this.objectInfo,
+                      ['Amount__c', 'Budget_Month__c', 'Expense_Group__c'],
+                      'create'
+                  );
+    }
+
+    get isSaveDisabled() {
+        return this.isSaving || !this.canSave;
+    }
+
+    get showAmount() {
+        return (
+            canReadField(this.objectInfo, 'Amount__c') ||
+            canWriteField(this.objectInfo, 'Amount__c', this.writeMode)
+        );
+    }
+
+    get canWriteDescription() {
+        return canWriteField(this.objectInfo, 'Description__c', this.writeMode);
+    }
+
+    get showDescription() {
+        return canReadField(this.objectInfo, 'Description__c') || this.canWriteDescription;
+    }
+
+    get isDescriptionDisabled() {
+        return this.isSaving || !this.canWriteDescription;
+    }
     @api budgetMonth = '';
     @api expenseGroupName = '';
     @api isSaving = false;
@@ -53,11 +106,13 @@ export default class BudgetModal extends LightningElement {
     }
 
     handleAmountChange(event) {
+        if (!this.canSave || this.isSaving) return;
         this.amountValue = event.target.value;
         event.target.setCustomValidity('');
     }
 
     handleDescriptionChange(event) {
+        if (!this.canWriteDescription || this.isSaving) return;
         this.descriptionValue = event.target.value;
     }
 
@@ -87,6 +142,7 @@ export default class BudgetModal extends LightningElement {
 
     handleSubmit(event) {
         event.preventDefault();
+        if (this.isSaveDisabled) return;
 
         const amountInput = this.template.querySelector('[data-field="amount"]');
         const amount = Number(this.amountValue);
@@ -104,7 +160,7 @@ export default class BudgetModal extends LightningElement {
             new CustomEvent('save', {
                 detail: {
                     amount,
-                    description: description || null
+                    ...(this.canWriteDescription ? { description: description || null } : {})
                 }
             })
         );

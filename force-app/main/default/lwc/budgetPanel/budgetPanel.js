@@ -1,4 +1,16 @@
 import { LightningElement, api, wire } from 'lwc';
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
+import BUDGET_OBJECT from '@salesforce/schema/Budget__c';
+import {
+    canReadObject,
+    canCreateObject,
+    canUpdateObject,
+    canDeleteObject,
+    canReadField,
+    canWriteField,
+    hasReadableFields,
+    hasWritableFields
+} from 'c/appSchemaAccess';
 import { refreshApex } from '@salesforce/apex';
 import LightningConfirm from 'lightning/confirm';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
@@ -16,6 +28,54 @@ const PERCENT_FORMAT = new Intl.NumberFormat('en-PH', {
 
 export default class BudgetPanel extends LightningElement {
     @api expenseGroupName = '';
+    objectInfo;
+
+    @wire(getObjectInfo, { objectApiName: BUDGET_OBJECT })
+    wiredObjectInfo({ data }) {
+        this.objectInfo = data;
+        this.prepareForContextChange();
+    }
+
+    get canReadBudget() {
+        return (
+            canReadObject(this.objectInfo) &&
+            hasReadableFields(this.objectInfo, ['Amount__c', 'Budget_Month__c', 'Expense_Group__c'])
+        );
+    }
+
+    get canSetBudget() {
+        return (
+            canCreateObject(this.objectInfo) &&
+            hasWritableFields(
+                this.objectInfo,
+                ['Amount__c', 'Budget_Month__c', 'Expense_Group__c'],
+                'create'
+            )
+        );
+    }
+
+    get canEditBudget() {
+        return (
+            canUpdateObject(this.objectInfo) &&
+            canWriteField(this.objectInfo, 'Amount__c', 'update')
+        );
+    }
+
+    get canRemoveBudget() {
+        return canDeleteObject(this.objectInfo);
+    }
+
+    get budgetWireGroupId() {
+        return this.canReadBudget && this.hasContext ? this.expenseGroupId : undefined;
+    }
+
+    get budgetWireMonth() {
+        return this.canReadBudget && this.hasContext ? this.budgetMonth : undefined;
+    }
+
+    get showPanel() {
+        return this.hasContext && this.canReadBudget;
+    }
 
     budget;
     loadError = '';
@@ -63,13 +123,13 @@ export default class BudgetPanel extends LightningElement {
     @api spentAmount = 0;
 
     @wire(getMonthlyBudget, {
-        expenseGroupId: '$_expenseGroupId',
-        budgetMonth: '$_budgetMonth'
+        expenseGroupId: '$budgetWireGroupId',
+        budgetMonth: '$budgetWireMonth'
     })
     wiredBudget(result) {
         this._budgetWireResult = result;
 
-        if (!this.hasContext) {
+        if (!this.showPanel) {
             this.budget = undefined;
             this.loadError = '';
             this.isLoading = false;
@@ -93,17 +153,19 @@ export default class BudgetPanel extends LightningElement {
         this._budgetWireResult = undefined;
         this.budget = undefined;
         this.loadError = '';
-        this.isLoading = this.hasContext;
+        this.isLoading = this.showPanel;
         this.isModalOpen = false;
         this._restoreFocusSelector = undefined;
     }
 
     handleSetBudget() {
+        if (!this.showPanel || !this.canSetBudget || this.isBusy) return;
         this._restoreFocusSelector = undefined;
         this.isModalOpen = true;
     }
 
     handleEditBudget() {
+        if (!this.showPanel || !this.canEditBudget || this.isBusy) return;
         this._restoreFocusSelector = undefined;
         this.isModalOpen = true;
     }
@@ -114,7 +176,19 @@ export default class BudgetPanel extends LightningElement {
     }
 
     async handleModalSave(event) {
+        if (
+            !this.showPanel ||
+            !this.isModalOpen ||
+            this.isBusy ||
+            !(this.hasBudget ? this.canEditBudget : this.canSetBudget)
+        )
+            return;
         const { amount, description } = event.detail;
+        const descriptionProvided = canWriteField(
+            this.objectInfo,
+            'Description__c',
+            this.hasBudget ? 'update' : 'create'
+        );
         const mutationContext = this.createMutationContext();
         this.isSaving = true;
 
@@ -125,7 +199,8 @@ export default class BudgetPanel extends LightningElement {
                     expenseGroupId: mutationContext.expenseGroupId,
                     budgetMonth: mutationContext.budgetMonth,
                     amount,
-                    description
+                    descriptionProvided,
+                    ...(descriptionProvided ? { description } : {})
                 }
             });
             if (this.isCurrentMutationContext(mutationContext)) {
@@ -156,6 +231,7 @@ export default class BudgetPanel extends LightningElement {
     }
 
     async handleRemoveBudget() {
+        if (!this.showPanel || !this.hasBudget || !this.canRemoveBudget || this.isBusy) return;
         const mutationContext = this.createMutationContext();
         const confirmed = await LightningConfirm.open({
             label: 'Remove Monthly Budget',
@@ -164,6 +240,7 @@ export default class BudgetPanel extends LightningElement {
         });
         if (
             !confirmed ||
+            !this.canRemoveBudget ||
             !this.isCurrentMutationContext(mutationContext) ||
             this.budget?.id !== mutationContext.budgetId
         ) {
@@ -204,7 +281,7 @@ export default class BudgetPanel extends LightningElement {
     }
 
     async handleRetry() {
-        if (!this.hasContext || !this._budgetWireResult || this.isLoading) {
+        if (!this.showPanel || !this._budgetWireResult || this.isLoading) {
             return;
         }
         const retryVersion = ++this._retryVersion;
@@ -283,7 +360,7 @@ export default class BudgetPanel extends LightningElement {
     }
 
     get hasDescription() {
-        return Boolean(this.budget?.description);
+        return canReadField(this.objectInfo, 'Description__c') && Boolean(this.budget?.description);
     }
 
     get isBusy() {

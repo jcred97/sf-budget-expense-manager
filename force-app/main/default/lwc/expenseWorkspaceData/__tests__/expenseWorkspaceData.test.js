@@ -59,7 +59,8 @@ describe('expense page and report requests', () => {
         const data = await fetchDashboardData({
             expenseGroupId: 'group',
             startDate: '2026-09-01',
-            endDate: '2026-09-30'
+            endDate: '2026-09-30',
+            includeBudgets: true
         });
         expect(getDashboardSummary).toHaveBeenCalledWith({
             filters: {
@@ -91,6 +92,30 @@ describe('expense page and report requests', () => {
                 hasForeignCurrency: true
             })
         );
+    });
+
+    it('does not request optional budgets unless schema access allows them', async () => {
+        getDashboardSummary.mockResolvedValue({ expenseCount: 1, totalAmount: 10 });
+        getMonthlyTrend.mockResolvedValue([]);
+        const result = await fetchDashboardData({ expenseGroupId: 'group', endDate: '2026-09-30' });
+        expect(getBudgetHistory).not.toHaveBeenCalled();
+        expect(result.summary.totalAmount).toBe(10);
+        expect(result.budgets).toEqual([]);
+    });
+
+    it('retains spending and the independent budget error when budget history fails', async () => {
+        getDashboardSummary.mockResolvedValue({ expenseCount: 1, totalAmount: 10 });
+        getMonthlyTrend.mockResolvedValue([]);
+        const error = new Error('Budget service unavailable');
+        getBudgetHistory.mockRejectedValue(error);
+        const result = await fetchDashboardData({
+            expenseGroupId: 'group',
+            endDate: '2026-09-30',
+            includeBudgets: true
+        });
+        expect(result.summary.totalAmount).toBe(10);
+        expect(result.budgetError).toBe(error);
+        expect(result.budgets).toEqual([]);
     });
 
     it('preserves per-assignment payment capabilities from Apex', async () => {

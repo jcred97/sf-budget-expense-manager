@@ -9,6 +9,8 @@ public with sharing class ExpenseCommandService {
         if (recurringExpenseId == null) {
             throw handledException('Recurring Expense Id is required.');
         }
+        AppAccessChecks.requireUpdate(Recurring_Expense__c.SObjectType);
+        AppAccessChecks.requireUpdateable(new List<Schema.SObjectField>{ Recurring_Expense__c.Active__c });
 
         try {
             List<Recurring_Expense__c> recurringExpenses = [
@@ -22,16 +24,8 @@ public with sharing class ExpenseCommandService {
                 throw handledException('Recurring Expense not found or already deleted.');
             }
 
-            Recurring_Expense__c recurringExpenseUpdate = new Recurring_Expense__c(
-                Id = recurringExpenses[0].Id,
-                Active__c = false
-            );
-            List<Recurring_Expense__c> updates = (List<Recurring_Expense__c>) Security.stripInaccessible(
-                    AccessType.UPDATABLE,
-                    new List<Recurring_Expense__c>{ recurringExpenseUpdate }
-                )
-                .getRecords();
-            Database.update(updates, AccessLevel.USER_MODE);
+            Recurring_Expense__c recurringExpenseUpdate = new Recurring_Expense__c(Id = recurringExpenses[0].Id, Active__c = false);
+            Database.update(recurringExpenseUpdate, AccessLevel.USER_MODE);
         } catch (DmlException e) {
             throw handledException('Failed to deactivate recurring expense: ' + e.getMessage());
         }
@@ -67,7 +61,6 @@ public with sharing class ExpenseCommandService {
         requireExpenseId(expenseId);
 
         try {
-            throwForcedDeleteExceptionForTest(expenseId);
             Expense__c expense = getExpenseForDeletion(expenseId);
             ensureExpensesCanBeDeleted();
             Database.delete(expense, AccessLevel.USER_MODE);
@@ -93,12 +86,6 @@ public with sharing class ExpenseCommandService {
         }
     }
 
-    private static void throwForcedDeleteExceptionForTest(Id expenseId) {
-        if (Test.isRunningTest() && expenseId == UserInfo.getUserId()) {
-            throw new DmlException('Forced test exception');
-        }
-    }
-
     private static Expense__c getExpenseForDeletion(Id expenseId) {
         List<Expense__c> expenses = [
             SELECT Id
@@ -114,9 +101,7 @@ public with sharing class ExpenseCommandService {
     }
 
     private static void ensureExpensesCanBeDeleted() {
-        if (!Schema.sObjectType.Expense__c.isDeletable()) {
-            throw handledException('You do not have permission to delete expenses.');
-        }
+        AppAccessChecks.requireDelete(Expense__c.SObjectType);
     }
 
     private static AuraHandledException handledException(String message) {

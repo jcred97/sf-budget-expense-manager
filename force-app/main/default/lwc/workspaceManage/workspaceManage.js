@@ -16,6 +16,7 @@ import DEBIT from '@salesforce/schema/Expense_Group_Bank__c.Supported_Debit_Card
 import PAYMENT from '@salesforce/schema/Expense_Group_Bank__c.Supported_Bank_Payment__c';
 import TRANSFER from '@salesforce/schema/Expense_Group_Bank__c.Supported_Bank_Transfer__c';
 import { getErrorMessage } from 'c/expenseErrorUtils';
+import { canCreateObject, canUpdateObject, canWriteField } from 'c/appSchemaAccess';
 
 const OBJECTS = { Groups: GROUP, Categories: CATEGORY, Banks: BANK, Assignments: ASSIGNMENT };
 const KINDS = Object.keys(OBJECTS);
@@ -182,10 +183,10 @@ export default class WorkspaceManage extends LightningElement {
         return this.isLoading || this.isSaving;
     }
     get canCreate() {
-        return this.info?.createable === true;
+        return canCreateObject(this.info);
     }
     get canUpdate() {
-        return this.info?.updateable === true;
+        return canUpdateObject(this.info);
     }
     get newDisabled() {
         return this.isBusy || !this.canCreate || this.needsGroup;
@@ -265,8 +266,7 @@ export default class WorkspaceManage extends LightningElement {
     }
     editorFieldWritable(field) {
         const info = this.objectInfos[this.editor?.kind];
-        const metadata = info?.fields?.[typeof field === 'string' ? field : fieldName(field)];
-        return this.editor?.id ? metadata?.updateable === true : metadata?.createable === true;
+        return canWriteField(info, fieldName(field), this.editor?.id ? 'update' : 'create');
     }
     get isSmallScreen() {
         return FORM_FACTOR === 'Small';

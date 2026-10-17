@@ -7,8 +7,6 @@ public class RecurringExpenseGenerationResult {
     @AuraEnabled
     public Integer expensesCreated;
     @AuraEnabled
-    public Integer recurringExpensesUpdated;
-    @AuraEnabled
     public Boolean hitGenerationLimit;
 
     /**
@@ -20,7 +18,6 @@ public class RecurringExpenseGenerationResult {
         this.runDate = runDate;
         this.recurringExpensesProcessed = 0;
         this.expensesCreated = 0;
-        this.recurringExpensesUpdated = 0;
         this.hitGenerationLimit = false;
     }
 }

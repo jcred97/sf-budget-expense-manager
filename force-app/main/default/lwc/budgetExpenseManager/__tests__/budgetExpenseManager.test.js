@@ -2,6 +2,7 @@ import { createElement } from 'lwc';
 import { readFileSync } from 'fs';
 import { resolve as resolvePath } from 'path';
 import BudgetExpenseManager from 'c/budgetExpenseManager';
+import { getObjectInfo, getObjectInfos } from 'lightning/uiObjectInfoApi';
 import getRecordsPage from '@salesforce/apex/WorkspaceManagementController.getRecordsPage';
 jest.mock(
     '@salesforce/apex/WorkspaceManagementController.getRecordsPage',
@@ -112,6 +113,55 @@ const firstPage = () => ({
     hasMore: true,
     nextCursor: 'next'
 });
+const financialMetadata = apiName => ({
+    apiName,
+    queryable: true,
+    createable: true,
+    updateable: true,
+    deletable: true,
+    fields: Object.fromEntries(
+        [
+            'Name',
+            'Amount__c',
+            'Category__c',
+            'Expense_Date__c',
+            'Description__c',
+            'Transaction_Type__c',
+            'Transaction_Time__c',
+            'Bank_Assignment__c',
+            'Bank__c',
+            'Original_Amount__c',
+            'Original_Currency_Code__c',
+            'Exchange_Rate_To_PHP__c',
+            'Exchange_Rate_Date__c',
+            'Exchange_Rate_Source__c',
+            'Frequency__c',
+            'Start_Date__c',
+            'End_Date__c',
+            'Active__c',
+            'Next_Run_Date__c',
+            'Budget_Month__c',
+            'Expense_Group__c'
+        ].map(name => [name, { createable: true, updateable: name !== 'Next_Run_Date__c' }])
+    )
+});
+function emitFinancialMetadata() {
+    for (const objectName of ['Expense__c', 'Recurring_Expense__c', 'Budget__c']) {
+        getObjectInfo.emit(
+            financialMetadata(objectName),
+            config => (config.objectApiName?.objectApiName || config.objectApiName) === objectName
+        );
+    }
+    getObjectInfos.emit(
+        {
+            results: ['Budget__c', 'Expense__c'].map(name => ({
+                statusCode: 200,
+                result: financialMetadata(name)
+            }))
+        },
+        config => config.objectApiNames?.length === 2
+    );
+}
 const list = element => element.shadowRoot.querySelector('c-expense-list');
 const expenseButton = (element, label) =>
     [...list(element).shadowRoot.querySelectorAll('lightning-button')].find(
@@ -150,6 +200,8 @@ async function mount() {
     const element = createElement('c-budget-expense-manager', { is: BudgetExpenseManager });
     document.body.appendChild(element);
     getAllExpenseGroups.emit([{ Id: 'group', Name: 'Personal' }]);
+    await flush();
+    emitFinancialMetadata();
     await flush();
     element.shadowRoot
         .querySelector('c-expense-dashboard')
@@ -679,7 +731,7 @@ describe('workspace coordination', () => {
 
     it('keeps the dashboard month independent from expenses and preserves it across navigation', async () => {
         const element = await mount();
-        const originalRange = fetchDashboardData.mock.calls[0][0];
+        const originalRange = fetchDashboardData.mock.calls.at(-1)[0];
         await navigate(element, 'dashboard');
         dashboard(element)
             .shadowRoot.querySelector('c-expense-month-navigator')
@@ -720,7 +772,7 @@ describe('workspace coordination', () => {
     });
 
     it('clears dashboard data when the selected group disappears', async () => {
-        fetchDashboardData.mockResolvedValueOnce({
+        fetchDashboardData.mockResolvedValue({
             summary: { expenseCount: 1, totalAmount: 10 },
             rows: [row('removed-group-expense')],
             trend: [],

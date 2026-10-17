@@ -93,6 +93,12 @@ Legacy `Spending__c` metadata has been removed. `Expense_Group__c` is the active
 
 Payment methods are configured per `Expense_Group_Bank__c`, so two groups can use the same Bank with different transaction types. The four supported-method checkboxes default to enabled for new assignments; existing assignments require initialization during [the staged rollout](bank-payment-methods.md). Cash is available only with no Bank selected and defaults for new Expenses and recurring templates. Both dialogs place Bank before Transaction Type and filter the types to the selected assignment's enabled methods. Changing Bank replaces an unsupported type with the first enabled method; assignments with no enabled methods require another Bank or No bank. Clearing Bank sets Cash. Trigger validation also enforces supported methods for new or changed selections, while preserving unchanged historical types and the legacy Bank fallback. Disable or change active recurring templates before disabling a method they use, so generation is not stranded by a configuration change.
 
+Both dialogs use `expensePaymentMethods.paymentSelection` for available methods,
+historical selection preservation, and No bank normalization. `paymentBankFields`
+prepares bank updates without clearing untouched legacy or read-only values; each
+dialog still filters its final payload against schema permissions. Recurring
+reactivation rules and Expense FX snapshot handling remain local to their forms.
+
 `Budget__c` is opt-in by record presence. A group/month with no budget record keeps the original expense-only behavior. `BudgetTrigger` normalizes the month and regenerates the unique group/month key for every insert and update, so only one budget can exist for that context. Removing a budget does not remove or change expenses. The standard `Budget__c` tab provides list-view and record-level administration alongside the Dashboard budget panel.
 
 Foreign-currency data is also opt-in by record presence. When every FX field is blank, `ExpenseCurrencyService` leaves the existing PHP amount untouched. When any FX field is present, the service requires a complete snapshot, normalizes its currency/source text, rejects invalid dates and amounts, and recalculates `Amount__c` with half-up rounding in the before trigger. This keeps imports, standard record pages, API writes, and the custom modal on the same database invariant. Historical rates are never refreshed automatically. The user may request an ECB reference estimate through Frankfurter or enter a settled rate manually; the response date and source are stored with the Expense.
@@ -113,8 +119,8 @@ is persisted so the next run resumes without replay. Templates whose pointer is
 after their End Date remain visible but are neither due nor processed, and the
 trigger rejects an End Date before the Start Date. Reactivation and frequency edits
 preserve an already-advanced pointer; changing that policy is a separate product decision.
-The synchronous selector first applies user-mode access and the batch retains its sharing
-boundary. Generation then inserts the system-managed recurring link and advances a sparse
+The batch selects due templates in user mode and retains its sharing boundary.
+Generation then inserts the system-managed recurring link and advances a sparse
 `Next_Run_Date__c` record in system mode because both fields are intentionally read-only in
 the app permission sets; trigger validation still runs for both DML operations.
 The workspace Add/Edit path is the non-exposed `recurringExpenseModal`. It uses
@@ -182,14 +188,12 @@ entry points live under `classes/async` without changing their Salesforce metada
 - `ExchangeRateService` and `FrankfurterExchangeRateProvider` - validate ISO-style source codes, pin the request to the ECB provider, accept recent prior business-day observations, reject stale or malformed responses, and return sanitized errors with a manual-rate fallback.
 - `ExpenseCurrencyService` - bulk-safe before-trigger authority for optional FX completeness, normalization, date validation, and canonical PHP calculation.
 - `ExpenseController.getCategoriesByExpenseGroup(expenseGroupId)` - cacheable user-mode lookup; a null ID returns the bounded compatibility list.
-- `ExpenseController.getExpensesByFilters(filters)` - delegates dynamic user-mode querying to `ExpenseQueryService`; filter DTO group/category values are `Id` or null.
 - `ExpenseController.getDashboardSummary(filters)` - non-cacheable user-mode dashboard aggregates through `ExpenseDashboardService`: complete totals/counts, category/bank summaries, highest day, five recent expenses, and one largest expense.
 - `ExpenseController.getExpensePage(filters, pagination)` - delegates keyset pagination and full-filter first-page totals to `ExpensePageService`; `ExpensePageRequest` and `ExpensePageDto` hold the paging contract.
 - `ExpenseController.getMonthlyTrend(filters)` - delegates monthly aggregation to `ExpenseQueryService`.
 - `ExpenseController.deleteExpenses(expenseIds)` - delegates bulk user-mode deletion to `ExpenseCommandService`.
 - `ExpenseController.deleteExpense(expenseId)` - delegates the null check and scoped user-mode deletion to `ExpenseCommandService`.
 - `RecurringExpenseController.getRecurringExpenseOverview(expenseGroupId)` - first recurring-template page with complete group totals. `getRecurringExpensePage(expenseGroupId, cursor, pageSize)` continues the same user-mode keyset query; `deactivateRecurringExpense(recurringExpenseId)` remains the normal-user command entry point.
-- `RecurringExpenseAutomationController.generateDueExpenses()` - creates due recurring expenses up to a bulk-safe cap, updates recurrence tracking dates, and returns a top-level generation DTO.
 - `RecurringExpenseAutomationController.runDueExpensesBatch()` - Admin/All Access entry point that starts the Batch Apex generator and returns the batch job ID.
 - `RecurringExpenseAutomationController.getRecurringRunStatus(jobId)` - non-cacheable status read restricted to the current user's `RecurringExpenseBatch` batch jobs. Returns job status, terminal flag, error count, progress counters, and an available job-specific generation-limit outcome without exposing arbitrary job details. After validating job ownership and class, automation-owned outcomes are read in system mode; no direct object-edit permission is granted.
 - `RecurringExpenseCalculator` - owns recurrence due-date checks and next-run-date calculations for daily, weekly, monthly, and yearly frequencies.
@@ -204,6 +208,27 @@ entry points live under `classes/async` without changing their Salesforce metada
 
 ## Permission Sets
 
+`AppAccessChecks` centralizes always-on object CRUD and explicit field-token checks. Ordinary
+queries and mutations retain user mode and sharing enforcement. Budget saves and recurring
+deactivation reject denied fields before mutation instead of stripping them into a successful
+no-op. `BudgetSaveRequest.descriptionProvided=false` explicitly preserves a note the caller cannot
+edit; omitted/null flags retain the original full-payload behavior. Budget reads omit unreadable
+optional descriptions while keeping required amount/context fields permission checked.
+
+Recurring submission, batch selection, and generation apply the same normal-data access checks:
+readable source fields, recurring-object Edit, and Expense Create plus create access to the
+copied business fields. The generated recurring link and next-run pointer retain their narrow
+automation-owned write exceptions. Manual batch submission checks these permissions before
+enqueueing. Removing ordinary access can therefore prevent future scheduled generation; the
+schedule owner needs the app's operational permissions.
+
+LWC `appSchemaAccess` derives UI capabilities from UI API object/field metadata. Financial actions
+and custom inputs fail closed while metadata is pending or unavailable; handlers enforce the
+same gates. Native LDS fields retain platform enforcement. Custom payloads omit nonwritable
+fields, and partial FX permissions preserve the amount/date/snapshot together. Optional budget
+reads do not block the spending dashboard; denied Budget access skips budget requests, while
+operational budget failures show an independent error and retry.
+
 Ordinary controller classes use `with sharing` and normal operations enforce user-mode access. Integrity validators sometimes use system-mode reads to prevent inaccessible related records from bypassing invariants. Recurring generation writes the system-managed origin link and next-run pointer in system mode after its selection/locking checks.
 
 The default sharing model is not private per user: Expense Groups and recurring templates are internal Public Read/Write; Banks are internal Public Read; categories, expenses, budgets, and bank assignments are Controlled by Parent; settings are Private. External sharing is Private for the root objects and Controlled by Parent for their master-detail children. Profiles and additional permission assignments can expand access and require separate org inspection.
@@ -212,13 +237,24 @@ The default sharing model is not private per user: Expense Groups and recurring 
 - `Budget_Expense_Manager_Admin` - Operational admin access. Grants the normal controllers, including Currency Context and Exchange Rate, plus `SettingsController` and `RecurringExpenseAutomationController`, the public exchange-rate credential principal, full access to global Banks and group assignments, and access to budgets and settings.
 - `Budget_Expense_Manager_All_Access` - Development/admin convenience set. Uses the same controller-only Apex access boundary as Admin, grants the public exchange-rate credential principal, and grants broad CRUD plus `viewAllRecords` and `modifyAllRecords` on the app objects. Generated key fields stay hidden.
 
-Admin and All Access provide effectively equivalent app capabilities, including broad record access. Both grant `Manage_App_Setup` for server-authorized first-time completion and `Manage_Recurring_Expense_Automation` for manual-run visibility and handler guards. All three sets grant `AppSetupController` access for read-only readiness; Normal User excludes both management capabilities, settings-object access, and the settings/automation controllers. Setup completion separately enforces its custom permission in Apex. Other Apex class access and user-mode data operations remain their server authorization boundaries.
+Admin and All Access currently have identical grants, including broad record access. Both grant
+`Manage_App_Setup` for server-authorized first-time completion and
+`Manage_Recurring_Expense_Automation` for manual-run visibility and Apex authorization of manual
+generation and job-status requests. All three sets explicitly make the Lightning application
+visible and grant `AppSetupController` access for read-only readiness. Normal User excludes both
+management capabilities, settings-object access, and the settings/automation controllers. Setup
+completion separately enforces its custom permission in Apex. Other Apex class access and
+user-mode data operations remain their server authorization boundaries.
 
-App Admin access alone does not establish access to Salesforce Scheduled Apex metadata. The
-existing Settings path queries `CronTrigger` in user mode and can fail under a minimal-access
-profile despite the app Admin permission set. Setup initialization and ordinary User readiness
-do not require that query. Scheduled-automation administration needs separate subscriber-org
-permission verification; this setup change does not expand platform permissions.
+Global Settings keeps configuration reads and writes in user mode. Its private Scheduled Apex
+metadata reads use system mode, restricted to the app's fixed schedule name and Apex job type;
+rescheduling follows a successful, permission-checked settings update. Manual-run status reads
+require the automation custom permission, current-user ownership, and the expected batch class,
+namespace, and job type before reading internal metadata in system mode. Batch completion reads
+only its framework-provided job. Automation updates only the three last-run summary fields in
+system mode after a user-mode settings lookup; those fields remain read-only in the permission
+sets. These exceptions avoid granting broad Salesforce Setup or job-management permissions.
+Restricted-profile regression and deployment evidence is recorded in [Testing and tooling](testing-and-tooling.md).
 
 ## Pages And Tabs
 
@@ -255,11 +291,19 @@ and record types and is not changed through package permission sets.
 
 ## Query And Automation Limits
 
+The superseded `ExpenseController.getExpensesByFilters` and
+`RecurringExpenseAutomationController.generateDueExpenses` Lightning methods are
+retired in source. Repository callers use paginated expense reads and recurring
+batch submission. The dependency audit found no production repository callers
+for the retired methods or package-version configuration establishing a published
+contract; external Aura consumers could not be verified. Integrations using those
+methods must migrate before deploying this cleanup to their org.
+
 - Group selection and the null-group compatibility category lookup are bounded at 2,000 records. Group-specific categories are not subject to that same explicit cap.
 - Expense listing starts with 20 rows, loads 10 more per request, and debounces search by 300 ms. Keyset ordering uses expense date, transaction time, creation time, and ID; the cursor is checked against the filter scope. Reports fetch all pages in batches of 200, deduplicate IDs, reject looping cursors, and cancel stale requests.
 - Dashboard summaries use server aggregates across the matching filter scope. Expense-detail payload is bounded to five recent rows and one largest row; category charts return the top six labels and bank charts retain all aggregate labels. Six-month trend and budget history remain separate bounded-period reads. Aggregate group cardinality and Salesforce query governor limits still apply.
 - Recurring overview initially loads 50 templates and supports Load more with keyset pagination, ordered by active status, next run date (null last), name, and record ID. Counts and monthly estimates describe all matching templates through separate aggregates. A read-only `Due_For_Generation__c` formula preserves the due rule, including valid ended-schedule catch-up occurrences, for complete due counts.
-- Synchronous recurring generation caps output at 200 expenses; each batch transaction caps at 9,000 and processes a scope of 50 templates. Lock/reload and due-date rechecks protect generation, while retained next-run pointers allow catch-up to resume. Batch finish retains generation-limit flags across chunks and records an outcome keyed to the job, alongside the latest settings summary. Failed chunks take precedence over catch-up warnings. A limit flag describes that run; overlapping or later runs may already have cleared the backlog. No automatic follow-up batch is queued.
+- Manual and scheduled recurring generation use Batch Apex. Each batch transaction caps at 9,000 expenses and processes a scope of 50 templates. Lock/reload and due-date rechecks protect generation, while retained next-run pointers allow catch-up to resume. Batch finish retains generation-limit flags across chunks and records an outcome keyed to the job, alongside the latest settings summary. Failed chunks take precedence over catch-up warnings. A limit flag describes that run; overlapping or later runs may already have cleared the backlog. No automatic follow-up batch is queued.
 - Internal recurring outcomes create one record per finished job. Automated retention cleanup is not implemented.
 
 ## Review Follow-ups

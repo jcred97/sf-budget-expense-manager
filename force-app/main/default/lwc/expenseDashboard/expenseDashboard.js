@@ -1,4 +1,14 @@
-import { LightningElement, api } from 'lwc';
+import { LightningElement, api, wire } from 'lwc';
+import { getObjectInfos } from 'lightning/uiObjectInfoApi';
+import BUDGET_OBJECT from '@salesforce/schema/Budget__c';
+import EXPENSE_OBJECT from '@salesforce/schema/Expense__c';
+import {
+    canReadObject,
+    canCreateObject,
+    hasReadableFields,
+    hasWritableFields
+} from 'c/appSchemaAccess';
+import { getErrorMessage } from 'c/expenseErrorUtils';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { fetchDashboardData } from 'c/expenseWorkspaceData';
 import { getDashboardViewModel } from 'c/expenseWorkspaceViewModels';
@@ -10,6 +20,47 @@ import {
 } from 'c/expenseFormatters';
 
 export default class ExpenseDashboard extends LightningElement {
+    objectApiNames = [BUDGET_OBJECT, EXPENSE_OBJECT];
+    objectInfos = {};
+    budgetHistoryError = '';
+
+    @wire(getObjectInfos, { objectApiNames: '$objectApiNames' })
+    wiredObjectInfos({ data, error }) {
+        if (!data && !error) return;
+        this.objectInfos = data
+            ? Object.fromEntries(
+                  ['Budget__c', 'Expense__c'].map((kind, index) => [
+                      kind,
+                      data.results[index]?.result?.apiName ? data.results[index].result : undefined
+                  ])
+              )
+            : {};
+        this.dashboardBudgets = [];
+        this.budgetHistoryError = '';
+        if (this.isConnected) this.refresh();
+    }
+
+    get canReadBudgets() {
+        return (
+            canReadObject(this.objectInfos.Budget__c) &&
+            hasReadableFields(this.objectInfos.Budget__c, [
+                'Amount__c',
+                'Budget_Month__c',
+                'Expense_Group__c'
+            ])
+        );
+    }
+
+    get canAddExpense() {
+        return (
+            canCreateObject(this.objectInfos.Expense__c) &&
+            hasWritableFields(
+                this.objectInfos.Expense__c,
+                ['Name', 'Amount__c', 'Expense_Date__c', 'Category__c', 'Transaction_Type__c'],
+                'create'
+            )
+        );
+    }
     @api expenseGroupName;
     _expenseGroupId = '';
     _active = false;
@@ -62,6 +113,7 @@ export default class ExpenseDashboard extends LightningElement {
         this.dispatchEvent(new CustomEvent('viewexpenses'));
     }
     handleAddExpense() {
+        if (!this.canAddExpense) return;
         this.dispatchEvent(new CustomEvent('addexpense'));
     }
     handleRetryDashboard() {
@@ -86,10 +138,11 @@ export default class ExpenseDashboard extends LightningElement {
         this.dashboardLoadError = '';
 
         try {
-            const { summary, rows, trend, budgets } = await fetchDashboardData({
+            const { summary, rows, trend, budgets, budgetError } = await fetchDashboardData({
                 expenseGroupId: this.expenseGroupId,
                 startDate: this.dashboardStartDate,
-                endDate: this.dashboardEndDate
+                endDate: this.dashboardEndDate,
+                includeBudgets: this.canReadBudgets
             });
 
             if (requestId !== this._latestDashboardLoadRequestId) {
@@ -100,6 +153,9 @@ export default class ExpenseDashboard extends LightningElement {
             this.dashboardRows = rows;
             this.dashboardTrend = trend;
             this.dashboardBudgets = budgets;
+            this.budgetHistoryError = budgetError
+                ? getErrorMessage(budgetError, 'Failed to load budget history.')
+                : '';
         } catch {
             if (requestId !== this._latestDashboardLoadRequestId) {
                 return;
@@ -108,6 +164,7 @@ export default class ExpenseDashboard extends LightningElement {
             this.dashboardRows = [];
             this.dashboardTrend = [];
             this.dashboardBudgets = [];
+            this.budgetHistoryError = '';
             this.dashboardLoadError = 'Failed to load the dashboard.';
             this.showToast('Error', 'Failed to load dashboard.', 'error');
         } finally {
@@ -123,6 +180,7 @@ export default class ExpenseDashboard extends LightningElement {
         this.dashboardRows = [];
         this.dashboardTrend = [];
         this.dashboardBudgets = [];
+        this.budgetHistoryError = '';
         this.dashboardLoadError = '';
         this.isDashboardLoading = false;
     }

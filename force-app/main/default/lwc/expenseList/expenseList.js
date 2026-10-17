@@ -1,4 +1,7 @@
-import { LightningElement, api } from 'lwc';
+import { LightningElement, api, wire } from 'lwc';
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
+import EXPENSE_OBJECT from '@salesforce/schema/Expense__c';
+import { canCreateObject, canUpdateObject, canDeleteObject } from 'c/appSchemaAccess';
 import LightningConfirm from 'lightning/confirm';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import deleteExpense from '@salesforce/apex/ExpenseController.deleteExpense';
@@ -14,6 +17,35 @@ const PAGE_SIZE = 20;
 const LOAD_MORE_SIZE = 10;
 
 export default class ExpenseList extends LightningElement {
+    expenseInfo;
+    permissionError = '';
+
+    @wire(getObjectInfo, { objectApiName: EXPENSE_OBJECT })
+    receiveExpenseInfo({ data, error }) {
+        this.expenseInfo = data;
+        this.permissionError = error
+            ? 'Unable to load expense permissions. Refresh the page to retry.'
+            : '';
+        if (!this.canDeleteExpense) this.selectedExpenseIds = [];
+    }
+    get canCreateExpense() {
+        return canCreateObject(this.expenseInfo);
+    }
+    get canUpdateExpense() {
+        return canUpdateObject(this.expenseInfo);
+    }
+    get canDeleteExpense() {
+        return canDeleteObject(this.expenseInfo);
+    }
+    get isAddExpenseDisabled() {
+        return !this.canCreateExpense || !this.expenseGroupId;
+    }
+    get isDeleteExpenseDisabled() {
+        return !this.canDeleteExpense;
+    }
+    get hasExpenseActions() {
+        return this.canCreateExpense || this.canUpdateExpense || this.canDeleteExpense;
+    }
     @api active = false;
     @api expenseGroupName;
     @api categoryOptions = [];
@@ -292,6 +324,7 @@ export default class ExpenseList extends LightningElement {
     }
 
     handleExpenseSelect(event) {
+        if (!this.canDeleteExpense) return;
         const id = event.target.dataset.id;
         const selected = event.target.checked;
         const selectedExpenseIds = new Set(this.selectedExpenseIds);
@@ -313,6 +346,12 @@ export default class ExpenseList extends LightningElement {
     }
 
     async performExpenseRowAction(actionName, row) {
+        if (
+            (actionName === 'edit' && !this.canUpdateExpense) ||
+            (actionName === 'duplicate' && !this.canCreateExpense) ||
+            (actionName === 'delete' && !this.canDeleteExpense)
+        )
+            return;
         if (!row) {
             return;
         }
@@ -368,6 +407,7 @@ export default class ExpenseList extends LightningElement {
     }
 
     async confirmAndDeleteExpense(recordId) {
+        if (!this.canDeleteExpense) return;
         // A filter change or reload invalidates this snapshot, including while confirming.
         const originalListVersion = this._latestExpenseLoadRequestId;
         const confirmed = await LightningConfirm.open({
@@ -375,7 +415,11 @@ export default class ExpenseList extends LightningElement {
             variant: 'header',
             label: 'Confirm Deletion'
         });
-        if (!confirmed || originalListVersion !== this._latestExpenseLoadRequestId) {
+        if (
+            !confirmed ||
+            !this.canDeleteExpense ||
+            originalListVersion !== this._latestExpenseLoadRequestId
+        ) {
             return;
         }
 
@@ -404,6 +448,7 @@ export default class ExpenseList extends LightningElement {
     }
 
     async handleBulkExpenseDelete() {
+        if (!this.canDeleteExpense) return;
         const originalListVersion = this._latestExpenseLoadRequestId;
         const idsToDelete = [...this.selectedExpenseIds];
         const count = idsToDelete.length;
@@ -415,7 +460,11 @@ export default class ExpenseList extends LightningElement {
             variant: 'header',
             label: 'Confirm Bulk Deletion'
         });
-        if (!confirmed || originalListVersion !== this._latestExpenseLoadRequestId) {
+        if (
+            !confirmed ||
+            !this.canDeleteExpense ||
+            originalListVersion !== this._latestExpenseLoadRequestId
+        ) {
             return;
         }
 
@@ -447,6 +496,7 @@ export default class ExpenseList extends LightningElement {
 
     @api
     openExpenseModal() {
+        if (this.isAddExpenseDisabled) return;
         this.editingExpenseId = null;
         this.duplicateExpenseFields = null;
         this.duplicateExpenseBankName = '';

@@ -55,7 +55,12 @@ export async function fetchAllExpenseRows(filters, isCurrent = () => true) {
     return [...rowsById.values()];
 }
 
-export async function fetchDashboardData({ expenseGroupId, startDate, endDate }) {
+export async function fetchDashboardData({
+    expenseGroupId,
+    startDate,
+    endDate,
+    includeBudgets = false
+}) {
     const trendEndDate = parseDateString(endDate) || new Date();
     const trendStartDate = new Date(trendEndDate.getFullYear(), trendEndDate.getMonth() - 5, 1);
     const filters = {
@@ -68,10 +73,15 @@ export async function fetchDashboardData({ expenseGroupId, startDate, endDate })
         ...filters,
         startDate: formatDateISO(trendStartDate)
     };
-    const [summary, trend, budgets] = await Promise.all([
+    const [summary, trend, budgetResult] = await Promise.all([
         getDashboardSummary({ filters }),
         getMonthlyTrend({ filters: trendFilters }),
-        getBudgetHistory({ expenseGroupId, endMonth: endDate })
+        includeBudgets
+            ? getBudgetHistory({ expenseGroupId, endMonth: endDate }).then(
+                  budgets => ({ budgets: budgets || [], error: null }),
+                  error => ({ budgets: [], error })
+              )
+            : Promise.resolve({ budgets: [], error: null })
     ]);
 
     return {
@@ -81,7 +91,8 @@ export async function fetchDashboardData({ expenseGroupId, startDate, endDate })
         },
         rows: (summary.recentExpenses || []).map(mapExpenseRow),
         trend: trend || [],
-        budgets: budgets || []
+        budgets: budgetResult.budgets,
+        budgetError: budgetResult.error
     };
 }
 

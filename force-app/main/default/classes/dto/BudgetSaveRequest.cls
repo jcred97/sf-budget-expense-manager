@@ -19,4 +19,8 @@ public class BudgetSaveRequest {
     /** Optional budget notes. */
     @AuraEnabled
     public String description { get; set; }
+
+    /** False omits optional notes; true includes explicit clears. Null preserves legacy requests. */
+    @AuraEnabled
+    public Boolean descriptionProvided { get; set; }
 }

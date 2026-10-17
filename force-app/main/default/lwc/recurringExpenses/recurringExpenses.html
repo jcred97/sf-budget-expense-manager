@@ -30,6 +30,9 @@
             </lightning-button>
         </div>
     </div>
+    <template lwc:if={permissionError}>
+        <p class="slds-text-color_error slds-p-around_small" role="alert">{permissionError}</p>
+    </template>
     <template lwc:if={runStatusLabel}>
         <div class={runStatusClass} role="status" aria-live="polite">
             <p>Recurring run: {runStatusLabel}</p>
@@ -159,6 +162,7 @@
 
                         <div class="recurring-actions">
                             <lightning-button-menu
+                                lwc:if={hasRecurringActions}
                                 alternative-text="Recurring expense actions"
                                 icon-size="x-small"
                                 menu-alignment="right"
@@ -168,12 +172,14 @@
                                 onselect={handleRowAction}
                             >
                                 <lightning-menu-item
+                                    lwc:if={canUpdateRecurring}
                                     value="edit"
                                     label="Edit"
                                     icon-name="utility:edit"
                                 >
                                 </lightning-menu-item>
                                 <lightning-menu-item
+                                    lwc:if={canDeactivateRecurring}
                                     value="deactivate"
                                     label="Deactivate"
                                     icon-name="utility:block_visitor"

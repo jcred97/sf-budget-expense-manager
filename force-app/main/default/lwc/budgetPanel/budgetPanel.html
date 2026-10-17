@@ -1,5 +1,5 @@
 <template>
-    <template lwc:if={hasContext}>
+    <template lwc:if={showPanel}>
         <section class="budget-panel slds-box slds-theme_default">
             <header class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
                 <div class="slds-media slds-media_center">
@@ -17,18 +17,22 @@
                 <div>
                     <template lwc:if={hasBudget}>
                         <lightning-button-group>
-                            <lightning-button
-                                data-budget-opener
-                                label="Edit"
-                                disabled={isBusy}
-                                onclick={handleEditBudget}
-                            ></lightning-button>
-                            <lightning-button
-                                data-budget-remove
-                                label="Remove"
-                                disabled={isBusy}
-                                onclick={handleRemoveBudget}
-                            ></lightning-button>
+                            <template lwc:if={canEditBudget}>
+                                <lightning-button
+                                    data-budget-opener
+                                    label="Edit"
+                                    disabled={isBusy}
+                                    onclick={handleEditBudget}
+                                ></lightning-button>
+                            </template>
+                            <template lwc:if={canRemoveBudget}>
+                                <lightning-button
+                                    data-budget-remove
+                                    label="Remove"
+                                    disabled={isBusy}
+                                    onclick={handleRemoveBudget}
+                                ></lightning-button>
+                            </template>
                         </lightning-button-group>
                     </template>
                 </div>
@@ -113,13 +117,15 @@
                         <div
                             class="slds-col slds-size_1-of-1 slds-small-size_1-of-4 slds-text-align_right"
                         >
-                            <lightning-button
-                                data-budget-opener
-                                variant="brand-outline"
-                                label="Set Budget"
-                                disabled={isBusy}
-                                onclick={handleSetBudget}
-                            ></lightning-button>
+                            <template lwc:if={canSetBudget}>
+                                <lightning-button
+                                    data-budget-opener
+                                    variant="brand-outline"
+                                    label="Set Budget"
+                                    disabled={isBusy}
+                                    onclick={handleSetBudget}
+                                ></lightning-button>
+                            </template>
                         </div>
                     </div>
                 </template>

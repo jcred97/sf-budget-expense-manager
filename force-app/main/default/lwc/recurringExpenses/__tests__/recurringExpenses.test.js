@@ -1,5 +1,6 @@
 import { createElement } from 'lwc';
 import RecurringExpenses from 'c/recurringExpenses';
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import getRecurringExpenseOverview from '@salesforce/apex/RecurringExpenseController.getRecurringExpenseOverview';
 import getRecurringExpensePage from '@salesforce/apex/RecurringExpenseController.getRecurringExpensePage';
 import deactivateRecurringExpense from '@salesforce/apex/RecurringExpenseController.deactivateRecurringExpense';
@@ -48,16 +49,81 @@ const flush = async () => {
     await Promise.resolve();
     await Promise.resolve();
 };
+const recurringMetadata = {
+    apiName: 'Recurring_Expense__c',
+    queryable: true,
+    createable: true,
+    updateable: true,
+    deletable: true,
+    fields: Object.fromEntries(
+        [
+            'Name',
+            'Amount__c',
+            'Category__c',
+            'Description__c',
+            'Transaction_Type__c',
+            'Bank_Assignment__c',
+            'Bank__c',
+            'Frequency__c',
+            'Start_Date__c',
+            'End_Date__c',
+            'Active__c',
+            'Next_Run_Date__c'
+        ].map(name => [name, { createable: true, updateable: name !== 'Next_Run_Date__c' }])
+    )
+};
 
 async function mount() {
     const element = createElement('c-recurring-expenses', { is: RecurringExpenses });
     element.expenseGroupId = 'group';
     element.active = true;
     document.body.appendChild(element);
+    getObjectInfo.emit(recurringMetadata);
     await flush();
     return element;
 }
 describe('recurring screen', () => {
+    it('does not offer deactivation when Active is read-only but preserves edit access', async () => {
+        const element = await mount();
+        getRecurringExpenseOverview.emit({
+            expenseGroupId: 'group',
+            rows: [{ id: 'r1', name: 'Read only active', active: true }]
+        });
+        getObjectInfo.emit({
+            ...recurringMetadata,
+            fields: {
+                ...recurringMetadata.fields,
+                Active__c: { createable: true, updateable: false }
+            }
+        });
+        await flush();
+        const actions = [...element.shadowRoot.querySelectorAll('lightning-menu-item')];
+        expect(actions.some(action => action.value === 'edit')).toBe(true);
+        expect(actions.some(action => action.value === 'deactivate')).toBe(false);
+        element.shadowRoot
+            .querySelector('lightning-button-menu')
+            .dispatchEvent(new CustomEvent('select', { detail: { value: 'deactivate' } }));
+        await flush();
+        expect(LightningConfirm.open).not.toHaveBeenCalled();
+        expect(deactivateRecurringExpense).not.toHaveBeenCalled();
+    });
+    it('fails closed while metadata is missing or denied', async () => {
+        const element = createElement('c-recurring-expenses', { is: RecurringExpenses });
+        element.expenseGroupId = 'group';
+        document.body.appendChild(element);
+        await flush();
+        const add = () =>
+            [...element.shadowRoot.querySelectorAll('lightning-button')].find(
+                button => button.label === 'Add Recurring'
+            );
+        expect(add().disabled).toBe(true);
+        getObjectInfo.error();
+        await flush();
+        expect(add().disabled).toBe(true);
+        expect(element.shadowRoot.textContent).toContain(
+            'Unable to load recurring expense permissions'
+        );
+    });
     beforeEach(() => {
         jest.resetAllMocks();
         getRecurringRunStatus.mockResolvedValue({

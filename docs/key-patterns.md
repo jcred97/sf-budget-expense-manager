@@ -1,5 +1,19 @@
 # Key Patterns
 
+## Schema Permissions
+
+Use `AppAccessChecks` for shared Apex CRUD and explicit field-token guards; retain user-mode
+queries and DML. A denied requested change must fail clearly, without stripping it and reporting
+success. Explicit field lists also protect null clears. Keep automation-owned writes limited to
+their documented link, pointer, outcome, and run-summary fields.
+
+Use `appSchemaAccess` with UI API object metadata for UI actions and custom form controls.
+Create and edit permissions differ; unavailable metadata must not enable mutation. Hide unreadable
+fields, disable read-only custom controls, guard handlers, and omit nonwritable payload fields.
+Native LDS fields still enforce access. Read-only forms must not submit empty successful updates.
+Treat FX amount/date/rate details as one snapshot when field permissions are partial. Schema
+capabilities do not replace custom permissions for setup/automation or record sharing enforcement.
+
 ## Guided App Setup
 
 The workspace tab checks initialization through `appSetup` before mounting its screens.

@@ -47,20 +47,7 @@ public with sharing class ExpenseQueryService {
     }
 
     /**
-     * Queries expense rows for the selected group, category, and date range.
-     *
-     * @param filters Expense-group, category, and date filters; null uses default filters.
-     * @return Matching expenses ordered from newest to oldest.
-     */
-    public static List<Expense__c> getExpensesByFilters(ExpenseFilterRequest filters) {
-        Map<String, Object> bindValues = new Map<String, Object>();
-        String query = expenseSelect() + expenseWhere(filters, bindValues);
-        query += 'ORDER BY Expense_Date__c DESC, Transaction_Time__c DESC NULLS LAST, CreatedDate DESC';
-        return Database.queryWithBinds(query, bindValues, AccessLevel.USER_MODE);
-    }
-
-    /**
-     * Shared expense fields for full dashboard reads and bounded list pages.
+     * Shared expense fields for recent dashboard rows and bounded list pages.
      * @return Fixed expense SELECT clause.
      */
     public static String expenseSelect() {
@@ -81,10 +68,7 @@ public with sharing class ExpenseQueryService {
      * @param bindValues Destination for bind values used by the predicates.
      * @return Bound WHERE clause.
      */
-    public static String expenseWhere(
-        ExpenseFilterRequest filters,
-        Map<String, Object> bindValues
-    ) {
+    public static String expenseWhere(ExpenseFilterRequest filters, Map<String, Object> bindValues) {
         ExpenseFilterRequest safeFilters = getSafeFilters(filters);
         return 'WHERE Id != null ' +
             getRecordFilters(safeFilters.expenseGroupId, safeFilters.categoryId, bindValues) +
@@ -102,11 +86,7 @@ public with sharing class ExpenseQueryService {
     }
 
     /** Bounded keyset page; first-page totals cover all visible matching templates. */
-    public static RecurringExpenseOverviewDto getRecurringExpensePage(
-        Id expenseGroupId,
-        String cursor,
-        Integer pageSize
-    ) {
+    public static RecurringExpenseOverviewDto getRecurringExpensePage(Id expenseGroupId, String cursor, Integer pageSize) {
         RecurringExpenseOverviewDto overview = new RecurringExpenseOverviewDto();
         overview.expenseGroupId = expenseGroupId;
         Date today = Date.today();
@@ -118,22 +98,24 @@ public with sharing class ExpenseQueryService {
         if (String.isBlank(cursor)) {
             List<AggregateResult> totals = Database.queryWithBinds(
                 'SELECT Active__c active, Frequency__c frequency, COUNT(Id) qty, SUM(Amount__c) amount ' +
-                'FROM Recurring_Expense__c ' + predicate + 'GROUP BY Active__c, Frequency__c',
-                binds, AccessLevel.USER_MODE
+                    'FROM Recurring_Expense__c ' +
+                    predicate +
+                    'GROUP BY Active__c, Frequency__c',
+                binds,
+                AccessLevel.USER_MODE
             );
             for (AggregateResult total : totals) {
                 Integer count = (Integer) total.get('qty');
                 overview.totalCount += count;
                 if ((Boolean) total.get('active') == true) {
                     overview.activeCount += count;
-                    overview.monthlyTotal += getMonthlyRecurringAmount(
-                        (Decimal) total.get('amount'), (String) total.get('frequency')
-                    );
+                    overview.monthlyTotal += getMonthlyRecurringAmount((Decimal) total.get('amount'), (String) total.get('frequency'));
                 }
             }
             List<AggregateResult> due = Database.queryWithBinds(
-                'SELECT COUNT(Id) qty FROM Recurring_Expense__c ' + predicate +
-                'AND Due_For_Generation__c = true', binds, AccessLevel.USER_MODE
+                'SELECT COUNT(Id) qty FROM Recurring_Expense__c ' + predicate + 'AND Due_For_Generation__c = true',
+                binds,
+                AccessLevel.USER_MODE
             );
             overview.dueTodayCount = (Integer) due[0].get('qty');
         } else {
@@ -145,9 +127,12 @@ public with sharing class ExpenseQueryService {
         }
         binds.put('rowLimit', size + 1);
         List<Recurring_Expense__c> records = Database.queryWithBinds(
-            recurringSelect() + predicate + after +
-            'ORDER BY Active__c DESC, Next_Run_Date__c ASC NULLS LAST, Name ASC, Id ASC LIMIT :rowLimit',
-            binds, AccessLevel.USER_MODE
+            recurringSelect() +
+                predicate +
+                after +
+                'ORDER BY Active__c DESC, Next_Run_Date__c ASC NULLS LAST, Name ASC, Id ASC LIMIT :rowLimit',
+            binds,
+            AccessLevel.USER_MODE
         );
         overview.hasMore = records.size() > size;
         if (overview.hasMore) {
@@ -173,18 +158,22 @@ public with sharing class ExpenseQueryService {
                 throw new IllegalArgumentException('Invalid cursor');
             }
             RecurringCursor parsed = (RecurringCursor) JSON.deserializeStrict(
-                EncodingUtil.base64Decode(cursor).toString(), RecurringCursor.class
+                EncodingUtil.base64Decode(cursor).toString(),
+                RecurringCursor.class
             );
-            if (parsed == null || parsed.scope != scope || parsed.active == null ||
-                parsed.name == null || parsed.recordId == null ||
-                parsed.recordId.getSObjectType() != Recurring_Expense__c.SObjectType) {
+            if (
+                parsed == null ||
+                parsed.scope != scope ||
+                parsed.active == null ||
+                parsed.name == null ||
+                parsed.recordId == null ||
+                parsed.recordId.getSObjectType() != Recurring_Expense__c.SObjectType
+            ) {
                 throw new IllegalArgumentException('Invalid cursor');
             }
             return parsed;
         } catch (Exception error) {
-            AuraHandledException handled = new AuraHandledException(
-                'This recurring page is no longer valid. Refresh the recurring list.'
-            );
+            AuraHandledException handled = new AuraHandledException('This recurring page is no longer valid. Refresh the recurring list.');
             handled.setMessage('This recurring page is no longer valid. Refresh the recurring list.');
             throw handled;
         }
@@ -219,11 +208,7 @@ public with sharing class ExpenseQueryService {
         return filters == null ? new ExpenseFilterRequest() : filters;
     }
 
-    private static String getDateFilters(
-        Date startDate,
-        Date endDate,
-        Map<String, Object> bindValues
-    ) {
+    private static String getDateFilters(Date startDate, Date endDate, Map<String, Object> bindValues) {
         String filters = '';
         if (startDate != null) {
             filters += 'AND Expense_Date__c >= :startDate ';
@@ -236,11 +221,7 @@ public with sharing class ExpenseQueryService {
         return filters;
     }
 
-    private static String getRecordFilters(
-        Id expenseGroupRecordId,
-        Id categoryRecordId,
-        Map<String, Object> bindValues
-    ) {
+    private static String getRecordFilters(Id expenseGroupRecordId, Id categoryRecordId, Map<String, Object> bindValues) {
         String filters = '';
         if (expenseGroupRecordId != null) {
             filters += 'AND Category__r.Expense_Group__c = :expenseGroupRecordId ';
@@ -267,8 +248,7 @@ public with sharing class ExpenseQueryService {
     }
 
     private static String recurringSelect() {
-        return
-            'SELECT Id, Name, Active__c, Amount__c, Bank__c, Bank_Assignment__c, ' +
+        return 'SELECT Id, Name, Active__c, Amount__c, Bank__c, Bank_Assignment__c, ' +
             'Bank_Assignment__r.Active__c, Bank_Assignment__r.Bank__c, ' +
             'Bank_Assignment__r.Bank__r.Name, Bank_Assignment__r.Bank__r.Active__c, ' +
             'Category__c, Category__r.Name, ' +
@@ -277,10 +257,7 @@ public with sharing class ExpenseQueryService {
             'FROM Recurring_Expense__c ';
     }
 
-    private static RecurringExpenseRowDto buildRecurringExpenseRow(
-        Recurring_Expense__c recurringExpense,
-        Date today
-    ) {
+    private static RecurringExpenseRowDto buildRecurringExpenseRow(Recurring_Expense__c recurringExpense, Date today) {
         RecurringExpenseRowDto row = new RecurringExpenseRowDto();
         row.id = recurringExpense.Id;
         row.name = recurringExpense.Name;
@@ -288,10 +265,7 @@ public with sharing class ExpenseQueryService {
         row.categoryName = recurringExpense.Category__r?.Name;
         row.expenseGroupName = recurringExpense.Category__r?.Expense_Group__r?.Name;
         row.amount = recurringExpense.Amount__c;
-        row.monthlyAmount = getMonthlyRecurringAmount(
-            recurringExpense.Amount__c,
-            recurringExpense.Frequency__c
-        );
+        row.monthlyAmount = getMonthlyRecurringAmount(recurringExpense.Amount__c, recurringExpense.Frequency__c);
         row.bank = recurringExpense.Bank_Assignment__r?.Bank__r?.Name;
         if (String.isBlank(row.bank)) {
             row.bank = recurringExpense.Bank__c;

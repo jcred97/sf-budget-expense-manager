@@ -58,6 +58,16 @@
                         </div>
                     </template>
 
+                    <template lwc:if={permissionMessage}>
+                        <div
+                            class="slds-notify slds-notify_alert slds-alert_error slds-var-p-around_medium"
+                            role="alert"
+                            tabindex="-1"
+                            data-schema-error
+                        >
+                            <p>{permissionMessage} Close and reopen this dialog to try again.</p>
+                        </div>
+                    </template>
                     <template lwc:if={formLoadError}>
                         <div class="slds-modal__content slds-var-p-around_medium">
                             <div
@@ -188,6 +198,7 @@
                                         </div>
                                     </template>
                                     <lightning-combobox
+                                        lwc:if={canReadCategory}
                                         data-field="category"
                                         label="Category"
                                         value={categoryValue}
@@ -258,6 +269,7 @@
                                         </div>
                                     </template>
                                     <lightning-combobox
+                                        lwc:if={canReadBank}
                                         data-field="bank"
                                         label="Bank"
                                         value={bankAssignmentValue}
@@ -288,12 +300,13 @@
                                     </template>
                                 </div>
                                 <lightning-combobox
+                                    lwc:if={canReadTransactionType}
                                     class="slds-var-m-bottom_small"
                                     data-field="transaction-type"
                                     label="Transaction Type"
                                     value={transactionTypeValue}
                                     options={transactionTypeOptions}
-                                    disabled={isBankInputDisabled}
+                                    disabled={isTransactionTypeDisabled}
                                     onchange={handleTransactionTypeChange}
                                 ></lightning-combobox>
                                 <template lwc:if={isTransactionTypeUnavailable}>

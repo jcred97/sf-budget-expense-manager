@@ -9,15 +9,14 @@ public inherited sharing class BudgetService {
      */
     public static BudgetDto getMonthlyBudget(Id expenseGroupId, Date budgetMonth) {
         Date normalizedBudgetMonth = normalizeBudgetContext(expenseGroupId, budgetMonth);
-        List<Budget__c> budgets = [
-            SELECT Id, Expense_Group__c, Budget_Month__c, Amount__c, Description__c
-            FROM Budget__c
-            WHERE Expense_Group__c = :expenseGroupId AND Budget_Month__c = :normalizedBudgetMonth
-            WITH USER_MODE
-            LIMIT 1
-        ];
+        requireBudgetReadAccess();
+        List<Budget__c> budgets = Database.queryWithBinds(
+            budgetProjection() + ' WHERE Expense_Group__c = :groupId AND Budget_Month__c = :month LIMIT 1',
+            new Map<String, Object>{ 'groupId' => expenseGroupId, 'month' => normalizedBudgetMonth },
+            AccessLevel.USER_MODE
+        );
 
-        return budgets.isEmpty() ? null : new BudgetDto(budgets[0]);
+        return budgets.isEmpty() ? null : toDto(budgets[0]);
     }
 
     /**
@@ -32,18 +31,15 @@ public inherited sharing class BudgetService {
         Date startMonth = normalizedEndMonth.addMonths(-5);
         List<BudgetDto> history = new List<BudgetDto>();
 
-        for (Budget__c budget : [
-            SELECT Id, Expense_Group__c, Budget_Month__c, Amount__c, Description__c
-            FROM Budget__c
-            WHERE
-                Expense_Group__c = :expenseGroupId
-                AND Budget_Month__c >= :startMonth
-                AND Budget_Month__c <= :normalizedEndMonth
-            WITH USER_MODE
-            ORDER BY Budget_Month__c ASC
-            LIMIT 6
-        ]) {
-            history.add(new BudgetDto(budget));
+        requireBudgetReadAccess();
+        List<Budget__c> budgets = Database.queryWithBinds(
+            budgetProjection() +
+            ' WHERE Expense_Group__c = :groupId AND Budget_Month__c >= :startMonth AND Budget_Month__c <= :endMonth ORDER BY Budget_Month__c ASC LIMIT 6',
+            new Map<String, Object>{ 'groupId' => expenseGroupId, 'startMonth' => startMonth, 'endMonth' => normalizedEndMonth },
+            AccessLevel.USER_MODE
+        );
+        for (Budget__c budget : budgets) {
+            history.add(toDto(budget));
         }
         return history;
     }
@@ -56,6 +52,7 @@ public inherited sharing class BudgetService {
      */
     public static BudgetDto saveMonthlyBudget(BudgetSaveRequest request) {
         Date normalizedBudgetMonth = validateAndNormalizeMonth(request);
+        requireBudgetReadAccess();
         Budget__c existingBudget = findBudgetForSave(request, normalizedBudgetMonth);
 
         try {
@@ -80,6 +77,7 @@ public inherited sharing class BudgetService {
             throw handledException('Budget Id is required for deletion.');
         }
 
+        AppAccessChecks.requireDelete(Budget__c.SObjectType);
         List<Budget__c> budgets = [
             SELECT Id
             FROM Budget__c
@@ -111,20 +109,14 @@ public inherited sharing class BudgetService {
         if (request == null) {
             throw handledException('Budget details are required.');
         }
-        Date normalizedBudgetMonth = normalizeBudgetContext(
-            request.expenseGroupId,
-            request.budgetMonth
-        );
+        Date normalizedBudgetMonth = normalizeBudgetContext(request.expenseGroupId, request.budgetMonth);
         if (request.amount == null || request.amount <= 0) {
             throw handledException('Budget amount must be greater than zero.');
         }
         return normalizedBudgetMonth;
     }
 
-    private static Budget__c findBudgetForSave(
-        BudgetSaveRequest request,
-        Date normalizedBudgetMonth
-    ) {
+    private static Budget__c findBudgetForSave(BudgetSaveRequest request, Date normalizedBudgetMonth) {
         if (request.budgetId != null) {
             List<Budget__c> requestedBudgets = [
                 SELECT Id, Expense_Group__c, Budget_Month__c
@@ -142,14 +134,9 @@ public inherited sharing class BudgetService {
                 String.valueOf(requestedBudget.Expense_Group__c) +
                 '-' +
                 String.valueOf(requestedBudget.Budget_Month__c);
-            String requestedContextKey =
-                String.valueOf(request.expenseGroupId) +
-                '-' +
-                String.valueOf(normalizedBudgetMonth);
+            String requestedContextKey = String.valueOf(request.expenseGroupId) + '-' + String.valueOf(normalizedBudgetMonth);
             if (persistedContextKey != requestedContextKey) {
-                throw handledException(
-                    'Budget record does not match the requested expense group and month.'
-                );
+                throw handledException('Budget record does not match the requested expense group and month.');
             }
             return requestedBudget;
         }
@@ -158,9 +145,7 @@ public inherited sharing class BudgetService {
         List<Budget__c> matchingBudgets = [
             SELECT Id, Expense_Group__c, Budget_Month__c
             FROM Budget__c
-            WHERE
-                Expense_Group__c = :request.expenseGroupId
-                AND Budget_Month__c = :normalizedBudgetMonth
+            WHERE Expense_Group__c = :request.expenseGroupId AND Budget_Month__c = :normalizedBudgetMonth
             WITH USER_MODE
             LIMIT 1
         ];
@@ -182,32 +167,51 @@ public inherited sharing class BudgetService {
     }
 
     private static void insertBudget(BudgetSaveRequest request, Date normalizedBudgetMonth) {
+        AppAccessChecks.requireCreate(Budget__c.SObjectType);
+        AppAccessChecks.requireCreateable(
+            new List<Schema.SObjectField>{ Budget__c.Expense_Group__c, Budget__c.Budget_Month__c, Budget__c.Amount__c }
+        );
         Budget__c budget = new Budget__c(
             Expense_Group__c = request.expenseGroupId,
             Budget_Month__c = normalizedBudgetMonth,
-            Amount__c = request.amount,
-            Description__c = request.description
+            Amount__c = request.amount
         );
-        List<Budget__c> inserts = (List<Budget__c>) Security.stripInaccessible(
-                AccessType.CREATABLE,
-                new List<Budget__c>{ budget }
-            )
-            .getRecords();
-        Database.insert(inserts, AccessLevel.USER_MODE);
+        if (request.descriptionProvided != false) {
+            AppAccessChecks.requireCreateable(new List<Schema.SObjectField>{ Budget__c.Description__c });
+            budget.Description__c = request.description;
+        }
+        Database.insert(budget, AccessLevel.USER_MODE);
     }
 
     private static void updateBudget(Id budgetId, BudgetSaveRequest request) {
-        Budget__c budgetUpdate = new Budget__c(
-            Id = budgetId,
-            Amount__c = request.amount,
-            Description__c = request.description
+        AppAccessChecks.requireUpdate(Budget__c.SObjectType);
+        AppAccessChecks.requireUpdateable(new List<Schema.SObjectField>{ Budget__c.Amount__c });
+        Budget__c budgetUpdate = new Budget__c(Id = budgetId, Amount__c = request.amount);
+        if (request.descriptionProvided != false) {
+            AppAccessChecks.requireUpdateable(new List<Schema.SObjectField>{ Budget__c.Description__c });
+            budgetUpdate.Description__c = request.description;
+        }
+        Database.update(budgetUpdate, AccessLevel.USER_MODE);
+    }
+
+    private static void requireBudgetReadAccess() {
+        AppAccessChecks.requireRead(Budget__c.SObjectType);
+        AppAccessChecks.requireReadable(
+            new List<Schema.SObjectField>{ Budget__c.Expense_Group__c, Budget__c.Budget_Month__c, Budget__c.Amount__c }
         );
-        List<Budget__c> updates = (List<Budget__c>) Security.stripInaccessible(
-                AccessType.UPDATABLE,
-                new List<Budget__c>{ budgetUpdate }
-            )
-            .getRecords();
-        Database.update(updates, AccessLevel.USER_MODE);
+    }
+
+    private static String budgetProjection() {
+        return 'SELECT Id, Expense_Group__c, Budget_Month__c, Amount__c' +
+            (Budget__c.Description__c.getDescribe().isAccessible() ? ', Description__c' : '') +
+            ' FROM Budget__c';
+    }
+
+    private static BudgetDto toDto(Budget__c budget) {
+        if (!Budget__c.Description__c.getDescribe().isAccessible()) {
+            budget.Description__c = null;
+        }
+        return new BudgetDto(budget);
     }
 
     private static AuraHandledException handledException(String message) {

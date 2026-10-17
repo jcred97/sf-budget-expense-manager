@@ -9,8 +9,32 @@ import getRecurringExpensePage from '@salesforce/apex/RecurringExpenseController
 import deactivateRecurringExpense from '@salesforce/apex/RecurringExpenseController.deactivateRecurringExpense';
 import { subscribeRecurringRun, startRecurringRun, retryRecurringRun } from 'c/recurringRunMonitor';
 import hasRecurringAutomationPermission from '@salesforce/customPermission/Manage_Recurring_Expense_Automation';
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
+import RECURRING_OBJECT from '@salesforce/schema/Recurring_Expense__c';
+import { canCreateObject, canUpdateObject, canUpdateField } from 'c/appSchemaAccess';
 
 export default class RecurringExpenses extends LightningElement {
+    recurringInfo;
+    permissionError = '';
+    @wire(getObjectInfo, { objectApiName: RECURRING_OBJECT })
+    receiveRecurringInfo({ data, error }) {
+        this.recurringInfo = data;
+        this.permissionError = error
+            ? 'Unable to load recurring expense permissions. Refresh the page to retry.'
+            : '';
+    }
+    get canCreateRecurring() {
+        return canCreateObject(this.recurringInfo);
+    }
+    get canUpdateRecurring() {
+        return canUpdateObject(this.recurringInfo);
+    }
+    get canDeactivateRecurring() {
+        return canUpdateField(this.recurringInfo, 'Active__c');
+    }
+    get hasRecurringActions() {
+        return this.canUpdateRecurring || this.canDeactivateRecurring;
+    }
     @api expenseGroupName;
     @api categoryOptions = [];
     @api categoryOptionsLoading = false;
@@ -303,7 +327,7 @@ export default class RecurringExpenses extends LightningElement {
     }
 
     get isAddRecurringDisabled() {
-        return !this.expenseGroupId || this.isRecurringBusy;
+        return !this.canCreateRecurring || !this.expenseGroupId || this.isRecurringBusy;
     }
 
     get runRecurringLabel() {
@@ -385,13 +409,19 @@ export default class RecurringExpenses extends LightningElement {
     }
 
     async confirmAndDeactivateRecurringExpense(recordId) {
+        if (!this.canDeactivateRecurring) return;
         const contextVersion = this._contextVersion;
         const confirmed = await LightningConfirm.open({
             message: 'Deactivate this recurring expense template?',
             variant: 'header',
             label: 'Deactivate Recurring Expense'
         });
-        if (!confirmed || contextVersion !== this._contextVersion || !this.isConnected) {
+        if (
+            !confirmed ||
+            !this.canDeactivateRecurring ||
+            contextVersion !== this._contextVersion ||
+            !this.isConnected
+        ) {
             return;
         }
 
@@ -443,6 +473,7 @@ export default class RecurringExpenses extends LightningElement {
         const id = event.currentTarget.dataset.id;
 
         if (action === 'edit') {
+            if (!this.canUpdateRecurring) return;
             const row = this.recurringRows.find(item => item.id === id);
             if (!row) {
                 return;
@@ -456,6 +487,7 @@ export default class RecurringExpenses extends LightningElement {
         }
 
         if (action === 'deactivate') {
+            if (!this.canDeactivateRecurring) return;
             await this.confirmAndDeactivateRecurringExpense(id);
         }
     }

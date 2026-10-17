@@ -1,5 +1,6 @@
 import { createElement } from 'lwc';
 import ExpenseList from 'c/expenseList';
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import { fetchExpensePage, fetchAllExpenseRows } from 'c/expenseWorkspaceData';
 import { downloadExpensesCsv } from 'c/expenseCsvExport';
 import LightningConfirm from 'lightning/confirm';
@@ -33,6 +34,31 @@ const firstPage = () => ({
     hasMore: true,
     nextCursor: 'next'
 });
+const expenseMetadata = {
+    apiName: 'Expense__c',
+    queryable: true,
+    createable: true,
+    updateable: true,
+    deletable: true,
+    fields: Object.fromEntries(
+        [
+            'Name',
+            'Amount__c',
+            'Category__c',
+            'Expense_Date__c',
+            'Description__c',
+            'Transaction_Type__c',
+            'Transaction_Time__c',
+            'Bank_Assignment__c',
+            'Bank__c',
+            'Original_Amount__c',
+            'Original_Currency_Code__c',
+            'Exchange_Rate_To_PHP__c',
+            'Exchange_Rate_Date__c',
+            'Exchange_Rate_Source__c'
+        ].map(name => [name, { createable: true, updateable: true }])
+    )
+};
 const expenseButton = (element, label) =>
     [...element.shadowRoot.querySelectorAll('lightning-button')].find(
         button => button.label === label
@@ -71,6 +97,7 @@ async function mount() {
     element.expenseGroupId = 'group';
     element.active = true;
     document.body.appendChild(element);
+    getObjectInfo.emit(expenseMetadata);
     await flush();
     return element;
 }
@@ -78,6 +105,53 @@ const changeGroup = element => {
     element.expenseGroupId = 'other-group';
 };
 describe('expense screen', () => {
+    it('disables financial actions on metadata denial and guards programmatic create', async () => {
+        const element = await mount();
+        getObjectInfo.emit({
+            ...expenseMetadata,
+            createable: false,
+            updateable: false,
+            deletable: false
+        });
+        await flush();
+        expect(expenseButton(element, 'Add Expense').disabled).toBe(true);
+        expect(element.shadowRoot.querySelector('lightning-button-menu')).toBeNull();
+        expect(element.shadowRoot.querySelector('input[type="checkbox"]').disabled).toBe(true);
+        element.openExpenseModal();
+        await flush();
+        expect(element.shadowRoot.querySelector('c-expense-modal').isOpen).toBe(false);
+        expect(deleteExpense).not.toHaveBeenCalled();
+    });
+    it('keeps create blocked until metadata loads and reports a metadata failure', async () => {
+        const element = createElement('c-expense-list', { is: ExpenseList });
+        element.expenseGroupId = 'group';
+        document.body.appendChild(element);
+        await flush();
+        expect(expenseButton(element, 'Add Expense').disabled).toBe(true);
+        element.openExpenseModal();
+        getObjectInfo.error();
+        await flush();
+        expect(element.shadowRoot.textContent).toContain('Unable to load expense permissions');
+    });
+    it('rejects handler bypasses when delete permission is absent', async () => {
+        const state = Object.create(ExpenseList.prototype);
+        Object.defineProperty(state, 'expenseInfo', {
+            value: {
+                ...expenseMetadata,
+                deletable: false,
+                createable: false,
+                updateable: false
+            }
+        });
+        await state.performExpenseRowAction('delete', row('1'));
+        await state.confirmAndDeleteExpense('1');
+        await state.handleBulkExpenseDelete();
+        await state.performExpenseRowAction('edit', row('1'));
+        await state.performExpenseRowAction('duplicate', row('1'));
+        expect(LightningConfirm.open).not.toHaveBeenCalled();
+        expect(deleteExpense).not.toHaveBeenCalled();
+        expect(deleteExpenses).not.toHaveBeenCalled();
+    });
     beforeEach(() => {
         jest.resetAllMocks();
         LightningConfirm.open.mockResolvedValue(true);

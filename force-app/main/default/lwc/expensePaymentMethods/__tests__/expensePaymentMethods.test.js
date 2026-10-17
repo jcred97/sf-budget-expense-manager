@@ -1,3 +1,4 @@
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import { createElement } from 'lwc';
 import { getRecord } from 'lightning/uiRecordApi';
 import ExpenseModal from 'c/expenseModal';
@@ -6,6 +7,36 @@ import { paymentMethodOptions } from 'c/expensePaymentMethods';
 
 jest.mock('@salesforce/apex/ExchangeRateController.getPhpRate', () => ({ default: jest.fn() }), {
     virtual: true
+});
+
+const writableMetadata = () => ({
+    queryable: true,
+    createable: true,
+    updateable: true,
+    deletable: true,
+    fields: Object.fromEntries(
+        [
+            'Name',
+            'Amount__c',
+            'Category__c',
+            'Bank_Assignment__c',
+            'Bank__c',
+            'Transaction_Type__c',
+            'Transaction_Time__c',
+            'Expense_Date__c',
+            'Original_Amount__c',
+            'Original_Currency_Code__c',
+            'Exchange_Rate_To_PHP__c',
+            'Exchange_Rate_Date__c',
+            'Exchange_Rate_Source__c',
+            'Active__c',
+            'Frequency__c',
+            'Start_Date__c',
+            'End_Date__c',
+            'Notes__c',
+            'Next_Run_Date__c'
+        ].map(name => [name, { apiName: name, createable: true, updateable: true }])
+    )
 });
 
 const flush = async () => {
@@ -44,6 +75,7 @@ async function openModal(
     if (legacyBank && component === ExpenseModal) element.currentBank = { legacyBank };
     element.isOpen = true;
     document.body.appendChild(element);
+    getObjectInfo.emit(writableMetadata());
     await flush();
     const form = element.shadowRoot.querySelector('lightning-record-edit-form');
     form.submit = jest.fn();
@@ -465,6 +497,7 @@ it('blocks an expense edit until the payment context loads and offers recovery o
     element.recordId = 'record';
     element.isOpen = true;
     document.body.appendChild(element);
+    getObjectInfo.emit(writableMetadata());
     await flush();
     const form = element.shadowRoot.querySelector('lightning-record-edit-form');
     form.submit = jest.fn();

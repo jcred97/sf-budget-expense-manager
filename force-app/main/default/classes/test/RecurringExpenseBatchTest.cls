@@ -1,5 +1,25 @@
 @IsTest
 private class RecurringExpenseBatchTest {
+    @TestSetup
+    static void automationPermission() {
+        PermissionSet adminPermission = [
+            SELECT Id
+            FROM PermissionSet
+            WHERE Name = 'Budget_Expense_Manager_Admin' AND (NamespacePrefix = 'bemgr' OR NamespacePrefix = NULL)
+            ORDER BY NamespacePrefix DESC NULLS LAST
+            LIMIT 1
+        ];
+        if (
+            [
+                SELECT COUNT()
+                FROM PermissionSetAssignment
+                WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :adminPermission.Id
+            ] == 0
+        ) {
+            insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = adminPermission.Id);
+        }
+    }
+
     @IsTest
     static void testCappedExecutePreservesCatchUpAndResumesWithoutDuplicates() {
         Date runDate = Date.newInstance(2026, 5, 3);

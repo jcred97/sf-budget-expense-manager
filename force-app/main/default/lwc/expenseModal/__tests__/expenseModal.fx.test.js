@@ -1,9 +1,40 @@
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import { createElement } from 'lwc';
 import ExpenseModal from 'c/expenseModal';
 import getPhpRate from '@salesforce/apex/ExchangeRateController.getPhpRate';
 
 jest.mock('@salesforce/apex/ExchangeRateController.getPhpRate', () => ({ default: jest.fn() }), {
     virtual: true
+});
+
+const writableMetadata = () => ({
+    queryable: true,
+    createable: true,
+    updateable: true,
+    deletable: true,
+    fields: Object.fromEntries(
+        [
+            'Name',
+            'Amount__c',
+            'Category__c',
+            'Bank_Assignment__c',
+            'Bank__c',
+            'Transaction_Type__c',
+            'Transaction_Time__c',
+            'Expense_Date__c',
+            'Original_Amount__c',
+            'Original_Currency_Code__c',
+            'Exchange_Rate_To_PHP__c',
+            'Exchange_Rate_Date__c',
+            'Exchange_Rate_Source__c',
+            'Active__c',
+            'Frequency__c',
+            'Start_Date__c',
+            'End_Date__c',
+            'Notes__c',
+            'Next_Run_Date__c'
+        ].map(name => [name, { apiName: name, createable: true, updateable: true }])
+    )
 });
 
 const flush = async () => {
@@ -58,6 +89,7 @@ const mount = async () => {
     element.categoryOptions = [{ label: 'Groceries', value: 'category' }];
     element.isOpen = true;
     document.body.appendChild(element);
+    getObjectInfo.emit(writableMetadata());
     await flush();
     const form = await loadForm(element);
     toggle(element, true);
@@ -210,6 +242,7 @@ describe('foreign-currency quote lifecycle', () => {
         pending.reject(new Error('Old request failed'));
         await flush();
         document.body.appendChild(element);
+        getObjectInfo.emit(writableMetadata());
         await flush();
         await loadForm(element);
         expect(element.shadowRoot.textContent).not.toContain('Old request failed');

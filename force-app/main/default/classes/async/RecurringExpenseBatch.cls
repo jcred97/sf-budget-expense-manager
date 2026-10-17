@@ -9,7 +9,7 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
     @TestVisible
     private Boolean hasCatchUpRemaining = false;
     @TestVisible
-    private Integer generationLimit = 9000;
+    private Integer generationLimit = RecurringExpenseService.MAX_BATCH_EXPENSES;
 
     /** Creates a recurring-expense batch for the current date. */
     public RecurringExpenseBatch() {
@@ -31,6 +31,7 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
      * @return Query locator for due recurring templates.
      */
     public Database.QueryLocator start(Database.BatchableContext context) {
+        RecurringExpenseGenerator.requireGenerationAccess();
         return Database.getQueryLocator(
             [
                 SELECT
@@ -49,6 +50,7 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
                     Transaction_Type__c
                 FROM Recurring_Expense__c
                 WHERE Active__c = TRUE AND Next_Run_Date__c != NULL AND Next_Run_Date__c <= :runDate
+                WITH USER_MODE
                 ORDER BY Next_Run_Date__c ASC, CreatedDate ASC
             ]
         );
@@ -91,7 +93,16 @@ public with sharing class RecurringExpenseBatch implements Database.Batchable<SO
      */
     public void finish(Database.BatchableContext context) {
         Id jobId = context.getJobId();
-        finishWithJob([SELECT Id, NumberOfErrors FROM AsyncApexJob WHERE Id = :jobId WITH USER_MODE]);
+        // Read only this framework-provided batch job. App administrators do not
+        // need platform job object/field access to persist automation's own result.
+        finishWithJob(
+            [
+                SELECT Id, NumberOfErrors
+                FROM AsyncApexJob
+                WHERE Id = :jobId AND JobType = 'BatchApex' AND ApexClass.Name = 'RecurringExpenseBatch'
+                WITH SYSTEM_MODE
+            ]
+        );
     }
 
     @TestVisible

@@ -39,30 +39,19 @@ public with sharing class RecurringExpenseGenerator {
      * @param options Generation cutoff, cap, and transaction time.
      * @return Counts and limit status for the generation transaction.
      */
-    public static RecurringExpenseGenerationResult generate(
-        List<Recurring_Expense__c> dueRecurringExpenses,
-        GenerationOptions options
-    ) {
-        GenerationContext context = new GenerationContext(
-            options.runDate,
-            options.maxExpenses,
-            options.generatedTransactionTime
-        );
+    public static RecurringExpenseGenerationResult generate(List<Recurring_Expense__c> dueRecurringExpenses, GenerationOptions options) {
+        GenerationContext context = new GenerationContext(options.runDate, options.maxExpenses, options.generatedTransactionTime);
         if (dueRecurringExpenses == null || dueRecurringExpenses.isEmpty()) {
             return context.result;
         }
 
+        requireGenerationAccess();
         generateExpenses(lockAndReloadTemplates(dueRecurringExpenses), context);
         persistGeneration(context);
         return context.result;
     }
 
-    private static List<Recurring_Expense__c> lockAndReloadTemplates(
-        List<Recurring_Expense__c> candidates
-    ) {
-        if (!Schema.sObjectType.Recurring_Expense__c.isAccessible()) {
-            throw new SecurityException('You do not have permission to read recurring expenses.');
-        }
+    private static List<Recurring_Expense__c> lockAndReloadTemplates(List<Recurring_Expense__c> candidates) {
         Set<Id> templateIds = new Set<Id>();
         for (Recurring_Expense__c candidate : candidates) {
             templateIds.add(candidate.Id);
@@ -90,14 +79,48 @@ public with sharing class RecurringExpenseGenerator {
                 Transaction_Type__c
             FROM Recurring_Expense__c
             WHERE Id IN :lockedTemplates.keySet() AND Active__c = TRUE
+            WITH USER_MODE
             ORDER BY Next_Run_Date__c ASC, CreatedDate ASC, Id ASC
         ];
     }
 
-    private static void generateExpenses(
-        List<Recurring_Expense__c> dueRecurringExpenses,
-        GenerationContext context
-    ) {
+    /** Checks ordinary source and destination access before narrowly privileged automation writes. */
+    public static void requireGenerationAccess() {
+        AppAccessChecks.requireRead(Recurring_Expense__c.SObjectType);
+        AppAccessChecks.requireReadable(
+            new List<Schema.SObjectField>{
+                Recurring_Expense__c.Name,
+                Recurring_Expense__c.Active__c,
+                Recurring_Expense__c.Amount__c,
+                Recurring_Expense__c.Bank__c,
+                Recurring_Expense__c.Bank_Assignment__c,
+                Recurring_Expense__c.Category__c,
+                Recurring_Expense__c.Description__c,
+                Recurring_Expense__c.End_Date__c,
+                Recurring_Expense__c.Frequency__c,
+                Recurring_Expense__c.Next_Run_Date__c,
+                Recurring_Expense__c.Start_Date__c,
+                Recurring_Expense__c.Transaction_Type__c
+            }
+        );
+        AppAccessChecks.requireUpdate(Recurring_Expense__c.SObjectType);
+        AppAccessChecks.requireCreate(Expense__c.SObjectType);
+        AppAccessChecks.requireCreateable(
+            new List<Schema.SObjectField>{
+                Expense__c.Name,
+                Expense__c.Amount__c,
+                Expense__c.Bank__c,
+                Expense__c.Bank_Assignment__c,
+                Expense__c.Category__c,
+                Expense__c.Description__c,
+                Expense__c.Expense_Date__c,
+                Expense__c.Transaction_Time__c,
+                Expense__c.Transaction_Type__c
+            }
+        );
+    }
+
+    private static void generateExpenses(List<Recurring_Expense__c> dueRecurringExpenses, GenerationContext context) {
         for (Recurring_Expense__c recurringExpense : dueRecurringExpenses) {
             generateExpensesForTemplate(recurringExpense, context);
             if (context.result.hitGenerationLimit) {
@@ -106,33 +129,18 @@ public with sharing class RecurringExpenseGenerator {
         }
     }
 
-    private static void generateExpensesForTemplate(
-        Recurring_Expense__c recurringExpense,
-        GenerationContext context
-    ) {
+    private static void generateExpensesForTemplate(Recurring_Expense__c recurringExpense, GenerationContext context) {
         Boolean generatedForTemplate = false;
         Date dueDate = recurringExpense.Next_Run_Date__c;
 
-        while (
-            RecurringExpenseCalculator.shouldGenerateForDate(
-                recurringExpense,
-                dueDate,
-                context.runDate
-            )
-        ) {
+        while (RecurringExpenseCalculator.shouldGenerateForDate(recurringExpense, dueDate, context.runDate)) {
             if (context.expensesToInsert.size() >= context.maxExpenses) {
                 context.result.hitGenerationLimit = true;
                 break;
             }
 
-            context.expensesToInsert.add(
-                buildExpense(recurringExpense, dueDate, context.generatedTransactionTime)
-            );
-            dueDate = RecurringExpenseCalculator.getNextRunDate(
-                dueDate,
-                recurringExpense.Frequency__c,
-                recurringExpense.Start_Date__c
-            );
+            context.expensesToInsert.add(buildExpense(recurringExpense, dueDate, context.generatedTransactionTime));
+            dueDate = RecurringExpenseCalculator.getNextRunDate(dueDate, recurringExpense.Frequency__c, recurringExpense.Start_Date__c);
             recurringExpense.Next_Run_Date__c = dueDate;
             generatedForTemplate = true;
         }
@@ -151,7 +159,7 @@ public with sharing class RecurringExpenseGenerator {
         if (context.expensesToInsert.isEmpty()) {
             return;
         }
-        // Generated expenses include the system-managed recurring link, which users cannot edit.
+        // Ordinary fields were checked above. Only the recurring link is an FLS exception.
         Database.insert(context.expensesToInsert, AccessLevel.SYSTEM_MODE);
         context.result.expensesCreated = context.expensesToInsert.size();
     }
@@ -163,26 +171,16 @@ public with sharing class RecurringExpenseGenerator {
 
         List<Recurring_Expense__c> pointerUpdates = new List<Recurring_Expense__c>();
         for (Recurring_Expense__c recurringExpense : context.recurringExpensesToUpdate) {
-            pointerUpdates.add(
-                new Recurring_Expense__c(
-                    Id = recurringExpense.Id,
-                    Next_Run_Date__c = recurringExpense.Next_Run_Date__c
-                )
-            );
+            pointerUpdates.add(new Recurring_Expense__c(Id = recurringExpense.Id, Next_Run_Date__c = recurringExpense.Next_Run_Date__c));
         }
 
         // Next Run Date is intentionally read-only to users and is advanced only by automation.
         Database.update(pointerUpdates, AccessLevel.SYSTEM_MODE);
         Integer updatedCount = context.recurringExpensesToUpdate.size();
         context.result.recurringExpensesProcessed = updatedCount;
-        context.result.recurringExpensesUpdated = updatedCount;
     }
 
-    private static Expense__c buildExpense(
-        Recurring_Expense__c recurringExpense,
-        Date dueDate,
-        Time generatedTransactionTime
-    ) {
+    private static Expense__c buildExpense(Recurring_Expense__c recurringExpense, Date dueDate, Time generatedTransactionTime) {
         return new Expense__c(
             Name = recurringExpense.Name,
             Amount__c = recurringExpense.Amount__c,

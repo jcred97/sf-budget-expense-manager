@@ -1,9 +1,40 @@
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import { createElement } from 'lwc';
 import { getRecord } from 'lightning/uiRecordApi';
 import ExpenseModal from 'c/expenseModal';
 
 jest.mock('@salesforce/apex/ExchangeRateController.getPhpRate', () => ({ default: jest.fn() }), {
     virtual: true
+});
+
+const writableMetadata = () => ({
+    queryable: true,
+    createable: true,
+    updateable: true,
+    deletable: true,
+    fields: Object.fromEntries(
+        [
+            'Name',
+            'Amount__c',
+            'Category__c',
+            'Bank_Assignment__c',
+            'Bank__c',
+            'Transaction_Type__c',
+            'Transaction_Time__c',
+            'Expense_Date__c',
+            'Original_Amount__c',
+            'Original_Currency_Code__c',
+            'Exchange_Rate_To_PHP__c',
+            'Exchange_Rate_Date__c',
+            'Exchange_Rate_Source__c',
+            'Active__c',
+            'Frequency__c',
+            'Start_Date__c',
+            'End_Date__c',
+            'Notes__c',
+            'Next_Run_Date__c'
+        ].map(name => [name, { apiName: name, createable: true, updateable: true }])
+    )
 });
 
 const flush = async () => {
@@ -30,6 +61,7 @@ async function mount({ edit, duplicate } = {}) {
     if (duplicate) element.duplicateData = duplicate;
     element.isOpen = true;
     document.body.appendChild(element);
+    getObjectInfo.emit(writableMetadata());
     await flush();
     const form = element.shadowRoot.querySelector('lightning-record-edit-form');
     const fields = Object.fromEntries(
@@ -187,4 +219,190 @@ describe('foreign-currency snapshot submission', () => {
             );
         }
     );
+});
+
+describe('expense schema permissions', () => {
+    it('blocks programmatic submits while permissions are pending or fail to load', async () => {
+        const element = createElement('c-expense-modal', { is: ExpenseModal });
+        element.isOpen = true;
+        document.body.appendChild(element);
+        await flush();
+        const form = element.shadowRoot.querySelector('lightning-record-edit-form');
+        form.submit = jest.fn();
+        form.dispatchEvent(new CustomEvent('load', { detail: {} }));
+        submit(form);
+        expect(form.submit).not.toHaveBeenCalled();
+        getObjectInfo.error({ message: 'Permissions unavailable' });
+        await flush();
+        expect(element.shadowRoot.querySelector('[data-schema-error]').textContent).toContain(
+            'Permissions unavailable'
+        );
+        submit(form);
+        expect(form.submit).not.toHaveBeenCalled();
+    });
+
+    it('denies object writes and missing required create fields before invoking LDS', async () => {
+        const { element, form } = await mount();
+        const denied = writableMetadata();
+        denied.createable = false;
+        getObjectInfo.emit(denied);
+        await flush();
+        submit(form);
+        expect(form.submit).not.toHaveBeenCalled();
+        expect(element.shadowRoot.querySelector('[data-schema-error]').textContent).toContain(
+            'permission to save'
+        );
+        const missingCategory = writableMetadata();
+        missingCategory.fields.Category__c.createable = false;
+        getObjectInfo.emit(missingCategory);
+        await flush();
+        submit(form);
+        expect(form.submit).not.toHaveBeenCalled();
+        expect(element.shadowRoot.querySelector('[data-schema-error]').textContent).toContain(
+            'required fields'
+        );
+    });
+
+    it('preserves independently readonly custom fields and still saves permitted edits', async () => {
+        const { element, form } = await mount({ edit: snapshot });
+        const metadata = writableMetadata();
+        for (const name of [
+            'Category__c',
+            'Bank_Assignment__c',
+            'Transaction_Type__c',
+            'Transaction_Time__c'
+        ])
+            metadata.fields[name].updateable = false;
+        getObjectInfo.emit(metadata);
+        await flush();
+        expect(input(element, 'category').disabled).toBe(true);
+        expect(input(element, 'bank').disabled).toBe(true);
+        expect(input(element, 'transaction-type').disabled).toBe(true);
+        await change(element, 'category', 'denied-category');
+        await change(element, 'bank', 'denied-bank');
+        await change(element, 'transaction-type', 'Credit Card');
+        submit(form, {
+            Amount__c: 567.5,
+            Category__c: 'injected',
+            Transaction_Time__c: '12:00:00.000Z'
+        });
+        expect(form.submit).toHaveBeenCalledTimes(1);
+        const saved = form.submit.mock.calls[0][0];
+        expect(saved.Name).toBe('Lunch');
+        for (const name of [
+            'Category__c',
+            'Bank_Assignment__c',
+            'Transaction_Type__c',
+            'Transaction_Time__c'
+        ])
+            expect(saved).not.toHaveProperty(name);
+    });
+
+    it('preserves the entire FX snapshot when one conversion field is readonly', async () => {
+        const { element, form } = await mount({ edit: snapshot });
+        const metadata = writableMetadata();
+        metadata.fields.Exchange_Rate_Source__c.updateable = false;
+        getObjectInfo.emit(metadata);
+        await flush();
+        const foreignToggle = [...element.shadowRoot.querySelectorAll('lightning-input')].find(
+            candidate => candidate.type === 'toggle'
+        );
+        expect(foreignToggle.disabled).toBe(true);
+        await toggle(element, false);
+        await change(element, 'originalAmount', '999');
+        submit(form, { ...snapshot, Amount__c: 999 });
+        expect(form.submit).toHaveBeenCalledTimes(1);
+        const saved = form.submit.mock.calls[0][0];
+        expect(saved.Name).toBe('Lunch');
+        for (const name of [
+            'Amount__c',
+            'Expense_Date__c',
+            'Original_Amount__c',
+            'Original_Currency_Code__c',
+            'Exchange_Rate_To_PHP__c',
+            'Exchange_Rate_Date__c',
+            'Exchange_Rate_Source__c'
+        ])
+            expect(saved).not.toHaveProperty(name);
+    });
+
+    it('hides unreadable custom fields and never forwards their supplied values', async () => {
+        const { element, form } = await mount({ edit: snapshot });
+        const metadata = writableMetadata();
+        for (const name of [
+            'Category__c',
+            'Bank_Assignment__c',
+            'Transaction_Type__c',
+            'Transaction_Time__c',
+            'Original_Amount__c'
+        ])
+            delete metadata.fields[name];
+        getObjectInfo.emit(metadata);
+        await flush();
+        expect(input(element, 'category')).toBeNull();
+        expect(input(element, 'bank')).toBeNull();
+        expect(input(element, 'transaction-type')).toBeNull();
+        expect(input(element, 'originalAmount')).toBeNull();
+        submit(form, { ...snapshot });
+        expect(form.submit).toHaveBeenCalledTimes(1);
+        expect(form.submit.mock.calls[0][0]).toEqual({ Name: 'Lunch' });
+    });
+});
+
+it('keeps the canonical PHP amount visible and readonly when one FX field cannot be read', async () => {
+    const { element, form } = await mount({ edit: snapshot });
+    const metadata = writableMetadata();
+    delete metadata.fields.Exchange_Rate_Source__c;
+    getObjectInfo.emit(metadata);
+    await flush();
+    const phpAmount = input(element, 'phpAmount');
+    const expenseDate = [...element.shadowRoot.querySelectorAll('lightning-input-field')].find(
+        field => field.fieldName === 'Expense_Date__c'
+    );
+    expect(phpAmount.parentElement.classList.contains('slds-hide')).toBe(false);
+    expect(phpAmount.disabled).toBe(true);
+    expect(expenseDate.disabled).toBe(true);
+    expect(input(element, 'originalAmount')).toBeNull();
+    expect(input(element, 'originalCurrency')).toBeNull();
+    expect(input(element, 'exchangeRate')).toBeNull();
+    expect(element.shadowRoot.textContent).not.toContain('ECB via Frankfurter');
+    expect(
+        [...element.shadowRoot.querySelectorAll('lightning-input-field')].some(
+            field => field.fieldName === 'Exchange_Rate_Source__c'
+        )
+    ).toBe(false);
+    submit(form, {
+        ...snapshot,
+        Name: 'Allowed description edit',
+        Amount__c: 999,
+        Expense_Date__c: '2026-10-14'
+    });
+    expect(form.submit).toHaveBeenCalledTimes(1);
+    const saved = form.submit.mock.calls[0][0];
+    expect(saved.Name).toBe('Allowed description edit');
+    for (const name of [
+        'Amount__c',
+        'Expense_Date__c',
+        'Original_Amount__c',
+        'Original_Currency_Code__c',
+        'Exchange_Rate_To_PHP__c',
+        'Exchange_Rate_Date__c',
+        'Exchange_Rate_Source__c'
+    ])
+        expect(saved).not.toHaveProperty(name);
+});
+
+it('blocks readonly expense forms and a programmatic empty update', async () => {
+    const { element, form } = await mount({ edit: snapshot });
+    const metadata = writableMetadata();
+    Object.values(metadata.fields).forEach(field => {
+        field.updateable = false;
+    });
+    getObjectInfo.emit(metadata);
+    await flush();
+    expect(element.shadowRoot.querySelector('[data-schema-error]').textContent).toContain(
+        'read-only'
+    );
+    submit(form, { Name: 'Injected readonly value', Amount__c: 900 });
+    expect(form.submit).not.toHaveBeenCalled();
 });

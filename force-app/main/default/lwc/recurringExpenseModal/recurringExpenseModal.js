@@ -1,4 +1,14 @@
 import { LightningElement, api, wire } from 'lwc';
+import RECURRING_EXPENSE_ID_FIELD from '@salesforce/schema/Recurring_Expense__c.Id';
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
+import {
+    canCreateObject,
+    canUpdateObject,
+    canReadField,
+    canWriteField,
+    hasWritableFields,
+    filterWritableFields
+} from 'c/appSchemaAccess';
 import { getFieldValue, getRecord, notifyRecordUpdateAvailable } from 'lightning/uiRecordApi';
 
 import RECURRING_EXPENSE_OBJECT from '@salesforce/schema/Recurring_Expense__c';
@@ -8,7 +18,7 @@ import LEGACY_BANK_FIELD from '@salesforce/schema/Recurring_Expense__c.Bank__c';
 import CATEGORY_FIELD from '@salesforce/schema/Recurring_Expense__c.Category__c';
 import NEXT_RUN_DATE_FIELD from '@salesforce/schema/Recurring_Expense__c.Next_Run_Date__c';
 import TRANSACTION_TYPE_FIELD from '@salesforce/schema/Recurring_Expense__c.Transaction_Type__c';
-import { CASH, paymentMethodOptions, normalizePaymentMethod } from 'c/expensePaymentMethods';
+import { CASH, NO_BANK_VALUE, paymentSelection, paymentBankFields } from 'c/expensePaymentMethods';
 
 import { getErrorMessage } from 'c/expenseErrorUtils';
 import { formatDate, formatDateISO } from 'c/expenseFormatters';
@@ -19,7 +29,6 @@ import {
     trapTabFocus
 } from 'c/modalFocusUtils';
 
-const NO_BANK_VALUE = '__NO_BANK__';
 const RECORD_CONTEXT_FIELDS = [
     ACTIVE_FIELD,
     TRANSACTION_TYPE_FIELD,
@@ -30,6 +39,86 @@ const RECORD_CONTEXT_FIELDS = [
 ];
 
 export default class RecurringExpenseModal extends LightningElement {
+    objectInfo;
+    schemaLoadError = '';
+
+    get schemaObjectApiName() {
+        return this.isOpen ? RECURRING_EXPENSE_OBJECT : undefined;
+    }
+
+    @wire(getObjectInfo, { objectApiName: '$schemaObjectApiName' })
+    wiredObjectInfo({ data, error }) {
+        this.objectInfo = data;
+        this.schemaLoadError = error
+            ? getErrorMessage(
+                  error,
+                  'Could not load field permissions. Close and reopen this dialog to try again.'
+              )
+            : '';
+    }
+
+    get accessMode() {
+        return this.isEditMode ? 'update' : 'create';
+    }
+    canWrite(field) {
+        return canWriteField(this.objectInfo, field, this.accessMode);
+    }
+    get canSaveObject() {
+        return this.isEditMode
+            ? canUpdateObject(this.objectInfo)
+            : canCreateObject(this.objectInfo);
+    }
+    get permissionMessage() {
+        if (this.schemaLoadError) return this.schemaLoadError;
+        if (!this.objectInfo) return '';
+        if (!this.canSaveObject) return 'You do not have permission to save this record.';
+        if (this.isEditMode && !this.canEditAnyFormField)
+            return 'All fields in this form are read-only with your permissions.';
+        if (
+            !this.isEditMode &&
+            !hasWritableFields(
+                this.objectInfo,
+                ['Name', 'Amount__c', 'Category__c', 'Frequency__c', 'Start_Date__c'],
+                'create'
+            )
+        ) {
+            return 'You do not have permission to enter all required fields. Contact your Salesforce administrator.';
+        }
+        return '';
+    }
+    get canEditAnyFormField() {
+        return (
+            [
+                'Name',
+                'Amount__c',
+                'Description__c',
+                'Frequency__c',
+                'Start_Date__c',
+                'End_Date__c',
+                'Active__c',
+                'Category__c',
+                'Transaction_Type__c'
+            ].some(field => this.canWrite(field)) || !this.isBankInputDisabled
+        );
+    }
+    get canReadCategory() {
+        return canReadField(this.objectInfo, 'Category__c');
+    }
+    get canReadBank() {
+        return canReadField(this.objectInfo, 'Bank_Assignment__c');
+    }
+    get canReadTransactionType() {
+        return canReadField(this.objectInfo, 'Transaction_Type__c');
+    }
+    get isTransactionTypeDisabled() {
+        return (
+            !this.canWrite('Transaction_Type__c') ||
+            this.isSaving ||
+            this.bankOptionsLoading ||
+            Boolean(this.bankOptionsError)
+        );
+    }
+
     @api categoryOptions = [];
     @api categoryOptionsLoading = false;
     @api categoryOptionsError = '';
@@ -107,7 +196,11 @@ export default class RecurringExpenseModal extends LightningElement {
         return this.isOpen && this.recordId ? this.recordId : undefined;
     }
 
-    @wire(getRecord, { recordId: '$recordIdForWire', fields: RECORD_CONTEXT_FIELDS })
+    @wire(getRecord, {
+        recordId: '$recordIdForWire',
+        fields: [RECURRING_EXPENSE_ID_FIELD],
+        optionalFields: RECORD_CONTEXT_FIELDS
+    })
     wiredRecordContext({ error, data }) {
         if (data && data.id === this.recordId) {
             if (this._paymentContextRecordId !== data.id) {
@@ -133,34 +226,37 @@ export default class RecurringExpenseModal extends LightningElement {
         }
     }
 
+    get paymentSelection() {
+        return paymentSelection({
+            bankOptions: this.bankOptions,
+            bankAssignmentValue: this.bankAssignmentValue,
+            legacyBank: this.hasUntouchedLegacyBank,
+            isEditMode: this.isEditMode,
+            bankSelectionTouched: this.bankSelectionTouched,
+            savedType: this.originalTransactionType,
+            value: this.transactionTypeValue
+        });
+    }
+
     get transactionTypeOptions() {
-        return paymentMethodOptions(
-            this.bankOptions,
-            this.hasUntouchedLegacyBank ? '__LEGACY_BANK__' : this.normalizedBankAssignmentValue,
-            this.originalTransactionType,
-            this.isEditMode && !this.bankSelectionTouched
-        );
+        return this.paymentSelection.options;
     }
 
     reconcileTransactionType() {
+        if (!this.canWrite('Transaction_Type__c')) return;
         if (!this.bankOptionsLoading && !this.bankOptionsError && !this.isRecordContextLoading) {
-            this.transactionTypeValue = normalizePaymentMethod(
-                this.transactionTypeValue,
-                this.transactionTypeOptions,
-                this.isEditMode && !this.bankSelectionTouched && !this.originalTransactionType
-            );
+            this.transactionTypeValue = this.paymentSelection.value;
         }
     }
 
     handleTransactionTypeChange(event) {
+        if (this.isTransactionTypeDisabled) return;
         this.transactionTypeValue = event.detail.value;
     }
 
     get isTransactionTypeUnavailable() {
-        return (
-            !this.transactionTypeOptions.length &&
-            !(this.isEditMode && !this.bankSelectionTouched && !this.originalTransactionType)
-        );
+        if (!this.canWrite('Transaction_Type__c')) return false;
+        return this.paymentSelection.unavailable;
     }
 
     renderedCallback() {
@@ -324,7 +420,7 @@ export default class RecurringExpenseModal extends LightningElement {
             return;
         }
 
-        const fields = { ...event.detail.fields };
+        const fields = filterWritableFields(this.objectInfo, event.detail.fields, this.accessMode);
         if (
             fields.Start_Date__c &&
             fields.End_Date__c &&
@@ -350,16 +446,25 @@ export default class RecurringExpenseModal extends LightningElement {
         fields.Category__c = this.categoryValue;
         this.reconcileTransactionType();
         fields.Transaction_Type__c = this.transactionTypeValue || null;
-        if (!this.hasUntouchedLegacyBank) {
-            fields.Bank_Assignment__c = this.normalizedBankAssignmentValue;
-        }
-        if (this.bankSelectionTouched) {
-            fields.Bank__c = null;
+        const paymentFields = paymentBankFields(fields, {
+            assignmentId: this.normalizedBankAssignmentValue,
+            legacyBank: this.hasUntouchedLegacyBank,
+            touched: this.bankSelectionTouched,
+            disabled: this.isBankInputDisabled
+        });
+        const writableFields = filterWritableFields(
+            this.objectInfo,
+            paymentFields,
+            this.accessMode
+        );
+        if (!Object.keys(writableFields).length) {
+            this.schemaLoadError = 'There are no editable fields to save.';
+            return;
         }
 
         this.isSaving = true;
         this._hasFocusedSavingStatus = false;
-        this.template.querySelector('lightning-record-edit-form').submit(fields);
+        this.template.querySelector('lightning-record-edit-form').submit(writableFields);
     }
 
     handleSuccess(event) {
@@ -392,11 +497,13 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     handleCategoryChange(event) {
+        if (this.isCategoryInputDisabled) return;
         this.categoryValue = event.detail.value;
         this.formError = '';
     }
 
     handleBankChange(event) {
+        if (this.isBankInputDisabled) return;
         this.bankAssignmentValue = event.detail.value;
         this.bankSelectionTouched = true;
         this.reconcileTransactionType();
@@ -459,17 +566,19 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     focusFirstBlockingMessage() {
-        const selector = this.isTransactionTypeUnavailable
-            ? '[data-payment-method-error]'
-            : this.formLoadError
-              ? '[data-form-load-error]'
-              : this.recordContextError
-                ? '[data-record-context-error]'
-                : this.categoryOptionsError
-                  ? '[data-category-options-error]'
-                  : this.bankOptionsError
-                    ? '[data-bank-options-error]'
-                    : '[data-category-empty]';
+        const selector = this.permissionMessage
+            ? '[data-schema-error]'
+            : this.isTransactionTypeUnavailable
+              ? '[data-payment-method-error]'
+              : this.formLoadError
+                ? '[data-form-load-error]'
+                : this.recordContextError
+                  ? '[data-record-context-error]'
+                  : this.categoryOptionsError
+                    ? '[data-category-options-error]'
+                    : this.bankOptionsError
+                      ? '[data-bank-options-error]'
+                      : '[data-category-empty]';
         this.template.querySelector(selector)?.focus();
     }
 
@@ -523,9 +632,7 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     get normalizedBankAssignmentValue() {
-        return this.bankAssignmentValue && this.bankAssignmentValue !== NO_BANK_VALUE
-            ? this.bankAssignmentValue
-            : null;
+        return this.paymentSelection.assignmentId;
     }
 
     get hasUntouchedLegacyBank() {
@@ -596,29 +703,37 @@ export default class RecurringExpenseModal extends LightningElement {
 
     get isCategoryInputDisabled() {
         return (
+            !this.canWrite('Category__c') ||
             this.isSaving ||
             Boolean(this.formLoadError) ||
             this.isRecordContextLoading ||
             Boolean(this.recordContextError) ||
             this.categoryOptionsLoading ||
-            Boolean(this.categoryOptionsError) ||
+            (this.canWrite('Category__c') && Boolean(this.categoryOptionsError)) ||
             this.hasNoCategories
         );
     }
 
     get isBankInputDisabled() {
         return (
+            !hasWritableFields(
+                this.objectInfo,
+                ['Bank_Assignment__c', 'Transaction_Type__c'],
+                this.accessMode
+            ) ||
+            (this.hasUntouchedLegacyBank && !this.canWrite('Bank__c')) ||
             this.isSaving ||
             Boolean(this.formLoadError) ||
             this.isRecordContextLoading ||
             Boolean(this.recordContextError) ||
             this.bankOptionsLoading ||
-            Boolean(this.bankOptionsError)
+            (this.canWrite('Bank_Assignment__c') && Boolean(this.bankOptionsError))
         );
     }
 
     get areRecordFieldsDisabled() {
         return (
+            !this.canSaveObject ||
             this.isSaving ||
             Boolean(this.formLoadError) ||
             this.isRecordContextLoading ||
@@ -628,20 +743,24 @@ export default class RecurringExpenseModal extends LightningElement {
 
     get isSaveBlocked() {
         return (
+            !this.objectInfo ||
+            Boolean(this.permissionMessage) ||
             this.isTransactionTypeUnavailable ||
             this.isSaving ||
             Boolean(this.formLoadError) ||
             this.isRecordContextLoading ||
             Boolean(this.recordContextError) ||
             this.categoryOptionsLoading ||
-            Boolean(this.categoryOptionsError) ||
-            this.hasNoCategories ||
+            (this.canWrite('Category__c') && Boolean(this.categoryOptionsError)) ||
+            (this.canWrite('Category__c') && this.hasNoCategories) ||
             this.bankOptionsLoading ||
-            Boolean(this.bankOptionsError)
+            (this.canWrite('Bank_Assignment__c') && Boolean(this.bankOptionsError))
         );
     }
 
     get isModalContentLoading() {
+        if (this.permissionMessage) return false;
+        if (!this.objectInfo) return true;
         if (this.formLoadError) {
             return false;
         }
@@ -654,7 +773,11 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     get isFormUnavailable() {
-        return this.isModalContentLoading || Boolean(this.formLoadError);
+        return (
+            Boolean(this.permissionMessage) ||
+            this.isModalContentLoading ||
+            Boolean(this.formLoadError)
+        );
     }
 
     get formContentClass() {
@@ -666,6 +789,7 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     get initialFocusSelector() {
+        if (this.permissionMessage) return '[data-schema-error]';
         if (this.formLoadError) {
             return '[data-form-load-error]';
         }

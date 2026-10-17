@@ -24,6 +24,7 @@ public with sharing class BudgetExpenseSettingsService {
      * @return Persisted settings and current scheduler state.
      */
     public static BudgetExpenseSettingsState saveSettings(BudgetExpenseSettingsUpdateRequest request) {
+        requireSettingsEditAccess();
         Budget_Expense_Manager_Setting__c settings = getOrCreateSettings();
         initializeBaseCurrency(settings);
         BudgetExpenseSettingsUpdateRequest safeRequest = getSafeSettingsUpdate(request, settings);
@@ -35,12 +36,7 @@ public with sharing class BudgetExpenseSettingsService {
             Recurring_Expenses_Enabled__c = requestedEnabled,
             Global_Recurring_Run_Time__c = requestedRunTime
         );
-        List<Budget_Expense_Manager_Setting__c> updates = (List<Budget_Expense_Manager_Setting__c>) Security.stripInaccessible(
-                AccessType.UPDATABLE,
-                new List<Budget_Expense_Manager_Setting__c>{ settingsUpdate }
-            )
-            .getRecords();
-        Database.update(updates, AccessLevel.USER_MODE);
+        Database.update(settingsUpdate, AccessLevel.USER_MODE);
 
         settings.Recurring_Expenses_Enabled__c = requestedEnabled;
         settings.Global_Recurring_Run_Time__c = requestedRunTime;
@@ -63,10 +59,8 @@ public with sharing class BudgetExpenseSettingsService {
 
     /**
      * Records that a manual recurring-expense batch was queued.
-     *
-     * @param jobId Queued Salesforce batch job ID.
      */
-    public static void markRecurringRunQueued(Id jobId) {
+    public static void markRecurringRunQueued() {
         updateRecurringRunStatus('Queued', 'Recurring expense generation is queued.');
     }
 
@@ -270,11 +264,13 @@ public with sharing class BudgetExpenseSettingsService {
     }
 
     private static CronTrigger getRecurringSchedule() {
+        // Settings are read in USER_MODE before this private metadata lookup. App
+        // administrators need the state of this one Apex job, not Setup access.
         List<CronTrigger> recurringSchedules = [
             SELECT CronExpression, NextFireTime, State, TimeZoneSidKey
             FROM CronTrigger
-            WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME AND State != 'DELETED'
-            WITH USER_MODE
+            WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME AND CronJobDetail.JobType = '7' AND State != 'DELETED'
+            WITH SYSTEM_MODE
             ORDER BY NextFireTime ASC
             LIMIT 1
         ];
@@ -283,11 +279,13 @@ public with sharing class BudgetExpenseSettingsService {
     }
 
     private static void rescheduleRecurringExpenses(Time runTime) {
+        // Called only after a successful USER_MODE settings update. The fixed
+        // name and Apex job type prevent this path from managing other jobs.
         List<CronTrigger> existingJobs = [
             SELECT Id
             FROM CronTrigger
-            WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME AND State NOT IN ('DELETED', 'COMPLETE')
-            WITH USER_MODE
+            WHERE CronJobDetail.Name = :RECURRING_SCHEDULE_NAME AND CronJobDetail.JobType = '7' AND State NOT IN ('DELETED', 'COMPLETE')
+            WITH SYSTEM_MODE
         ];
 
         for (CronTrigger existingJob : existingJobs) {
@@ -298,6 +296,9 @@ public with sharing class BudgetExpenseSettingsService {
     }
 
     private static void updateRecurringRunStatus(String status, String message) {
+        // Keep the settings record lookup/creation permission checked. Only the
+        // automation-owned summary fields bypass edit FLS, so users cannot edit
+        // them directly and the runner need not have broad field permissions.
         Budget_Expense_Manager_Setting__c settings = getOrCreateSettings();
         Budget_Expense_Manager_Setting__c settingsUpdate = new Budget_Expense_Manager_Setting__c(
             Id = settings.Id,
@@ -305,11 +306,16 @@ public with sharing class BudgetExpenseSettingsService {
             Last_Recurring_Run_Status__c = status,
             Last_Recurring_Run_Message__c = message
         );
-        List<Budget_Expense_Manager_Setting__c> updates = (List<Budget_Expense_Manager_Setting__c>) Security.stripInaccessible(
-                AccessType.UPDATABLE,
-                new List<Budget_Expense_Manager_Setting__c>{ settingsUpdate }
-            )
-            .getRecords();
-        Database.update(updates, AccessLevel.USER_MODE);
+        Database.update(settingsUpdate, AccessLevel.SYSTEM_MODE);
+    }
+
+    private static void requireSettingsEditAccess() {
+        AppAccessChecks.requireUpdate(Budget_Expense_Manager_Setting__c.SObjectType);
+        AppAccessChecks.requireUpdateable(
+            new List<Schema.SObjectField>{
+                Budget_Expense_Manager_Setting__c.Recurring_Expenses_Enabled__c,
+                Budget_Expense_Manager_Setting__c.Global_Recurring_Run_Time__c
+            }
+        );
     }
 }

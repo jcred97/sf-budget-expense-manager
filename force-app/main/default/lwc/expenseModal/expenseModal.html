@@ -61,6 +61,18 @@
                                 {paymentContextError}
                             </p>
                         </template>
+                        <template lwc:if={permissionMessage}>
+                            <div
+                                class="slds-notify slds-notify_alert slds-alert_error slds-var-p-around_medium"
+                                role="alert"
+                                tabindex="-1"
+                                data-schema-error
+                            >
+                                <p>
+                                    {permissionMessage} Close and reopen this dialog to try again.
+                                </p>
+                            </div>
+                        </template>
                         <template lwc:if={formLoadError}>
                             <div
                                 class="slds-notify slds-notify_alert slds-alert_error"
@@ -95,12 +107,13 @@
                             ></lightning-input-field>
                             <lightning-input
                                 class="slds-m-bottom_x-small"
+                                lwc:if={canReadForeignCurrency}
                                 type="toggle"
                                 label="Paid in another currency"
                                 message-toggle-active="Foreign currency"
                                 message-toggle-inactive="PHP"
                                 checked={isForeignCurrency}
-                                disabled={isSubmitting}
+                                disabled={isForeignCurrencyToggleDisabled}
                                 onchange={handleForeignCurrencyToggle}
                             >
                             </lightning-input>
@@ -116,6 +129,7 @@
                             </div>
 
                             <section
+                                lwc:if={canReadForeignCurrency}
                                 class={foreignCurrencyFieldsClass}
                                 aria-hidden={areForeignCurrencyFieldsHidden}
                                 aria-labelledby="foreign-currency-heading"
@@ -251,7 +265,11 @@
                                 </template>
                             </section>
 
-                            <div class="slds-hide" aria-hidden="true">
+                            <div
+                                lwc:if={canReadForeignCurrency}
+                                class="slds-hide"
+                                aria-hidden="true"
+                            >
                                 <lightning-input-field
                                     field-name="Original_Amount__c"
                                     value={fieldValue.Original_Amount__c}
@@ -279,6 +297,7 @@
                                 ></lightning-input-field>
                             </div>
                             <lightning-combobox
+                                lwc:if={canReadCategory}
                                 class="slds-m-bottom_x-small"
                                 data-field="category"
                                 label="Category"
@@ -329,7 +348,7 @@
                                         class="date-format-hide"
                                         field-name="Expense_Date__c"
                                         value={fieldValue.Expense_Date__c}
-                                        disabled={isSubmitting}
+                                        disabled={isExpenseDateDisabled}
                                         onchange={handleExpenseDateChange}
                                     >
                                     </lightning-input-field>
@@ -337,16 +356,18 @@
                                 <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                                     <lightning-input
                                         class="slds-m-bottom_x-small"
+                                        lwc:if={canReadTime}
                                         type="time"
                                         label="Transaction Time"
                                         value={transactionTimeValue}
-                                        disabled={isSubmitting}
+                                        disabled={isTransactionTimeDisabled}
                                         onchange={handleTransactionTimeChange}
                                     >
                                     </lightning-input>
                                 </div>
                                 <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                                     <lightning-combobox
+                                        lwc:if={canReadBank}
                                         class="slds-m-bottom_x-small"
                                         data-field="bank"
                                         label="Bank"
@@ -360,11 +381,12 @@
                                 </div>
                                 <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                                     <lightning-combobox
+                                        lwc:if={canReadTransactionType}
                                         data-field="transaction-type"
                                         label="Transaction Type"
                                         value={transactionTypeValue}
                                         options={transactionTypeOptions}
-                                        disabled={isBankInputDisabled}
+                                        disabled={isTransactionTypeDisabled}
                                         onchange={handleTransactionTypeChange}
                                     ></lightning-combobox>
                                     <template lwc:if={isTransactionTypeUnavailable}>

@@ -1,6 +1,37 @@
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import { createElement } from 'lwc';
 import { getRecord, notifyRecordUpdateAvailable } from 'lightning/uiRecordApi';
 import RecurringExpenseModal from 'c/recurringExpenseModal';
+
+const writableMetadata = () => ({
+    queryable: true,
+    createable: true,
+    updateable: true,
+    deletable: true,
+    fields: Object.fromEntries(
+        [
+            'Name',
+            'Amount__c',
+            'Category__c',
+            'Bank_Assignment__c',
+            'Bank__c',
+            'Transaction_Type__c',
+            'Transaction_Time__c',
+            'Expense_Date__c',
+            'Original_Amount__c',
+            'Original_Currency_Code__c',
+            'Exchange_Rate_To_PHP__c',
+            'Exchange_Rate_Date__c',
+            'Exchange_Rate_Source__c',
+            'Active__c',
+            'Frequency__c',
+            'Start_Date__c',
+            'End_Date__c',
+            'Notes__c',
+            'Next_Run_Date__c'
+        ].map(name => [name, { apiName: name, createable: true, updateable: true }])
+    )
+});
 
 const flush = async () => {
     await Promise.resolve();
@@ -77,6 +108,7 @@ const mount = async (edit = true) => {
     if (edit) element.recordId = 'template-a';
     element.isOpen = true;
     document.body.appendChild(element);
+    getObjectInfo.emit(writableMetadata());
     await flush();
     formFor(element).submit = jest.fn();
     return element;
@@ -359,4 +391,111 @@ describe('recurring modal loading and retry lifecycle', () => {
             expect(button(element, 'Save').disabled).toBe(false);
         }
     );
+});
+
+describe('recurring modal schema permissions', () => {
+    afterEach(() => document.body.replaceChildren());
+
+    it('blocks object-denied and metadata-error programmatic submits', async () => {
+        const { element, form } = await ready(false);
+        const metadata = writableMetadata();
+        metadata.createable = false;
+        getObjectInfo.emit(metadata);
+        await flush();
+        submit(form);
+        expect(form.submit).not.toHaveBeenCalled();
+        expect(element.shadowRoot.querySelector('[data-schema-error]').textContent).toContain(
+            'permission to save'
+        );
+        getObjectInfo.error({ message: 'Permissions unavailable' });
+        await flush();
+        submit(form);
+        expect(form.submit).not.toHaveBeenCalled();
+        expect(element.shadowRoot.querySelector('[data-schema-error]').textContent).toContain(
+            'Permissions unavailable'
+        );
+    });
+
+    it('guards readonly custom change handlers and omits denied fields while saving allowed edits', async () => {
+        const { element, form } = await ready();
+        const metadata = writableMetadata();
+        for (const name of [
+            'Category__c',
+            'Bank_Assignment__c',
+            'Transaction_Type__c',
+            'Active__c'
+        ])
+            metadata.fields[name].updateable = false;
+        getObjectInfo.emit(metadata);
+        await flush();
+        change(field(element, 'category'), 'denied-category');
+        change(field(element, 'bank'), 'credit');
+        change(field(element, 'transaction-type'), 'Credit Card');
+        submit(form, { Active__c: false });
+        expect(form.submit).toHaveBeenCalledTimes(1);
+        const saved = form.submit.mock.calls[0][0];
+        expect(saved.Name).toBe('Rent');
+        for (const name of [
+            'Category__c',
+            'Bank_Assignment__c',
+            'Transaction_Type__c',
+            'Active__c',
+            'Bank__c'
+        ])
+            expect(saved).not.toHaveProperty(name);
+    });
+
+    it('allows writable transaction type with a readonly bank and hides unreadable category', async () => {
+        const { element, form } = await ready();
+        const metadata = writableMetadata();
+        metadata.fields.Bank_Assignment__c.updateable = false;
+        delete metadata.fields.Category__c;
+        getObjectInfo.emit(metadata);
+        await flush();
+        expect(field(element, 'category')).toBeNull();
+        expect(field(element, 'bank').disabled).toBe(true);
+        expect(field(element, 'transaction-type').disabled).toBe(false);
+        submit(form);
+        expect(form.submit).toHaveBeenCalledTimes(1);
+        expect(form.submit.mock.calls[0][0]).not.toHaveProperty('Category__c');
+        expect(form.submit.mock.calls[0][0]).not.toHaveProperty('Bank_Assignment__c');
+        expect(form.submit.mock.calls[0][0].Transaction_Type__c).toBe('Cash');
+    });
+});
+
+it('blocks a recurring submit until metadata arrives and requires writable schedule fields on create', async () => {
+    const element = createElement('c-recurring-expense-modal', { is: RecurringExpenseModal });
+    element.categoryOptions = [{ label: 'Food', value: 'food' }];
+    element.isOpen = true;
+    document.body.appendChild(element);
+    await flush();
+    const form = await load(element);
+    submit(form);
+    expect(form.submit).not.toHaveBeenCalled();
+    const metadata = writableMetadata();
+    metadata.fields.Frequency__c.createable = false;
+    getObjectInfo.emit(metadata);
+    await flush();
+    submit(form);
+    expect(form.submit).not.toHaveBeenCalled();
+    expect(element.shadowRoot.querySelector('[data-schema-error]').textContent).toContain(
+        'required fields'
+    );
+    document.body.replaceChildren();
+});
+
+it('blocks readonly recurring forms and a programmatic empty update', async () => {
+    const { element, form } = await ready();
+    const metadata = writableMetadata();
+    Object.values(metadata.fields).forEach(metadataField => {
+        metadataField.updateable = false;
+    });
+    getObjectInfo.emit(metadata);
+    await flush();
+    expect(element.shadowRoot.querySelector('[data-schema-error]').textContent).toContain(
+        'read-only'
+    );
+    submit(form);
+    expect(form.submit).not.toHaveBeenCalled();
+    document.body.replaceChildren();
 });

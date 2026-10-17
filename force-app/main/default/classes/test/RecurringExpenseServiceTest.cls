@@ -1,45 +1,19 @@
 @IsTest
 private class RecurringExpenseServiceTest {
-    private static Id synchronousCategoryId;
+    private static Id dailyCategoryId;
     @IsTest
-    static void testSynchronousControllerRespectsDisabledSetting() {
-        Recurring_Expense__c template = synchronousTemplate('Disabled', Date.today());
-        insert template;
-        update new Budget_Expense_Manager_Setting__c(
-            Id = [SELECT Id FROM Budget_Expense_Manager_Setting__c LIMIT 1]
-            .Id,
-            Recurring_Expenses_Enabled__c = false
-        );
-
-        Test.startTest();
-        try {
-            RecurringExpenseAutomationController.generateDueExpenses();
-            System.assert(false, 'Disabled synchronous generation must fail.');
-        } catch (AuraHandledException expected) {
-            System.assert(expected.getMessage().contains('disabled'), 'Explain why generation is blocked.');
-        }
-        Test.stopTest();
-        System.assertEquals(0, [SELECT COUNT() FROM Expense__c], 'Disabled generation must not create expenses.');
-        System.assertEquals(
-            Date.today(),
-            [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id].Next_Run_Date__c,
-            'Disabled generation must not advance the pointer.'
-        );
-    }
-
-    @IsTest
-    static void testSynchronousCapResumesWithoutReplaying() {
+    static void testScopeCapResumesWithoutReplaying() {
         Date startDate = Date.today().addDays(-200);
-        Recurring_Expense__c template = synchronousTemplate('Catch up', startDate);
+        Recurring_Expense__c template = dailyTemplate('Catch up', startDate);
         insert template;
 
         Test.startTest();
-        RecurringExpenseGenerationResult first = RecurringExpenseAutomationController.generateDueExpenses();
+        RecurringExpenseGenerationResult first = generateScope(Date.today(), 200);
         Date nextDate = [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id].Next_Run_Date__c;
-        RecurringExpenseGenerationResult second = RecurringExpenseAutomationController.generateDueExpenses();
+        RecurringExpenseGenerationResult second = generateScope(Date.today(), 200);
         Test.stopTest();
 
-        System.assertEquals(200, first.expensesCreated, 'Synchronous generation stops after 200 occurrences.');
+        System.assertEquals(200, first.expensesCreated, 'The supplied scope limit stops after 200 occurrences.');
         System.assertEquals(true, first.hitGenerationLimit, 'Report remaining due work.');
         System.assertEquals(Date.today(), nextDate, 'Keep the first ungenerated occurrence.');
         System.assertEquals(1, second.expensesCreated, 'Resume with only the outstanding occurrence.');
@@ -50,20 +24,20 @@ private class RecurringExpenseServiceTest {
     }
 
     @IsTest
-    static void testEndedTemplatesDoNotStarveSynchronousGeneration() {
+    static void testEndedTemplatesDoNotConsumeScopeCap() {
         List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
         for (Integer i = 0; i < 200; i++) {
-            Recurring_Expense__c ended = synchronousTemplate('Ended ' + i, Date.today().addDays(-2));
+            Recurring_Expense__c ended = dailyTemplate('Ended ' + i, Date.today().addDays(-2));
             ended.End_Date__c = Date.today().addDays(-2);
             ended.Next_Run_Date__c = Date.today().addDays(-1);
             templates.add(ended);
         }
-        templates.add(synchronousTemplate('Due today', Date.today()));
+        templates.add(dailyTemplate('Due today', Date.today()));
         insert templates;
         Id dueId = templates[200].Id;
 
         Test.startTest();
-        RecurringExpenseGenerationResult result = RecurringExpenseAutomationController.generateDueExpenses();
+        RecurringExpenseGenerationResult result = generateScope(Date.today(), 200);
         Test.stopTest();
 
         System.assertEquals(1, result.expensesCreated, 'Scan past ended templates to find due work.');
@@ -76,15 +50,15 @@ private class RecurringExpenseServiceTest {
     }
 
     @IsTest
-    static void testSynchronousCapReportsAdditionalTemplates() {
+    static void testScopeCapReportsAdditionalTemplates() {
         List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
         for (Integer i = 0; i < 201; i++) {
-            templates.add(synchronousTemplate('Due ' + i, Date.today()));
+            templates.add(dailyTemplate('Due ' + i, Date.today()));
         }
         insert templates;
         Test.startTest();
-        RecurringExpenseGenerationResult first = RecurringExpenseAutomationController.generateDueExpenses();
-        RecurringExpenseGenerationResult second = RecurringExpenseAutomationController.generateDueExpenses();
+        RecurringExpenseGenerationResult first = generateScope(Date.today(), 200);
+        RecurringExpenseGenerationResult second = generateScope(Date.today(), 200);
         Test.stopTest();
         System.assertEquals(200, first.expensesCreated, 'Limit applies across templates.');
         System.assertEquals(true, first.hitGenerationLimit, 'The extra eligible template signals remaining work.');
@@ -93,8 +67,8 @@ private class RecurringExpenseServiceTest {
     }
 
     @IsTest
-    static void testBatchOverloadRetainsLargerCap() {
-        Recurring_Expense__c template = synchronousTemplate('Batch catch up', Date.today().addDays(-200));
+    static void testDefaultScopeCapAllowsCatchUpBeyondTwoHundred() {
+        Recurring_Expense__c template = dailyTemplate('Batch catch up', Date.today().addDays(-200));
         insert template;
         Test.startTest();
         RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
@@ -102,19 +76,24 @@ private class RecurringExpenseServiceTest {
             Date.today()
         );
         Test.stopTest();
-        System.assertEquals(201, result.expensesCreated, 'Batch generation is not restricted to the synchronous cap.');
+        System.assertEquals(201, result.expensesCreated, 'The default scope limit supports more than 200 occurrences.');
         System.assertEquals(false, result.hitGenerationLimit, 'The batch still has capacity.');
     }
 
-    private static Recurring_Expense__c synchronousTemplate(String name, Date startDate) {
-        if (synchronousCategoryId == null) {
-            synchronousCategoryId = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1].Id;
+    private static RecurringExpenseGenerationResult generateScope(Date runDate, Integer maxExpenses) {
+        List<Recurring_Expense__c> templates = [SELECT Id FROM Recurring_Expense__c];
+        return RecurringExpenseService.generateDueExpenses(templates, runDate, maxExpenses);
+    }
+
+    private static Recurring_Expense__c dailyTemplate(String name, Date startDate) {
+        if (dailyCategoryId == null) {
+            dailyCategoryId = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1].Id;
         }
         return new Recurring_Expense__c(
             Name = name,
             Active__c = true,
             Amount__c = 10,
-            Category__c = synchronousCategoryId,
+            Category__c = dailyCategoryId,
             Frequency__c = 'Daily',
             Start_Date__c = startDate
         );
@@ -122,6 +101,24 @@ private class RecurringExpenseServiceTest {
 
     @TestSetup
     static void setupData() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            PermissionSet adminPermission = [
+                SELECT Id
+                FROM PermissionSet
+                WHERE Name = 'Budget_Expense_Manager_Admin' AND (NamespacePrefix = 'bemgr' OR NamespacePrefix = NULL)
+                ORDER BY NamespacePrefix DESC NULLS LAST
+                LIMIT 1
+            ];
+            if (
+                [
+                    SELECT COUNT()
+                    FROM PermissionSetAssignment
+                    WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :adminPermission.Id
+                ] == 0
+            ) {
+                insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = adminPermission.Id);
+            }
+        }
         insert new Budget_Expense_Manager_Setting__c(Name = 'Default', Recurring_Expenses_Enabled__c = true, Base_Currency_Code__c = 'PHP');
         Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Health');
         insert expenseGroup;
@@ -163,7 +160,7 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(runDate);
+            RecurringExpenseGenerationResult result = generateScope(runDate, RecurringExpenseService.MAX_BATCH_EXPENSES);
             Test.stopTest();
 
             System.assertEquals(1, result.recurringExpensesProcessed, 'One recurring expense should be processed');
@@ -332,7 +329,7 @@ private class RecurringExpenseServiceTest {
             List<SObject> staleScope = new List<SObject>{ template.clone(true, true, false, false) };
 
             Test.startTest();
-            RecurringExpenseGenerationResult firstRun = RecurringExpenseService.generateDueExpenses(runDate);
+            RecurringExpenseGenerationResult firstRun = generateScope(runDate, RecurringExpenseService.MAX_BATCH_EXPENSES);
             new RecurringExpenseBatch(runDate).execute(null, staleScope);
             Test.stopTest();
 
@@ -436,7 +433,7 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(dueDate);
+            RecurringExpenseGenerationResult result = generateScope(dueDate, RecurringExpenseService.MAX_BATCH_EXPENSES);
             Test.stopTest();
 
             System.assertEquals(1, result.expensesCreated, 'Automation should create the due expense for a restricted user.');
@@ -481,7 +478,10 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(Date.newInstance(2026, 3, 1));
+            RecurringExpenseGenerationResult result = generateScope(
+                Date.newInstance(2026, 3, 1),
+                RecurringExpenseService.MAX_BATCH_EXPENSES
+            );
             Test.stopTest();
 
             System.assertEquals(1, result.expensesCreated, 'Only the January occurrence is within the end date');
@@ -518,7 +518,10 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(Date.newInstance(2026, 5, 3));
+            RecurringExpenseGenerationResult result = generateScope(
+                Date.newInstance(2026, 5, 3),
+                RecurringExpenseService.MAX_BATCH_EXPENSES
+            );
             Test.stopTest();
 
             System.assertEquals(0, result.recurringExpensesProcessed, 'An already-ended pointer should be filtered before generation.');
@@ -559,7 +562,10 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(Date.newInstance(2026, 3, 30));
+            RecurringExpenseGenerationResult result = generateScope(
+                Date.newInstance(2026, 3, 30),
+                RecurringExpenseService.MAX_BATCH_EXPENSES
+            );
             Test.stopTest();
 
             System.assertEquals(3, result.expensesCreated, 'January, February, and March should be generated');
@@ -617,7 +623,10 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(Date.newInstance(2026, 7, 16));
+            RecurringExpenseGenerationResult result = generateScope(
+                Date.newInstance(2026, 7, 16),
+                RecurringExpenseService.MAX_BATCH_EXPENSES
+            );
             Test.stopTest();
 
             System.assertEquals(2, result.expensesCreated, 'June and July should be generated after the last generated date');
@@ -680,7 +689,7 @@ private class RecurringExpenseServiceTest {
             };
 
             Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(runDate);
+            RecurringExpenseGenerationResult result = generateScope(runDate, RecurringExpenseService.MAX_BATCH_EXPENSES);
             Test.stopTest();
 
             System.assertEquals(0, result.expensesCreated, 'No expenses should be generated');
@@ -720,7 +729,7 @@ private class RecurringExpenseServiceTest {
             insert recurringExpense;
 
             Test.startTest();
-            RecurringExpenseService.generateDueExpenses(dueDate);
+            generateScope(dueDate, RecurringExpenseService.MAX_BATCH_EXPENSES);
             Test.stopTest();
 
             Expense__c generatedExpense = [
@@ -744,15 +753,15 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testGenerationPreservesSupportedAndLegacyPaymentMethods() {
-        Recurring_Expense__c supported = synchronousTemplate('Supported card', Date.today());
+        Recurring_Expense__c supported = dailyTemplate('Supported card', Date.today());
         supported.Bank_Assignment__c = [SELECT Id FROM Expense_Group_Bank__c WHERE Bank__r.Name = 'BPI' LIMIT 1].Id;
         supported.Transaction_Type__c = 'Credit Card';
-        Recurring_Expense__c legacy = synchronousTemplate('Legacy transfer', Date.today());
+        Recurring_Expense__c legacy = dailyTemplate('Legacy transfer', Date.today());
         legacy.Bank__c = 'BPI';
         legacy.Transaction_Type__c = 'Bank Transfer';
         insert new List<Recurring_Expense__c>{ supported, legacy };
         Test.startTest();
-        RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(Date.today());
+        RecurringExpenseGenerationResult result = generateScope(Date.today(), RecurringExpenseService.MAX_BATCH_EXPENSES);
         Test.stopTest();
         System.assertEquals(2, result.expensesCreated, 'Supported assignment and legacy-only noncash sources should both generate.');
         Map<Id, Expense__c> expensesBySource = new Map<Id, Expense__c>();
@@ -778,39 +787,6 @@ private class RecurringExpenseServiceTest {
         Set<Id> sourceIds = new Set<Id>{ supported.Id, legacy.Id };
         for (Recurring_Expense__c template : [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id IN :sourceIds]) {
             System.assertEquals(Date.today().addDays(1), template.Next_Run_Date__c, 'Generation should advance both pointers.');
-        }
-    }
-
-    @IsTest
-    static void testAutomationControllerGeneratesDueExpenses() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
-            Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
-            Date dueDate = Date.today();
-            Recurring_Expense__c recurringExpense = new Recurring_Expense__c(
-                Name = 'Controller Gym',
-                Active__c = true,
-                Amount__c = 1500,
-                Category__c = category.Id,
-                Frequency__c = 'Monthly',
-                Next_Run_Date__c = dueDate,
-                Start_Date__c = dueDate
-            );
-            insert recurringExpense;
-
-            Test.startTest();
-            RecurringExpenseGenerationResult result = RecurringExpenseAutomationController.generateDueExpenses();
-            Test.stopTest();
-
-            System.assertEquals(1, result.expensesCreated, 'The automation controller should return the generated expense count.');
-            System.assertEquals(
-                1,
-                [
-                    SELECT COUNT()
-                    FROM Expense__c
-                    WHERE Recurring_Expense__c = :recurringExpense.Id
-                ],
-                'The automation controller should delegate synchronous generation.'
-            );
         }
     }
 
@@ -877,7 +853,7 @@ private class RecurringExpenseServiceTest {
 
             try {
                 Test.startTest();
-                RecurringExpenseService.generateDueExpenses(null);
+                RecurringExpenseService.generateDueExpenses(new List<Recurring_Expense__c>(), null);
                 Test.stopTest();
             } catch (AuraHandledException e) {
                 exceptionThrown = true;

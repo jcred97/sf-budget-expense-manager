@@ -73,17 +73,6 @@ public with sharing class ExpenseController {
     }
 
     /**
-     * Returns expenses matching the supplied workspace filters.
-     *
-     * @param filters Expense-group, category, and date filters; null uses default filters.
-     * @return Matching expenses ordered from newest to oldest.
-     */
-    @AuraEnabled
-    public static List<Expense__c> getExpensesByFilters(ExpenseFilterRequest filters) {
-        return ExpenseQueryService.getExpensesByFilters(filters);
-    }
-
-    /**
      * Deletes multiple expenses in one bulk operation.
      *
      * @param expenseIds Expense records to delete.
