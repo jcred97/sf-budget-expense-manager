@@ -1,3 +1,22 @@
+import AMOUNT_FIELD from '@salesforce/schema/Expense__c.Amount__c';
+import EXPENSE_DATE_FIELD from '@salesforce/schema/Expense__c.Expense_Date__c';
+import TRANSACTION_TIME_FIELD from '@salesforce/schema/Expense__c.Transaction_Time__c';
+import CATEGORY_ID_FIELD from '@salesforce/schema/Expense__c.Category__c';
+import CATEGORY_NAME_FIELD from '@salesforce/schema/Expense__c.Category__r.Name';
+import GROUP_NAME_FIELD from '@salesforce/schema/Expense__c.Category__r.Expense_Group__r.Name';
+import ASSIGNMENT_ID_FIELD from '@salesforce/schema/Expense__c.Bank_Assignment__c';
+import ASSIGNMENT_ACTIVE_FIELD from '@salesforce/schema/Expense__c.Bank_Assignment__r.Active__c';
+import BANK_ID_FIELD from '@salesforce/schema/Expense__c.Bank_Assignment__r.Bank__c';
+import BANK_NAME_FIELD from '@salesforce/schema/Expense__c.Bank_Assignment__r.Bank__r.Name';
+import BANK_ACTIVE_FIELD from '@salesforce/schema/Expense__c.Bank_Assignment__r.Bank__r.Active__c';
+import LEGACY_BANK_FIELD from '@salesforce/schema/Expense__c.Bank__c';
+import TRANSACTION_TYPE_FIELD from '@salesforce/schema/Expense__c.Transaction_Type__c';
+import ORIGINAL_AMOUNT_FIELD from '@salesforce/schema/Expense__c.Original_Amount__c';
+import ORIGINAL_CURRENCY_FIELD from '@salesforce/schema/Expense__c.Original_Currency_Code__c';
+import EXCHANGE_RATE_FIELD from '@salesforce/schema/Expense__c.Exchange_Rate_To_PHP__c';
+import EXCHANGE_DATE_FIELD from '@salesforce/schema/Expense__c.Exchange_Rate_Date__c';
+import EXCHANGE_SOURCE_FIELD from '@salesforce/schema/Expense__c.Exchange_Rate_Source__c';
+import { getSObjectFieldValue } from 'c/appSchemaAccess';
 import { formatCurrency, formatDate, formatPHP, formatTime } from 'c/expenseFormatters';
 
 export const CHART_COLORS = ['#0070D2', '#04844B', '#FFB75D', '#E4A201', '#9E5BB5', '#E16032'];
@@ -55,14 +74,18 @@ export function buildBarChartData(entries, prefix) {
 }
 
 export function mapExpenseRow(row) {
-    const bankAssignment = row.Bank_Assignment__r;
-    const bankName = bankAssignment?.Bank__r?.Name || row.Bank__c || '';
+    const bankName =
+        getSObjectFieldValue(row, BANK_NAME_FIELD) ||
+        getSObjectFieldValue(row, LEGACY_BANK_FIELD) ||
+        '';
     const bankAssignmentActive = Boolean(
-        row.Bank_Assignment__c && bankAssignment?.Active__c && bankAssignment?.Bank__r?.Active__c
+        getSObjectFieldValue(row, ASSIGNMENT_ID_FIELD) &&
+        getSObjectFieldValue(row, ASSIGNMENT_ACTIVE_FIELD) &&
+        getSObjectFieldValue(row, BANK_ACTIVE_FIELD)
     );
-    const originalAmount = row.Original_Amount__c;
-    const originalCurrencyCode = row.Original_Currency_Code__c || '';
-    const exchangeRateToPhp = row.Exchange_Rate_To_PHP__c;
+    const originalAmount = getSObjectFieldValue(row, ORIGINAL_AMOUNT_FIELD);
+    const originalCurrencyCode = getSObjectFieldValue(row, ORIGINAL_CURRENCY_FIELD) || '';
+    const exchangeRateToPhp = getSObjectFieldValue(row, EXCHANGE_RATE_FIELD);
     const hasForeignCurrency = Boolean(
         originalCurrencyCode && originalAmount != null && exchangeRateToPhp != null
     );
@@ -78,31 +101,31 @@ export function mapExpenseRow(row) {
 
     return {
         id: row.Id,
-        expenseDate: row.Expense_Date__c,
-        expenseDateFormatted: formatDate(row.Expense_Date__c),
-        transactionTime: row.Transaction_Time__c,
-        transactionTimeDisplay: formatTime(row.Transaction_Time__c),
+        expenseDate: getSObjectFieldValue(row, EXPENSE_DATE_FIELD),
+        expenseDateFormatted: formatDate(getSObjectFieldValue(row, EXPENSE_DATE_FIELD)),
+        transactionTime: getSObjectFieldValue(row, TRANSACTION_TIME_FIELD),
+        transactionTimeDisplay: formatTime(getSObjectFieldValue(row, TRANSACTION_TIME_FIELD)),
         name: row.Name,
         recordLink: `/${row.Id}`,
-        category: row.Category__r?.Name,
-        categoryId: row.Category__c,
-        categoryDisplay: row.Category__r?.Name || 'Uncategorized',
-        expenseGroup: row.Category__r?.Expense_Group__r?.Name,
+        category: getSObjectFieldValue(row, CATEGORY_NAME_FIELD),
+        categoryId: getSObjectFieldValue(row, CATEGORY_ID_FIELD),
+        categoryDisplay: getSObjectFieldValue(row, CATEGORY_NAME_FIELD) || 'Uncategorized',
+        expenseGroup: getSObjectFieldValue(row, GROUP_NAME_FIELD),
         bank: bankName,
         bankDisplay: bankName || 'No bank',
-        bankAssignmentId: row.Bank_Assignment__c,
-        bankId: bankAssignment?.Bank__c,
+        bankAssignmentId: getSObjectFieldValue(row, ASSIGNMENT_ID_FIELD),
+        bankId: getSObjectFieldValue(row, BANK_ID_FIELD),
         bankAssignmentActive,
-        legacyBank: row.Bank__c || '',
-        transactionType: row.Transaction_Type__c,
-        transactionTypeDisplay: row.Transaction_Type__c || 'No type',
-        amount: row.Amount__c,
-        amountFormatted: formatPHP(row.Amount__c || 0),
+        legacyBank: getSObjectFieldValue(row, LEGACY_BANK_FIELD) || '',
+        transactionType: getSObjectFieldValue(row, TRANSACTION_TYPE_FIELD),
+        transactionTypeDisplay: getSObjectFieldValue(row, TRANSACTION_TYPE_FIELD) || 'No type',
+        amount: getSObjectFieldValue(row, AMOUNT_FIELD),
+        amountFormatted: formatPHP(getSObjectFieldValue(row, AMOUNT_FIELD) || 0),
         originalAmount,
         originalCurrencyCode,
         exchangeRateToPhp,
-        exchangeRateDate: row.Exchange_Rate_Date__c,
-        exchangeRateSource: row.Exchange_Rate_Source__c || '',
+        exchangeRateDate: getSObjectFieldValue(row, EXCHANGE_DATE_FIELD),
+        exchangeRateSource: getSObjectFieldValue(row, EXCHANGE_SOURCE_FIELD) || '',
         hasForeignCurrency,
         originalAmountFormatted,
         exchangeRateFormatted,

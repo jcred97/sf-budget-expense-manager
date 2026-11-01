@@ -81,9 +81,22 @@ public without sharing class AppSetupService {
     }
 
     private static List<Budget_Expense_Manager_Setting__c> readSettings(Boolean lockRows) {
-        String query = 'SELECT Id, Base_Currency_Code__c FROM Budget_Expense_Manager_Setting__c ';
-        query += lockRows ? 'LIMIT 2 FOR UPDATE' : 'ORDER BY CreatedDate ASC LIMIT 2';
-        return Database.query(query, AccessLevel.SYSTEM_MODE);
+        if (lockRows) {
+            return [
+                SELECT Id, Base_Currency_Code__c
+                FROM Budget_Expense_Manager_Setting__c
+                WITH SYSTEM_MODE
+                LIMIT 2
+                FOR UPDATE
+            ];
+        }
+        return [
+            SELECT Id, Base_Currency_Code__c
+            FROM Budget_Expense_Manager_Setting__c
+            WITH SYSTEM_MODE
+            ORDER BY CreatedDate ASC
+            LIMIT 2
+        ];
     }
 
     @TestVisible

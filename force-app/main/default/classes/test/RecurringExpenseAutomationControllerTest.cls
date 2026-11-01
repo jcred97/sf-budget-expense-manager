@@ -2,6 +2,7 @@
 private class RecurringExpenseAutomationControllerTest {
     @TestSetup
     static void users() {
+        AppTestPermissions.grantAdmin();
         Id licenseId = [SELECT Profile.UserLicenseId FROM User WHERE Id = :UserInfo.getUserId()].Profile.UserLicenseId;
         List<Profile> profiles = [
             SELECT Id, Name
@@ -34,7 +35,6 @@ private class RecurringExpenseAutomationControllerTest {
         insert actors;
         assignPermission(actors[0].Id, 'Budget_Expense_Manager_Admin');
         assignPermission(actors[1].Id, 'Budget_Expense_Manager_User');
-        assignPermission(UserInfo.getUserId(), 'Budget_Expense_Manager_Admin');
 
         // Simulate an additive controller-access grant without the custom permission.
         PermissionSet controllerOnly = new PermissionSet(Name = 'AutomationControllerOnly', Label = 'Automation Controller Only');
@@ -152,81 +152,93 @@ private class RecurringExpenseAutomationControllerTest {
 
     @IsTest
     static void testTracksTheSubmittedJobThroughCompletion() {
-        insert new Budget_Expense_Manager_Setting__c(Name = 'Default', Recurring_Expenses_Enabled__c = true, Base_Currency_Code__c = 'PHP');
-        Test.startTest();
-        Id jobId = RecurringExpenseAutomationController.runDueExpensesBatch();
-        RecurringExpenseRunStatus queued = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
-        System.assertEquals(jobId, queued.jobId);
-        System.assertEquals(false, queued.isTerminal, 'A newly submitted batch is still pending.');
-        System.assert(new Set<String>{ 'Holding', 'Queued', 'Preparing', 'Processing' }.contains(queued.status));
-        Test.stopTest();
+        System.runAs(AppTestPermissions.adminActor()) {
+            insert new Budget_Expense_Manager_Setting__c(
+                Name = 'Default',
+                Recurring_Expenses_Enabled__c = true,
+                Base_Currency_Code__c = 'PHP'
+            );
+            Test.startTest();
+            Id jobId = RecurringExpenseAutomationController.runDueExpensesBatch();
+            RecurringExpenseRunStatus queued = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
+            System.assertEquals(jobId, queued.jobId);
+            System.assertEquals(false, queued.isTerminal, 'A newly submitted batch is still pending.');
+            System.assert(new Set<String>{ 'Holding', 'Queued', 'Preparing', 'Processing' }.contains(queued.status));
+            Test.stopTest();
 
-        RecurringExpenseRunStatus completed = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
-        System.assertEquals(jobId, completed.jobId, 'Read the submitted job rather than global settings.');
-        System.assertEquals('Completed', completed.status);
-        System.assertEquals(true, completed.isTerminal);
-        System.assertEquals(0, completed.numberOfErrors);
-        System.assertEquals(completed.totalJobItems, completed.jobItemsProcessed);
-        System.assertEquals(true, completed.outcomeAvailable);
-        System.assertEquals(false, completed.hasCatchUpRemaining);
+            RecurringExpenseRunStatus completed = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
+            System.assertEquals(jobId, completed.jobId, 'Read the submitted job rather than global settings.');
+            System.assertEquals('Completed', completed.status);
+            System.assertEquals(true, completed.isTerminal);
+            System.assertEquals(0, completed.numberOfErrors);
+            System.assertEquals(completed.totalJobItems, completed.jobItemsProcessed);
+            System.assertEquals(true, completed.outcomeAvailable);
+            System.assertEquals(false, completed.hasCatchUpRemaining);
+        }
     }
 
     @IsTest
     static void testUnavailableInputsReturnTheSameMessage() {
-        assertUnavailable(null);
-        Expense_Group__c groupRecord = new Expense_Group__c(Name = 'Wrong object');
-        insert groupRecord;
-        assertUnavailable(groupRecord.Id);
+        System.runAs(AppTestPermissions.adminActor()) {
+            assertUnavailable(null);
+            Expense_Group__c groupRecord = new Expense_Group__c(Name = 'Wrong object');
+            insert groupRecord;
+            assertUnavailable(groupRecord.Id);
+        }
     }
 
     @IsTest
     static void testJobOutcomeIgnoresOtherRunsAndMissingLegacyOutcome() {
-        Test.startTest();
-        Id jobId = Database.executeBatch(new RecurringExpenseBatch(), 1);
-        Test.stopTest();
-        Recurring_Expense_Run__c ownOutcome = [
-            SELECT Id, Has_Catch_Up_Remaining__c
-            FROM Recurring_Expense_Run__c
-            WHERE Job_Id__c = :String.valueOf(jobId)
-        ];
-        ownOutcome.Has_Catch_Up_Remaining__c = true;
-        update ownOutcome;
-        BudgetExpenseSettingsService.markRecurringRunCompleted(1, 1);
-        insert new Recurring_Expense_Run__c(Job_Id__c = 'another-run', Has_Catch_Up_Remaining__c = false);
-        RecurringExpenseRunStatus status = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
-        System.assertEquals(true, status.outcomeAvailable);
-        System.assertEquals(true, status.hasCatchUpRemaining, 'A newer singleton summary or another job must not hide this job cap.');
-        delete ownOutcome;
-        status = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
-        System.assertEquals(false, status.outcomeAvailable, 'Older jobs without a durable outcome have an unknown catch-up result.');
-        System.assertEquals(false, status.hasCatchUpRemaining);
+        System.runAs(AppTestPermissions.adminActor()) {
+            Test.startTest();
+            Id jobId = Database.executeBatch(new RecurringExpenseBatch(), 1);
+            Test.stopTest();
+            Recurring_Expense_Run__c ownOutcome = [
+                SELECT Id, Has_Catch_Up_Remaining__c
+                FROM Recurring_Expense_Run__c
+                WHERE Job_Id__c = :String.valueOf(jobId)
+            ];
+            ownOutcome.Has_Catch_Up_Remaining__c = true;
+            update ownOutcome;
+            BudgetExpenseSettingsService.markRecurringRunCompleted(1, 1);
+            insert new Recurring_Expense_Run__c(Job_Id__c = 'another-run', Has_Catch_Up_Remaining__c = false);
+            RecurringExpenseRunStatus status = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
+            System.assertEquals(true, status.outcomeAvailable);
+            System.assertEquals(true, status.hasCatchUpRemaining, 'A newer singleton summary or another job must not hide this job cap.');
+            delete ownOutcome;
+            status = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
+            System.assertEquals(false, status.outcomeAvailable, 'Older jobs without a durable outcome have an unknown catch-up result.');
+            System.assertEquals(false, status.hasCatchUpRemaining);
+        }
     }
 
     @IsTest
     static void testAnotherUserCannotReadTheSubmittedJob() {
-        User otherUser = new User(
-            Alias = 'runother',
-            Email = 'recurring.other@example.invalid',
-            EmailEncodingKey = 'UTF-8',
-            LastName = 'Recurring Run Reader',
-            LanguageLocaleKey = 'en_US',
-            LocaleSidKey = 'en_US',
-            ProfileId = UserInfo.getProfileId(),
-            TimeZoneSidKey = 'Asia/Manila',
-            Username = 'recurring.other.' + UserInfo.getOrganizationId() + '.' + DateTime.now().getTime() + '@example.invalid'
-        );
-        insert otherUser;
-        assignPermission(otherUser.Id, 'Budget_Expense_Manager_Admin');
-        Test.startTest();
-        Id jobId = Database.executeBatch(new RecurringExpenseBatch(), 1);
-        System.runAs(otherUser) {
-            System.assertEquals(true, FeatureManagement.checkPermission('Manage_Recurring_Expense_Automation'));
-            assertUnavailable(jobId);
-        }
-        Test.stopTest();
-        System.assertEquals(1, [SELECT COUNT() FROM Recurring_Expense_Run__c WHERE Job_Id__c = :String.valueOf(jobId)]);
-        System.runAs(otherUser) {
-            assertUnavailable(jobId);
+        System.runAs(AppTestPermissions.adminActor()) {
+            User otherUser = new User(
+                Alias = 'runother',
+                Email = 'recurring.other@example.invalid',
+                EmailEncodingKey = 'UTF-8',
+                LastName = 'Recurring Run Reader',
+                LanguageLocaleKey = 'en_US',
+                LocaleSidKey = 'en_US',
+                ProfileId = UserInfo.getProfileId(),
+                TimeZoneSidKey = 'Asia/Manila',
+                Username = 'recurring.other.' + UserInfo.getOrganizationId() + '.' + DateTime.now().getTime() + '@example.invalid'
+            );
+            insert otherUser;
+            assignPermission(otherUser.Id, 'Budget_Expense_Manager_Admin');
+            Test.startTest();
+            Id jobId = Database.executeBatch(new RecurringExpenseBatch(), 1);
+            System.runAs(otherUser) {
+                System.assertEquals(true, FeatureManagement.checkPermission('Manage_Recurring_Expense_Automation'));
+                assertUnavailable(jobId);
+            }
+            Test.stopTest();
+            System.assertEquals(1, [SELECT COUNT() FROM Recurring_Expense_Run__c WHERE Job_Id__c = :String.valueOf(jobId)]);
+            System.runAs(otherUser) {
+                assertUnavailable(jobId);
+            }
         }
     }
 

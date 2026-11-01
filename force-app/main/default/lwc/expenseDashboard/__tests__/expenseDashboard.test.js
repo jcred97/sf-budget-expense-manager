@@ -90,7 +90,16 @@ describe('dashboard screen', () => {
         const element = await mount();
         getObjectInfos.emit({
             results: ['Budget__c', 'Expense__c'].map(kind => ({
-                result: { ...info(kind), apiName: `bemgr__${kind}` }
+                result: {
+                    ...info(kind),
+                    apiName: `bemgr__${kind}`,
+                    fields: Object.fromEntries(
+                        Object.entries(info(kind).fields).map(([name, access]) => [
+                            name.endsWith('__c') ? `bemgr__${name}` : name,
+                            access
+                        ])
+                    )
+                }
             }))
         });
         await flush();

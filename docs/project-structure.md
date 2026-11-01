@@ -8,6 +8,7 @@ sf-budget-expense-manager/
   README.md
   docs/
     README.md
+    getting-started.md
     review-findings.md
     architecture.md
     components.md
@@ -198,7 +199,7 @@ The checkout directory, GitHub repository, Git remote, and Salesforce DX project
 - 28 active LWC bundles; any empty directories are not active bundles. Screen ownership is now in `expenseDashboard`, `expenseList`, and `recurringExpenses`, with shared workspace context/lookups in `budgetExpenseManager`.
 - Eight controllers, sixteen service/interface classes, fifteen DTOs, six trigger handlers, two async classes, and eighteen Apex test classes. `classes/selector/` has no active classes; simple group/category/Bank lookups are in controllers.
 - Eight custom objects, six triggers, three permission sets, seven explicit layouts, eight tabs, and two flexipages.
-- Nine Jest suites live in bundle-local `__tests__/` folders: `budgetExpenseManager`, `expenseDashboard`, `expenseList`, `recurringExpenses`, `expenseModal`, `expenseTransforms`, `expenseWorkspaceData`, `expenseCsvExport`, and `recurringExpenseViewModel`. The last source review passed 66 tests; this is not an Apex or live-org validation result.
+- Ten Jest suites live in bundle-local `__tests__/` folders: `budgetExpenseManager`, `expenseDashboard`, `expenseList`, `recurringExpenses`, `expenseModal`, `expenseTransforms`, `expenseWorkspaceData`, `expenseCsvExport`, `recurringExpenseViewModel`, and `budgetExpenseSettings`. The original source review passed 66 tests across nine suites; the later settings suite added five passing tests. These are scoped results, not a new full-suite or live-org verification.
 - `expenseWorkspaceData` supplies imperative read/report helpers; view-model builders are pure presentation modules. `expenseWorkspaceViewModels` memoizes dashboard/list builders only. There is no active Flow implementation or populated Aura bundle.
 - Root tooling also includes `.husky/`, `.prettierrc`, `.prettierignore`, `.forceignore`, `.gitignore`, `code-analyzer.yml`, and the npm lockfile. These configure hooks, formatting, deployment exclusions, source control, and static analysis.
 

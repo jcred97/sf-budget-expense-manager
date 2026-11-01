@@ -2,6 +2,7 @@
 private class WorkspaceManagementControllerTest {
     @TestSetup
     static void actors() {
+        AppTestPermissions.grantAdmin();
         Id licenseId = [SELECT Profile.UserLicenseId FROM User WHERE Id = :UserInfo.getUserId()].Profile.UserLicenseId;
         List<Profile> profiles = [
             SELECT Id, Name
@@ -149,42 +150,48 @@ private class WorkspaceManagementControllerTest {
 
     @IsTest
     static void searchesLiteralCharactersAndTrimsWhitespace() {
-        insert new List<Bank__c>{ new Bank__c(Name = 'A_100% Bank'), new Bank__c(Name = 'A1100X Bank') };
-        WorkspaceManagementPage result = page('Banks', null, '  _100%  ', null);
-        System.assertEquals(1, result.records.size(), 'LIKE wildcard characters in search are literal.');
-        System.assertEquals('A_100% Bank', result.records[0].name);
-        insert new Expense_Group__c(Name = 'Household');
-        System.assertEquals(1, page('Groups', null, ' HOUSE ', null).records.size(), 'Name search is case insensitive.');
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            insert new List<Bank__c>{ new Bank__c(Name = 'A_100% Bank'), new Bank__c(Name = 'A1100X Bank') };
+            WorkspaceManagementPage result = page('Banks', null, '  _100%  ', null);
+            System.assertEquals(1, result.records.size(), 'LIKE wildcard characters in search are literal.');
+            System.assertEquals('A_100% Bank', result.records[0].name);
+            insert new Expense_Group__c(Name = 'Household');
+            System.assertEquals(1, page('Groups', null, ' HOUSE ', null).records.size(), 'Name search is case insensitive.');
+        }
     }
 
     @IsTest
     static void missingGroupReturnsEmptyAndInvalidRequestsFailClearly() {
-        System.assertEquals(0, page('Categories', null, null, null).records.size());
-        System.assertEquals(0, page('Assignments', null, null, null).records.size());
-        assertRejected('Expenses', null, null, null, 'supported management');
-        assertRejected(null, null, null, null, 'supported management');
-        assertRejected('Banks', null, 'x'.repeat(201), null, '200 characters');
-        assertRejected('Categories', UserInfo.getUserId(), null, null, 'Expense Group');
-        assertRejected('Banks', null, null, 'invalid token', 'Refresh the list');
-        assertRejected('Banks', null, null, 'x'.repeat(3001), 'Refresh the list');
-        assertRejected('Banks', null, null, EncodingUtil.base64Encode(Blob.valueOf('null')), 'Refresh the list');
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            System.assertEquals(0, page('Categories', null, null, null).records.size());
+            System.assertEquals(0, page('Assignments', null, null, null).records.size());
+            assertRejected('Expenses', null, null, null, 'supported management');
+            assertRejected(null, null, null, null, 'supported management');
+            assertRejected('Banks', null, 'x'.repeat(201), null, '200 characters');
+            assertRejected('Categories', UserInfo.getUserId(), null, null, 'Expense Group');
+            assertRejected('Banks', null, null, 'invalid token', 'Refresh the list');
+            assertRejected('Banks', null, null, 'x'.repeat(3001), 'Refresh the list');
+            assertRejected('Banks', null, null, EncodingUtil.base64Encode(Blob.valueOf('null')), 'Refresh the list');
+        }
     }
 
     @IsTest
     static void rejectsCrossScopeCursorAndMissingCursorIdentity() {
-        List<Expense_Group__c> groups = new List<Expense_Group__c>();
-        for (Integer index = 0; index < 51; index++) {
-            groups.add(new Expense_Group__c(Name = 'Same'));
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            List<Expense_Group__c> groups = new List<Expense_Group__c>();
+            for (Integer index = 0; index < 51; index++) {
+                groups.add(new Expense_Group__c(Name = 'Same'));
+            }
+            insert groups;
+            String token = page('Groups', null, null, null).nextPageToken;
+            assertRejected('Banks', null, null, token, 'Refresh the list');
+            assertRejected('Groups', null, 'Same', token, 'Refresh the list');
+            Map<String, Object> cursor = (Map<String, Object>) JSON.deserializeUntyped(EncodingUtil.base64Decode(token).toString());
+            cursor.put('recordId', UserInfo.getUserId());
+            assertRejected('Groups', null, null, EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(cursor))), 'Refresh the list');
+            cursor.remove('recordId');
+            assertRejected('Groups', null, null, EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(cursor))), 'Refresh the list');
         }
-        insert groups;
-        String token = page('Groups', null, null, null).nextPageToken;
-        assertRejected('Banks', null, null, token, 'Refresh the list');
-        assertRejected('Groups', null, 'Same', token, 'Refresh the list');
-        Map<String, Object> cursor = (Map<String, Object>) JSON.deserializeUntyped(EncodingUtil.base64Decode(token).toString());
-        cursor.put('recordId', UserInfo.getUserId());
-        assertRejected('Groups', null, null, EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(cursor))), 'Refresh the list');
-        cursor.remove('recordId');
-        assertRejected('Groups', null, null, EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(cursor))), 'Refresh the list');
     }
 
     @IsTest

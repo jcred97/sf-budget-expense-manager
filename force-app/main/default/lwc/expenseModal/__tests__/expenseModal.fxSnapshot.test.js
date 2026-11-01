@@ -108,7 +108,8 @@ async function enterManualSnapshot(element) {
     await toggle(element, true);
     await change(element, 'category', 'groceries');
     const dateField = [...element.shadowRoot.querySelectorAll('lightning-input-field')].find(
-        candidate => candidate.fieldName === 'Expense_Date__c'
+        candidate =>
+            (candidate.fieldName?.fieldApiName || candidate.fieldName) === 'Expense_Date__c'
     );
     dateField.dispatchEvent(new CustomEvent('change', { detail: { value: '2026-10-01' } }));
     await change(element, 'originalCurrency', 'usd');
@@ -357,7 +358,7 @@ it('keeps the canonical PHP amount visible and readonly when one FX field cannot
     await flush();
     const phpAmount = input(element, 'phpAmount');
     const expenseDate = [...element.shadowRoot.querySelectorAll('lightning-input-field')].find(
-        field => field.fieldName === 'Expense_Date__c'
+        field => (field.fieldName?.fieldApiName || field.fieldName) === 'Expense_Date__c'
     );
     expect(phpAmount.parentElement.classList.contains('slds-hide')).toBe(false);
     expect(phpAmount.disabled).toBe(true);
@@ -368,7 +369,8 @@ it('keeps the canonical PHP amount visible and readonly when one FX field cannot
     expect(element.shadowRoot.textContent).not.toContain('ECB via Frankfurter');
     expect(
         [...element.shadowRoot.querySelectorAll('lightning-input-field')].some(
-            field => field.fieldName === 'Exchange_Rate_Source__c'
+            field =>
+                (field.fieldName?.fieldApiName || field.fieldName) === 'Exchange_Rate_Source__c'
         )
     ).toBe(false);
     submit(form, {

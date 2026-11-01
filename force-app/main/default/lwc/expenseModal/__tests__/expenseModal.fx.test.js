@@ -47,7 +47,7 @@ const button = (element, label) =>
     [...element.shadowRoot.querySelectorAll('lightning-button')].find(item => item.label === label);
 const dateField = element =>
     [...element.shadowRoot.querySelectorAll('lightning-input-field')].find(
-        item => item.fieldName === 'Expense_Date__c'
+        item => (item.fieldName?.fieldApiName || item.fieldName) === 'Expense_Date__c'
     );
 const change = (input, value) => {
     input.value = value;

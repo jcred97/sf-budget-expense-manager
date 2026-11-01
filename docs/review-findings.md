@@ -66,14 +66,16 @@ The review inspected source and ran local lint/Jest checks; it did not reproduce
 - **Singleton concurrency:** Settings singleton enforcement is check-before-insert without a unique singleton key. Concurrent first initialization is a robustness concern; it was not reproduced in an org during this review.
 - **Currency scope:** Pinned base-currency context exists, but FX conversion and reporting remain PHP-focused. This is not complete generic Salesforce multicurrency support.
 - **Sharing policy:** Groups and recurring templates are internally Public Read/Write. Confirm that shared budgeting, rather than private per-user records, is intended; the current policy alone is not a defect.
-- **Frontend tests:** Direct settings, budget-panel/dialog, recurring-modal and FX-interaction coverage remains incomplete. Jest does not validate actual browser print layout.
+- **Frontend tests:** Five dedicated settings tests now cover loading, retry, and save/refresh exclusion. Direct budget-panel/dialog, recurring-modal and FX-interaction coverage remains incomplete. Jest does not validate actual browser print layout.
 
 ## Verification and Deployment Boundary
+
+The bullets below record the original architecture review at `6d0e13d`. Later settings Jest tests and schedule-recovery Apex validation are recorded in [testing notes](testing-and-tooling.md); they do not represent deployment of those fixes.
 
 - `npm run lint`: passed during the source review.
 - Jest: **66 passing tests across 9 suites**.
 - Apex: **18 test classes in source**; no fresh execution/coverage result from this review.
-- Latest refactor commits are pushed through `6d0e13d`; their deployment and obsolete-org-metadata cleanup remain deferred.
+- The reviewed refactor baseline was `6d0e13d`; its deployment and obsolete-org-metadata cleanup remain deferred.
 - Historical rebrand/deployment job IDs and record counts are retained as history, not current live-org assertions.
 
 See [architecture](architecture.md), [component ownership](components.md), and [testing history](testing-and-tooling.md).

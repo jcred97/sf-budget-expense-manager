@@ -2,6 +2,7 @@
 private class BankControllerTest {
     @TestSetup
     static void setupData() {
+        AppTestPermissions.grantAdmin();
         Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Household');
         insert expenseGroup;
 
@@ -13,11 +14,7 @@ private class BankControllerTest {
         Expense_Group_Bank__c bpiAssignment = assignment(expenseGroup.Id, bpi.Id, true);
         Expense_Group_Bank__c maribankAssignment = assignment(expenseGroup.Id, maribank.Id, true);
         Expense_Group_Bank__c gcashAssignment = assignment(expenseGroup.Id, gcash.Id, true);
-        insert new List<Expense_Group_Bank__c>{
-            maribankAssignment,
-            bpiAssignment,
-            gcashAssignment
-        };
+        insert new List<Expense_Group_Bank__c>{ maribankAssignment, bpiAssignment, gcashAssignment };
         gcashAssignment.Active__c = false;
         update gcashAssignment;
     }
@@ -33,18 +30,14 @@ private class BankControllerTest {
 
         List<ExpenseGroupBankOptionDto> options;
         Test.startTest();
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             options = BankController.getAvailableExpenseGroupBanks(expenseGroup.Id);
         }
         Test.stopTest();
 
         System.assertEquals(2, options.size(), 'Only active assignment/Bank pairs should return.');
         System.assertEquals('BPI', options[0].bankName, 'Options should be ordered by Bank name.');
-        System.assertEquals(
-            'MariBank',
-            options[1].bankName,
-            'The second available Bank should follow alphabetically.'
-        );
+        System.assertEquals('MariBank', options[1].bankName, 'The second available Bank should follow alphabetically.');
         System.assertNotEquals(null, options[0].assignmentId, 'The selector must return its ID.');
         System.assertNotEquals(null, options[0].bankId, 'The selector must return the Bank ID.');
         System.assertEquals(
@@ -52,18 +45,14 @@ private class BankControllerTest {
             options[0].supportedTransactionTypes,
             'New assignments should preserve all existing Bank methods by default.'
         );
-        System.assertEquals(
-            expenseGroup.Id,
-            options[0].expenseGroupId,
-            'The selector should retain the owning Expense Group.'
-        );
+        System.assertEquals(expenseGroup.Id, options[0].expenseGroupId, 'The selector should retain the owning Expense Group.');
     }
 
     @IsTest
     static void testGetAvailableExpenseGroupBanksHandlesMissingContext() {
         List<ExpenseGroupBankOptionDto> options;
         Test.startTest();
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             options = BankController.getAvailableExpenseGroupBanks(null);
         }
         Test.stopTest();
@@ -73,69 +62,76 @@ private class BankControllerTest {
 
     @IsTest
     static void testPaymentMethodsAreConfiguredPerExpenseGroup() {
-        Expense_Group__c household = [SELECT Id FROM Expense_Group__c WHERE Name = 'Household' LIMIT 1];
-        Expense_Group__c travel = new Expense_Group__c(Name = 'Travel');
-        insert travel;
-        Bank__c bpi = [SELECT Id FROM Bank__c WHERE Name = 'BPI' LIMIT 1];
-        Expense_Group_Bank__c householdBank = [
-            SELECT Id FROM Expense_Group_Bank__c
-            WHERE Expense_Group__c = :household.Id AND Bank__c = :bpi.Id LIMIT 1
-        ];
-        householdBank.Supported_Credit_Card__c = true;
-        householdBank.Supported_Debit_Card__c = false;
-        householdBank.Supported_Bank_Payment__c = false;
-        householdBank.Supported_Bank_Transfer__c = false;
-        update householdBank;
-        Expense_Group_Bank__c travelBank = assignment(travel.Id, bpi.Id, true);
-        travelBank.Supported_Credit_Card__c = false;
-        travelBank.Supported_Debit_Card__c = true;
-        travelBank.Supported_Bank_Payment__c = false;
-        travelBank.Supported_Bank_Transfer__c = true;
-        insert travelBank;
-
-        Test.startTest();
-        List<ExpenseGroupBankOptionDto> householdOptions =
-            BankController.getAvailableExpenseGroupBanks(household.Id);
-        List<ExpenseGroupBankOptionDto> travelOptions =
-            BankController.getAvailableExpenseGroupBanks(travel.Id);
-        Test.stopTest();
-
-        System.assertEquals(bpi.Id, householdOptions[0].bankId, 'Household should return the global Bank.');
-        System.assertEquals(bpi.Id, travelOptions[0].bankId, 'Travel should return the same global Bank.');
-        System.assertEquals(new List<String>{ 'Credit Card' }, householdOptions[0].supportedTransactionTypes,
-            'Household should expose only its supported method.');
-        System.assertEquals(new List<String>{ 'Debit Card', 'Bank Transfer' }, travelOptions[0].supportedTransactionTypes,
-            'Travel should expose its own supported methods for the same Bank.');
+        System.runAs(AppTestPermissions.adminActor()) {
+            Expense_Group__c household = [SELECT Id FROM Expense_Group__c WHERE Name = 'Household' LIMIT 1];
+            Expense_Group__c travel = new Expense_Group__c(Name = 'Travel');
+            insert travel;
+            Bank__c bpi = [SELECT Id FROM Bank__c WHERE Name = 'BPI' LIMIT 1];
+            Expense_Group_Bank__c householdBank = [
+                SELECT Id
+                FROM Expense_Group_Bank__c
+                WHERE Expense_Group__c = :household.Id AND Bank__c = :bpi.Id
+                LIMIT 1
+            ];
+            householdBank.Supported_Credit_Card__c = true;
+            householdBank.Supported_Debit_Card__c = false;
+            householdBank.Supported_Bank_Payment__c = false;
+            householdBank.Supported_Bank_Transfer__c = false;
+            update householdBank;
+            Expense_Group_Bank__c travelBank = assignment(travel.Id, bpi.Id, true);
+            travelBank.Supported_Credit_Card__c = false;
+            travelBank.Supported_Debit_Card__c = true;
+            travelBank.Supported_Bank_Payment__c = false;
+            travelBank.Supported_Bank_Transfer__c = true;
+            insert travelBank;
+            Test.startTest();
+            List<ExpenseGroupBankOptionDto> householdOptions = BankController.getAvailableExpenseGroupBanks(household.Id);
+            List<ExpenseGroupBankOptionDto> travelOptions = BankController.getAvailableExpenseGroupBanks(travel.Id);
+            Test.stopTest();
+            System.assertEquals(bpi.Id, householdOptions[0].bankId, 'Household should return the global Bank.');
+            System.assertEquals(bpi.Id, travelOptions[0].bankId, 'Travel should return the same global Bank.');
+            System.assertEquals(
+                new List<String>{ 'Credit Card' },
+                householdOptions[0].supportedTransactionTypes,
+                'Household should expose only its supported method.'
+            );
+            System.assertEquals(
+                new List<String>{ 'Debit Card', 'Bank Transfer' },
+                travelOptions[0].supportedTransactionTypes,
+                'Travel should expose its own supported methods for the same Bank.'
+            );
+        }
     }
 
     @IsTest
     static void testAssignmentWithNoBankMethodsReturnsEmptyList() {
-        Expense_Group__c household = [SELECT Id FROM Expense_Group__c WHERE Name = 'Household' LIMIT 1];
-        Bank__c bpi = [SELECT Id FROM Bank__c WHERE Name = 'BPI' LIMIT 1];
-        Expense_Group_Bank__c householdBank = [
-            SELECT Id FROM Expense_Group_Bank__c
-            WHERE Expense_Group__c = :household.Id AND Bank__c = :bpi.Id LIMIT 1
-        ];
-        householdBank.Supported_Credit_Card__c = false;
-        householdBank.Supported_Debit_Card__c = false;
-        householdBank.Supported_Bank_Payment__c = false;
-        householdBank.Supported_Bank_Transfer__c = false;
-        update householdBank;
-
-        Test.startTest();
-        List<ExpenseGroupBankOptionDto> options = BankController.getAvailableExpenseGroupBanks(household.Id);
-        Test.stopTest();
-
-        System.assertEquals(bpi.Id, options[0].bankId, 'The Bank should still be available as an assignment.');
-        System.assertEquals(new List<String>(), options[0].supportedTransactionTypes,
-            'No checked methods should produce an empty Bank-method list; Cash is a separate UI option.');
+        System.runAs(AppTestPermissions.adminActor()) {
+            Expense_Group__c household = [SELECT Id FROM Expense_Group__c WHERE Name = 'Household' LIMIT 1];
+            Bank__c bpi = [SELECT Id FROM Bank__c WHERE Name = 'BPI' LIMIT 1];
+            Expense_Group_Bank__c householdBank = [
+                SELECT Id
+                FROM Expense_Group_Bank__c
+                WHERE Expense_Group__c = :household.Id AND Bank__c = :bpi.Id
+                LIMIT 1
+            ];
+            householdBank.Supported_Credit_Card__c = false;
+            householdBank.Supported_Debit_Card__c = false;
+            householdBank.Supported_Bank_Payment__c = false;
+            householdBank.Supported_Bank_Transfer__c = false;
+            update householdBank;
+            Test.startTest();
+            List<ExpenseGroupBankOptionDto> options = BankController.getAvailableExpenseGroupBanks(household.Id);
+            Test.stopTest();
+            System.assertEquals(bpi.Id, options[0].bankId, 'The Bank should still be available as an assignment.');
+            System.assertEquals(
+                new List<String>(),
+                options[0].supportedTransactionTypes,
+                'No checked methods should produce an empty Bank-method list; Cash is a separate UI option.'
+            );
+        }
     }
 
     private static Expense_Group_Bank__c assignment(Id expenseGroupId, Id bankId, Boolean active) {
-        return new Expense_Group_Bank__c(
-            Expense_Group__c = expenseGroupId,
-            Bank__c = bankId,
-            Active__c = active
-        );
+        return new Expense_Group_Bank__c(Expense_Group__c = expenseGroupId, Bank__c = bankId, Active__c = active);
     }
 }

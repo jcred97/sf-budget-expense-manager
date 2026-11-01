@@ -15,16 +15,25 @@ public with sharing class BankController {
             return options;
         }
 
-        for (Expense_Group_Bank__c assignment : [
-            SELECT Id, Active__c, Bank__c, Bank__r.Name, Bank__r.Active__c, Expense_Group__c,
-                Supported_Credit_Card__c, Supported_Debit_Card__c,
-                Supported_Bank_Payment__c, Supported_Bank_Transfer__c
+        List<Expense_Group_Bank__c> assignments = [
+            SELECT
+                Id,
+                Active__c,
+                Bank__c,
+                Bank__r.Name,
+                Bank__r.Active__c,
+                Expense_Group__c,
+                Supported_Credit_Card__c,
+                Supported_Debit_Card__c,
+                Supported_Bank_Payment__c,
+                Supported_Bank_Transfer__c
             FROM Expense_Group_Bank__c
             WHERE Expense_Group__c = :expenseGroupId AND Active__c = TRUE AND Bank__r.Active__c = TRUE
             WITH USER_MODE
             ORDER BY Bank__r.Name ASC, CreatedDate ASC
             LIMIT :MAX_SELECTOR_RESULTS
-        ]) {
+        ];
+        for (Expense_Group_Bank__c assignment : assignments) {
             options.add(new ExpenseGroupBankOptionDto(assignment));
         }
         return options;

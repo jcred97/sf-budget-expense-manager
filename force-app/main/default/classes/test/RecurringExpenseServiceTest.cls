@@ -3,81 +3,89 @@ private class RecurringExpenseServiceTest {
     private static Id dailyCategoryId;
     @IsTest
     static void testScopeCapResumesWithoutReplaying() {
-        Date startDate = Date.today().addDays(-200);
-        Recurring_Expense__c template = dailyTemplate('Catch up', startDate);
-        insert template;
+        System.runAs(AppTestPermissions.adminActor()) {
+            Date startDate = Date.today().addDays(-200);
+            Recurring_Expense__c template = dailyTemplate('Catch up', startDate);
+            insert template;
 
-        Test.startTest();
-        RecurringExpenseGenerationResult first = generateScope(Date.today(), 200);
-        Date nextDate = [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id].Next_Run_Date__c;
-        RecurringExpenseGenerationResult second = generateScope(Date.today(), 200);
-        Test.stopTest();
+            Test.startTest();
+            RecurringExpenseGenerationResult first = generateScope(Date.today(), 200);
+            Date nextDate = [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id].Next_Run_Date__c;
+            RecurringExpenseGenerationResult second = generateScope(Date.today(), 200);
+            Test.stopTest();
 
-        System.assertEquals(200, first.expensesCreated, 'The supplied scope limit stops after 200 occurrences.');
-        System.assertEquals(true, first.hitGenerationLimit, 'Report remaining due work.');
-        System.assertEquals(Date.today(), nextDate, 'Keep the first ungenerated occurrence.');
-        System.assertEquals(1, second.expensesCreated, 'Resume with only the outstanding occurrence.');
-        System.assertEquals(false, second.hitGenerationLimit, 'Catch-up is complete.');
-        System.assertEquals(201, [SELECT COUNT() FROM Expense__c], 'No occurrences are replayed.');
-        AggregateResult dates = [SELECT COUNT_DISTINCT(Expense_Date__c) uniqueDates FROM Expense__c];
-        System.assertEquals(201, dates.get('uniqueDates'), 'Every generated date is unique.');
+            System.assertEquals(200, first.expensesCreated, 'The supplied scope limit stops after 200 occurrences.');
+            System.assertEquals(true, first.hitGenerationLimit, 'Report remaining due work.');
+            System.assertEquals(Date.today(), nextDate, 'Keep the first ungenerated occurrence.');
+            System.assertEquals(1, second.expensesCreated, 'Resume with only the outstanding occurrence.');
+            System.assertEquals(false, second.hitGenerationLimit, 'Catch-up is complete.');
+            System.assertEquals(201, [SELECT COUNT() FROM Expense__c], 'No occurrences are replayed.');
+            AggregateResult dates = [SELECT COUNT_DISTINCT(Expense_Date__c) uniqueDates FROM Expense__c];
+            System.assertEquals(201, dates.get('uniqueDates'), 'Every generated date is unique.');
+        }
     }
 
     @IsTest
     static void testEndedTemplatesDoNotConsumeScopeCap() {
-        List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
-        for (Integer i = 0; i < 200; i++) {
-            Recurring_Expense__c ended = dailyTemplate('Ended ' + i, Date.today().addDays(-2));
-            ended.End_Date__c = Date.today().addDays(-2);
-            ended.Next_Run_Date__c = Date.today().addDays(-1);
-            templates.add(ended);
+        System.runAs(AppTestPermissions.adminActor()) {
+            List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
+            for (Integer i = 0; i < 200; i++) {
+                Recurring_Expense__c ended = dailyTemplate('Ended ' + i, Date.today().addDays(-2));
+                ended.End_Date__c = Date.today().addDays(-2);
+                ended.Next_Run_Date__c = Date.today().addDays(-1);
+                templates.add(ended);
+            }
+            templates.add(dailyTemplate('Due today', Date.today()));
+            insert templates;
+            Id dueId = templates[200].Id;
+
+            Test.startTest();
+            RecurringExpenseGenerationResult result = generateScope(Date.today(), 200);
+            Test.stopTest();
+
+            System.assertEquals(1, result.expensesCreated, 'Scan past ended templates to find due work.');
+            System.assertEquals(false, result.hitGenerationLimit, 'Ended templates do not consume the cap.');
+            System.assertEquals(
+                dueId,
+                [SELECT Recurring_Expense__c FROM Expense__c LIMIT 1].Recurring_Expense__c,
+                'Only the eligible template generates an expense.'
+            );
         }
-        templates.add(dailyTemplate('Due today', Date.today()));
-        insert templates;
-        Id dueId = templates[200].Id;
-
-        Test.startTest();
-        RecurringExpenseGenerationResult result = generateScope(Date.today(), 200);
-        Test.stopTest();
-
-        System.assertEquals(1, result.expensesCreated, 'Scan past ended templates to find due work.');
-        System.assertEquals(false, result.hitGenerationLimit, 'Ended templates do not consume the cap.');
-        System.assertEquals(
-            dueId,
-            [SELECT Recurring_Expense__c FROM Expense__c LIMIT 1].Recurring_Expense__c,
-            'Only the eligible template generates an expense.'
-        );
     }
 
     @IsTest
     static void testScopeCapReportsAdditionalTemplates() {
-        List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
-        for (Integer i = 0; i < 201; i++) {
-            templates.add(dailyTemplate('Due ' + i, Date.today()));
+        System.runAs(AppTestPermissions.adminActor()) {
+            List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
+            for (Integer i = 0; i < 201; i++) {
+                templates.add(dailyTemplate('Due ' + i, Date.today()));
+            }
+            insert templates;
+            Test.startTest();
+            RecurringExpenseGenerationResult first = generateScope(Date.today(), 200);
+            RecurringExpenseGenerationResult second = generateScope(Date.today(), 200);
+            Test.stopTest();
+            System.assertEquals(200, first.expensesCreated, 'Limit applies across templates.');
+            System.assertEquals(true, first.hitGenerationLimit, 'The extra eligible template signals remaining work.');
+            System.assertEquals(1, second.expensesCreated, 'The remaining template is processed next time.');
+            System.assertEquals(false, second.hitGenerationLimit, 'No more work remains.');
         }
-        insert templates;
-        Test.startTest();
-        RecurringExpenseGenerationResult first = generateScope(Date.today(), 200);
-        RecurringExpenseGenerationResult second = generateScope(Date.today(), 200);
-        Test.stopTest();
-        System.assertEquals(200, first.expensesCreated, 'Limit applies across templates.');
-        System.assertEquals(true, first.hitGenerationLimit, 'The extra eligible template signals remaining work.');
-        System.assertEquals(1, second.expensesCreated, 'The remaining template is processed next time.');
-        System.assertEquals(false, second.hitGenerationLimit, 'No more work remains.');
     }
 
     @IsTest
     static void testDefaultScopeCapAllowsCatchUpBeyondTwoHundred() {
-        Recurring_Expense__c template = dailyTemplate('Batch catch up', Date.today().addDays(-200));
-        insert template;
-        Test.startTest();
-        RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
-            new List<Recurring_Expense__c>{ template },
-            Date.today()
-        );
-        Test.stopTest();
-        System.assertEquals(201, result.expensesCreated, 'The default scope limit supports more than 200 occurrences.');
-        System.assertEquals(false, result.hitGenerationLimit, 'The batch still has capacity.');
+        System.runAs(AppTestPermissions.adminActor()) {
+            Recurring_Expense__c template = dailyTemplate('Batch catch up', Date.today().addDays(-200));
+            insert template;
+            Test.startTest();
+            RecurringExpenseGenerationResult result = RecurringExpenseService.generateDueExpenses(
+                new List<Recurring_Expense__c>{ template },
+                Date.today()
+            );
+            Test.stopTest();
+            System.assertEquals(201, result.expensesCreated, 'The default scope limit supports more than 200 occurrences.');
+            System.assertEquals(false, result.hitGenerationLimit, 'The batch still has capacity.');
+        }
     }
 
     private static RecurringExpenseGenerationResult generateScope(Date runDate, Integer maxExpenses) {
@@ -101,24 +109,7 @@ private class RecurringExpenseServiceTest {
 
     @TestSetup
     static void setupData() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
-            PermissionSet adminPermission = [
-                SELECT Id
-                FROM PermissionSet
-                WHERE Name = 'Budget_Expense_Manager_Admin' AND (NamespacePrefix = 'bemgr' OR NamespacePrefix = NULL)
-                ORDER BY NamespacePrefix DESC NULLS LAST
-                LIMIT 1
-            ];
-            if (
-                [
-                    SELECT COUNT()
-                    FROM PermissionSetAssignment
-                    WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :adminPermission.Id
-                ] == 0
-            ) {
-                insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = adminPermission.Id);
-            }
-        }
+        AppTestPermissions.grantAdmin();
         insert new Budget_Expense_Manager_Setting__c(Name = 'Default', Recurring_Expenses_Enabled__c = true, Base_Currency_Code__c = 'PHP');
         Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Health');
         insert expenseGroup;
@@ -133,7 +124,7 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testGenerateDueExpensesCatchesUpMonthlyExpenses() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
             Expense_Group_Bank__c bankAssignment = [
                 SELECT Id
@@ -230,7 +221,7 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testGenerationLimitPersistsPointerAndDoesNotReplayExpenses() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
             Date firstDueDate = Date.newInstance(2026, 5, 1);
             Date runDate = Date.newInstance(2026, 5, 3);
@@ -323,7 +314,7 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testStaleBatchScopeDoesNotReplayManualGeneration() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Recurring_Expense__c template = createConcurrencyTemplate();
             Date runDate = template.Start_Date__c;
             List<SObject> staleScope = new List<SObject>{ template.clone(true, true, false, false) };
@@ -349,7 +340,7 @@ private class RecurringExpenseServiceTest {
     }
     @IsTest
     static void testReloadUsesCurrentValuesAndDeduplicatesCandidates() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Recurring_Expense__c template = createConcurrencyTemplate();
             update new Recurring_Expense__c(Id = template.Id, Amount__c = 250);
 
@@ -371,7 +362,7 @@ private class RecurringExpenseServiceTest {
     }
     @IsTest
     static void testReloadSkipsDeactivatedAndDeletedTemplates() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Recurring_Expense__c inactiveTemplate = createConcurrencyTemplate();
             Recurring_Expense__c deletedTemplate = createConcurrencyTemplate();
             update new Recurring_Expense__c(Id = inactiveTemplate.Id, Active__c = false);
@@ -461,7 +452,7 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testGenerateDueExpensesRespectsEndDate() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
             Date firstDueDate = Date.newInstance(2026, 1, 1);
 
@@ -501,7 +492,7 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testGenerateDueExpensesSkipsAlreadyEndedPointer() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
             Date endDate = Date.newInstance(2026, 5, 1);
             Date endedPointer = Date.newInstance(2026, 5, 2);
@@ -546,7 +537,7 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testGenerateDueExpensesMonthlyUsesStartDateAnchorDay() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
             Date firstDueDate = Date.newInstance(2026, 1, 30);
 
@@ -608,7 +599,7 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testGenerateDueExpensesContinuesFromNextRunDate() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
 
             Recurring_Expense__c recurringExpense = new Recurring_Expense__c(
@@ -663,7 +654,7 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testGenerateDueExpensesIgnoresInactiveAndFutureRecords() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
             Date runDate = Date.newInstance(2026, 5, 16);
 
@@ -699,7 +690,7 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testGenerateDueExpensesCopiesLookupOnlyBank() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Category__c category = [
                 SELECT Id, Expense_Group__c
                 FROM Category__c
@@ -753,46 +744,48 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testGenerationPreservesSupportedAndLegacyPaymentMethods() {
-        Recurring_Expense__c supported = dailyTemplate('Supported card', Date.today());
-        supported.Bank_Assignment__c = [SELECT Id FROM Expense_Group_Bank__c WHERE Bank__r.Name = 'BPI' LIMIT 1].Id;
-        supported.Transaction_Type__c = 'Credit Card';
-        Recurring_Expense__c legacy = dailyTemplate('Legacy transfer', Date.today());
-        legacy.Bank__c = 'BPI';
-        legacy.Transaction_Type__c = 'Bank Transfer';
-        insert new List<Recurring_Expense__c>{ supported, legacy };
-        Test.startTest();
-        RecurringExpenseGenerationResult result = generateScope(Date.today(), RecurringExpenseService.MAX_BATCH_EXPENSES);
-        Test.stopTest();
-        System.assertEquals(2, result.expensesCreated, 'Supported assignment and legacy-only noncash sources should both generate.');
-        Map<Id, Expense__c> expensesBySource = new Map<Id, Expense__c>();
-        for (Expense__c expense : [SELECT Recurring_Expense__c, Bank_Assignment__c, Bank__c, Transaction_Type__c FROM Expense__c]) {
-            expensesBySource.put(expense.Recurring_Expense__c, expense);
-        }
-        System.assertEquals(
-            supported.Bank_Assignment__c,
-            expensesBySource.get(supported.Id).Bank_Assignment__c,
-            'The supported assignment must be copied.'
-        );
-        System.assertEquals(
-            'Credit Card',
-            expensesBySource.get(supported.Id).Transaction_Type__c,
-            'The supported payment method must be copied.'
-        );
-        System.assertEquals('BPI', expensesBySource.get(legacy.Id).Bank__c, 'The legacy Bank must remain compatible.');
-        System.assertEquals(
-            'Bank Transfer',
-            expensesBySource.get(legacy.Id).Transaction_Type__c,
-            'The legacy payment method must be copied.'
-        );
-        Set<Id> sourceIds = new Set<Id>{ supported.Id, legacy.Id };
-        for (Recurring_Expense__c template : [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id IN :sourceIds]) {
-            System.assertEquals(Date.today().addDays(1), template.Next_Run_Date__c, 'Generation should advance both pointers.');
+        System.runAs(AppTestPermissions.adminActor()) {
+            Recurring_Expense__c supported = dailyTemplate('Supported card', Date.today());
+            supported.Bank_Assignment__c = [SELECT Id FROM Expense_Group_Bank__c WHERE Bank__r.Name = 'BPI' LIMIT 1].Id;
+            supported.Transaction_Type__c = 'Credit Card';
+            Recurring_Expense__c legacy = dailyTemplate('Legacy transfer', Date.today());
+            legacy.Bank__c = 'BPI';
+            legacy.Transaction_Type__c = 'Bank Transfer';
+            insert new List<Recurring_Expense__c>{ supported, legacy };
+            Test.startTest();
+            RecurringExpenseGenerationResult result = generateScope(Date.today(), RecurringExpenseService.MAX_BATCH_EXPENSES);
+            Test.stopTest();
+            System.assertEquals(2, result.expensesCreated, 'Supported assignment and legacy-only noncash sources should both generate.');
+            Map<Id, Expense__c> expensesBySource = new Map<Id, Expense__c>();
+            for (Expense__c expense : [SELECT Recurring_Expense__c, Bank_Assignment__c, Bank__c, Transaction_Type__c FROM Expense__c]) {
+                expensesBySource.put(expense.Recurring_Expense__c, expense);
+            }
+            System.assertEquals(
+                supported.Bank_Assignment__c,
+                expensesBySource.get(supported.Id).Bank_Assignment__c,
+                'The supported assignment must be copied.'
+            );
+            System.assertEquals(
+                'Credit Card',
+                expensesBySource.get(supported.Id).Transaction_Type__c,
+                'The supported payment method must be copied.'
+            );
+            System.assertEquals('BPI', expensesBySource.get(legacy.Id).Bank__c, 'The legacy Bank must remain compatible.');
+            System.assertEquals(
+                'Bank Transfer',
+                expensesBySource.get(legacy.Id).Transaction_Type__c,
+                'The legacy payment method must be copied.'
+            );
+            Set<Id> sourceIds = new Set<Id>{ supported.Id, legacy.Id };
+            for (Recurring_Expense__c template : [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id IN :sourceIds]) {
+                System.assertEquals(Date.today().addDays(1), template.Next_Run_Date__c, 'Generation should advance both pointers.');
+            }
         }
     }
 
     @IsTest
     static void testRunDueExpensesBatchStartsBatch() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Category__c category = [SELECT Id FROM Category__c WHERE Name = 'Fitness' LIMIT 1];
             Date dueDate = Date.today();
 
@@ -827,7 +820,7 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testRunDueExpensesBatchRespectsDisabledSetting() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             BudgetExpenseSettingsUpdateRequest settingsRequest = new BudgetExpenseSettingsUpdateRequest();
             settingsRequest.recurringExpensesEnabled = 'false';
             settingsRequest.globalRecurringRunTime = '08:00';
@@ -848,7 +841,7 @@ private class RecurringExpenseServiceTest {
 
     @IsTest
     static void testGenerateDueExpensesRequiresRunDate() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Boolean exceptionThrown = false;
 
             try {

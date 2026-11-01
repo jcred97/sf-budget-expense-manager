@@ -23,16 +23,19 @@ public without sharing class CurrencyContextService {
             return cachedContext;
         }
 
-        List<SObject> settingsRecords = Database.query(
-            'SELECT Base_Currency_Code__c FROM Budget_Expense_Manager_Setting__c ' + 'ORDER BY CreatedDate ASC LIMIT 1',
-            AccessLevel.SYSTEM_MODE
-        );
-        if (settingsRecords.isEmpty() || String.isBlank((String) settingsRecords[0].get('Base_Currency_Code__c'))) {
+        List<Budget_Expense_Manager_Setting__c> settingsRecords = [
+            SELECT Base_Currency_Code__c
+            FROM Budget_Expense_Manager_Setting__c
+            WITH SYSTEM_MODE
+            ORDER BY CreatedDate ASC
+            LIMIT 1
+        ];
+        if (settingsRecords.isEmpty() || String.isBlank(settingsRecords[0].Base_Currency_Code__c)) {
             throw new CurrencyContextException(UNINITIALIZED_MESSAGE);
         }
 
         cachedContext = new CurrencyContextDto();
-        cachedContext.baseCurrencyCode = normalizeStoredCurrencyCode((String) settingsRecords[0].get('Base_Currency_Code__c'));
+        cachedContext.baseCurrencyCode = normalizeStoredCurrencyCode(settingsRecords[0].Base_Currency_Code__c);
         cachedContext.multiCurrencyEnabled = UserInfo.isMultiCurrencyOrganization();
         return cachedContext;
     }

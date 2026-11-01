@@ -4,15 +4,13 @@ private class BudgetControllerTest {
 
     @TestSetup
     static void setupExpenseGroups() {
-        insert new List<Expense_Group__c>{
-            new Expense_Group__c(Name = 'Household'),
-            new Expense_Group__c(Name = 'Travel')
-        };
+        AppTestPermissions.grantAdmin();
+        insert new List<Expense_Group__c>{ new Expense_Group__c(Name = 'Household'), new Expense_Group__c(Name = 'Travel') };
     }
 
     @IsTest
     static void testAbsentBudgetAndNormalizedLookup() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Expense_Group__c household = getExpenseGroup('Household');
 
             System.assertEquals(
@@ -29,11 +27,7 @@ private class BudgetControllerTest {
             Test.stopTest();
 
             System.assertNotEquals(null, savedBudget.id, 'Creating a budget should return its ID.');
-            System.assertEquals(
-                household.Id,
-                savedBudget.expenseGroupId,
-                'The created budget should retain its expense group.'
-            );
+            System.assertEquals(household.Id, savedBudget.expenseGroupId, 'The created budget should retain its expense group.');
             System.assertEquals(
                 Date.newInstance(2026, 8, 1),
                 savedBudget.budgetMonth,
@@ -41,15 +35,8 @@ private class BudgetControllerTest {
             );
             System.assertEquals(15000, savedBudget.amount, 'The amount should be persisted.');
 
-            BudgetDto foundBudget = BudgetController.getMonthlyBudget(
-                household.Id,
-                Date.newInstance(2026, 8, 31)
-            );
-            System.assertEquals(
-                savedBudget.id,
-                foundBudget.id,
-                'Any date in the same month should find the normalized budget.'
-            );
+            BudgetDto foundBudget = BudgetController.getMonthlyBudget(household.Id, Date.newInstance(2026, 8, 31));
+            System.assertEquals(savedBudget.id, foundBudget.id, 'Any date in the same month should find the normalized budget.');
 
             Budget__c persistedBudget = [
                 SELECT Budget_Key__c
@@ -66,16 +53,10 @@ private class BudgetControllerTest {
 
     @IsTest
     static void testUpdateExistingBudget() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Expense_Group__c household = getExpenseGroup('Household');
-            BudgetDto originalBudget = BudgetController.saveMonthlyBudget(
-                buildRequest(household.Id, AUGUST_DATE, 15000)
-            );
-            BudgetSaveRequest updateRequest = buildRequest(
-                household.Id,
-                Date.newInstance(2026, 8, 1),
-                18000
-            );
+            BudgetDto originalBudget = BudgetController.saveMonthlyBudget(buildRequest(household.Id, AUGUST_DATE, 15000));
+            BudgetSaveRequest updateRequest = buildRequest(household.Id, Date.newInstance(2026, 8, 1), 18000);
             updateRequest.budgetId = originalBudget.id;
             updateRequest.description = 'Revised budget';
 
@@ -83,21 +64,9 @@ private class BudgetControllerTest {
             BudgetDto updatedBudget = BudgetController.saveMonthlyBudget(updateRequest);
             Test.stopTest();
 
-            System.assertEquals(
-                originalBudget.id,
-                updatedBudget.id,
-                'An explicit budget ID should update the existing record.'
-            );
-            System.assertEquals(
-                18000,
-                updatedBudget.amount,
-                'The update should persist its amount.'
-            );
-            System.assertEquals(
-                'Revised budget',
-                updatedBudget.description,
-                'The service should persist optional notes.'
-            );
+            System.assertEquals(originalBudget.id, updatedBudget.id, 'An explicit budget ID should update the existing record.');
+            System.assertEquals(18000, updatedBudget.amount, 'The update should persist its amount.');
+            System.assertEquals('Revised budget', updatedBudget.description, 'The service should persist optional notes.');
             System.assertEquals(
                 1,
                 [SELECT COUNT() FROM Budget__c WHERE Expense_Group__c = :household.Id],
@@ -108,52 +77,28 @@ private class BudgetControllerTest {
 
     @IsTest
     static void testBudgetHistoryIsBoundedSortedAndGroupScoped() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Expense_Group__c household = getExpenseGroup('Household');
             Expense_Group__c travel = getExpenseGroup('Travel');
-            BudgetController.saveMonthlyBudget(
-                buildRequest(household.Id, Date.newInstance(2026, 2, 12), 2000)
-            );
-            BudgetController.saveMonthlyBudget(
-                buildRequest(household.Id, Date.newInstance(2026, 8, 31), 8000)
-            );
-            BudgetController.saveMonthlyBudget(
-                buildRequest(household.Id, Date.newInstance(2026, 3, 15), 3000)
-            );
-            BudgetController.saveMonthlyBudget(
-                buildRequest(travel.Id, Date.newInstance(2026, 7, 10), 7000)
-            );
+            BudgetController.saveMonthlyBudget(buildRequest(household.Id, Date.newInstance(2026, 2, 12), 2000));
+            BudgetController.saveMonthlyBudget(buildRequest(household.Id, Date.newInstance(2026, 8, 31), 8000));
+            BudgetController.saveMonthlyBudget(buildRequest(household.Id, Date.newInstance(2026, 3, 15), 3000));
+            BudgetController.saveMonthlyBudget(buildRequest(travel.Id, Date.newInstance(2026, 7, 10), 7000));
 
             Test.startTest();
             List<BudgetDto> history = BudgetController.getBudgetHistory(household.Id, AUGUST_DATE);
             Test.stopTest();
 
-            System.assertEquals(
-                2,
-                history.size(),
-                'Only budgets from March through August qualify.'
-            );
-            System.assertEquals(
-                Date.newInstance(2026, 3, 1),
-                history[0].budgetMonth,
-                'History should be ordered from oldest to newest.'
-            );
-            System.assertEquals(
-                Date.newInstance(2026, 8, 1),
-                history[1].budgetMonth,
-                'The ending calendar month should be included.'
-            );
-            System.assertEquals(
-                household.Id,
-                history[0].expenseGroupId,
-                'Budgets from another expense group must not be returned.'
-            );
+            System.assertEquals(2, history.size(), 'Only budgets from March through August qualify.');
+            System.assertEquals(Date.newInstance(2026, 3, 1), history[0].budgetMonth, 'History should be ordered from oldest to newest.');
+            System.assertEquals(Date.newInstance(2026, 8, 1), history[1].budgetMonth, 'The ending calendar month should be included.');
+            System.assertEquals(household.Id, history[0].expenseGroupId, 'Budgets from another expense group must not be returned.');
         }
     }
 
     @IsTest
     static void testBudgetHistoryValidation() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Expense_Group__c household = getExpenseGroup('Household');
             System.assertEquals(
                 'Expense Group Id is required.',
@@ -170,16 +115,10 @@ private class BudgetControllerTest {
 
     @IsTest
     static void testSaveWithoutIdUsesMonthlyUpsertSemantics() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Expense_Group__c household = getExpenseGroup('Household');
-            BudgetDto originalBudget = BudgetController.saveMonthlyBudget(
-                buildRequest(household.Id, AUGUST_DATE, 15000)
-            );
-            BudgetSaveRequest secondRequest = buildRequest(
-                household.Id,
-                Date.newInstance(2026, 8, 2),
-                20000
-            );
+            BudgetDto originalBudget = BudgetController.saveMonthlyBudget(buildRequest(household.Id, AUGUST_DATE, 15000));
+            BudgetSaveRequest secondRequest = buildRequest(household.Id, Date.newInstance(2026, 8, 2), 20000);
 
             Test.startTest();
             BudgetDto savedBudget = BudgetController.saveMonthlyBudget(secondRequest);
@@ -190,16 +129,8 @@ private class BudgetControllerTest {
                 savedBudget.id,
                 'Saving the same group and month without an ID should update the existing budget.'
             );
-            System.assertEquals(
-                20000,
-                savedBudget.amount,
-                'The upsert should persist the new amount.'
-            );
-            System.assertEquals(
-                null,
-                savedBudget.description,
-                'An omitted description should remain null.'
-            );
+            System.assertEquals(20000, savedBudget.amount, 'The upsert should persist the new amount.');
+            System.assertEquals(null, savedBudget.description, 'An omitted description should remain null.');
             System.assertEquals(
                 1,
                 [
@@ -214,89 +145,54 @@ private class BudgetControllerTest {
 
     @IsTest
     static void testSaveValidation() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Expense_Group__c household = getExpenseGroup('Household');
 
             assertSaveFails(null, 'Budget details are required.');
             assertSaveFails(buildRequest(null, AUGUST_DATE, 1000), 'Expense Group Id is required.');
             assertSaveFails(buildRequest(household.Id, null, 1000), 'Budget month is required.');
-            assertSaveFails(
-                buildRequest(household.Id, AUGUST_DATE, null),
-                'Budget amount must be greater than zero.'
-            );
-            assertSaveFails(
-                buildRequest(household.Id, AUGUST_DATE, 0),
-                'Budget amount must be greater than zero.'
-            );
-            assertSaveFails(
-                buildRequest(household.Id, AUGUST_DATE, -1),
-                'Budget amount must be greater than zero.'
-            );
-            System.assertEquals(
-                0,
-                [SELECT COUNT() FROM Budget__c],
-                'Rejected requests must not create budget records.'
-            );
+            assertSaveFails(buildRequest(household.Id, AUGUST_DATE, null), 'Budget amount must be greater than zero.');
+            assertSaveFails(buildRequest(household.Id, AUGUST_DATE, 0), 'Budget amount must be greater than zero.');
+            assertSaveFails(buildRequest(household.Id, AUGUST_DATE, -1), 'Budget amount must be greater than zero.');
+            System.assertEquals(0, [SELECT COUNT() FROM Budget__c], 'Rejected requests must not create budget records.');
         }
     }
 
     @IsTest
     static void testBudgetIdCannotChangeOwningContext() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Expense_Group__c household = getExpenseGroup('Household');
             Expense_Group__c travel = getExpenseGroup('Travel');
-            BudgetDto savedBudget = BudgetController.saveMonthlyBudget(
-                buildRequest(household.Id, AUGUST_DATE, 15000)
-            );
+            BudgetDto savedBudget = BudgetController.saveMonthlyBudget(buildRequest(household.Id, AUGUST_DATE, 15000));
             BudgetSaveRequest mismatchedGroupRequest = buildRequest(travel.Id, AUGUST_DATE, 25000);
             mismatchedGroupRequest.budgetId = savedBudget.id;
 
-            assertSaveFails(
-                mismatchedGroupRequest,
-                'Budget record does not match the requested expense group and month.'
-            );
+            assertSaveFails(mismatchedGroupRequest, 'Budget record does not match the requested expense group and month.');
 
-            BudgetSaveRequest mismatchedMonthRequest = buildRequest(
-                household.Id,
-                Date.newInstance(2026, 9, 1),
-                25000
-            );
+            BudgetSaveRequest mismatchedMonthRequest = buildRequest(household.Id, Date.newInstance(2026, 9, 1), 25000);
             mismatchedMonthRequest.budgetId = savedBudget.id;
-            assertSaveFails(
-                mismatchedMonthRequest,
-                'Budget record does not match the requested expense group and month.'
-            );
+            assertSaveFails(mismatchedMonthRequest, 'Budget record does not match the requested expense group and month.');
 
             Budget__c unchangedBudget = [
                 SELECT Expense_Group__c, Budget_Month__c, Amount__c
                 FROM Budget__c
                 WHERE Id = :savedBudget.id
             ];
-            System.assertEquals(
-                household.Id,
-                unchangedBudget.Expense_Group__c,
-                'A mismatched request must not reparent another budget.'
-            );
+            System.assertEquals(household.Id, unchangedBudget.Expense_Group__c, 'A mismatched request must not reparent another budget.');
             System.assertEquals(
                 Date.newInstance(2026, 8, 1),
                 unchangedBudget.Budget_Month__c,
                 'A mismatched request must not move another monthly budget.'
             );
-            System.assertEquals(
-                15000,
-                unchangedBudget.Amount__c,
-                'A rejected request must not save.'
-            );
+            System.assertEquals(15000, unchangedBudget.Amount__c, 'A rejected request must not save.');
         }
     }
 
     @IsTest
     static void testDeleteMonthlyBudget() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Expense_Group__c household = getExpenseGroup('Household');
-            BudgetDto savedBudget = BudgetController.saveMonthlyBudget(
-                buildRequest(household.Id, AUGUST_DATE, 15000)
-            );
+            BudgetDto savedBudget = BudgetController.saveMonthlyBudget(buildRequest(household.Id, AUGUST_DATE, 15000));
 
             Test.startTest();
             BudgetController.deleteMonthlyBudget(savedBudget.id);
@@ -322,11 +218,7 @@ private class BudgetControllerTest {
         return [SELECT Id, Name FROM Expense_Group__c WHERE Name = :name LIMIT 1];
     }
 
-    private static BudgetSaveRequest buildRequest(
-        Id expenseGroupId,
-        Date budgetMonth,
-        Decimal amount
-    ) {
+    private static BudgetSaveRequest buildRequest(Id expenseGroupId, Date budgetMonth, Decimal amount) {
         BudgetSaveRequest request = new BudgetSaveRequest();
         request.expenseGroupId = expenseGroupId;
         request.budgetMonth = budgetMonth;
@@ -339,11 +231,7 @@ private class BudgetControllerTest {
             BudgetController.saveMonthlyBudget(request);
             System.assert(false, 'Expected the budget save to fail.');
         } catch (AuraHandledException e) {
-            System.assertEquals(
-                expectedMessage,
-                e.getMessage(),
-                'Unexpected save validation error.'
-            );
+            System.assertEquals(expectedMessage, e.getMessage(), 'Unexpected save validation error.');
         }
     }
 
@@ -352,11 +240,7 @@ private class BudgetControllerTest {
             BudgetController.deleteMonthlyBudget(budgetId);
             System.assert(false, 'Expected the budget deletion to fail.');
         } catch (AuraHandledException e) {
-            System.assertEquals(
-                expectedMessage,
-                e.getMessage(),
-                'Unexpected delete validation error.'
-            );
+            System.assertEquals(expectedMessage, e.getMessage(), 'Unexpected delete validation error.');
         }
     }
 

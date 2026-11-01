@@ -9,12 +9,10 @@ private class ExpensePageServiceTest {
     }
     @TestSetup
     static void setupData() {
+        AppTestPermissions.grantAdmin();
         Expense_Group__c groupRecord = new Expense_Group__c(Name = 'Household');
         insert groupRecord;
-        Category__c category = new Category__c(
-            Name = 'Supplies',
-            Expense_Group__c = groupRecord.Id
-        );
+        Category__c category = new Category__c(Name = 'Supplies', Expense_Group__c = groupRecord.Id);
         insert category;
         List<Expense__c> rows = new List<Expense__c>();
         for (Integer i = 0; i < 30; i++) {
@@ -37,18 +35,11 @@ private class ExpensePageServiceTest {
             List<Expense__c> expected = [
                 SELECT Id
                 FROM Expense__c
-                ORDER BY
-                    Expense_Date__c DESC NULLS LAST,
-                    Transaction_Time__c DESC NULLS LAST,
-                    CreatedDate DESC,
-                    Id DESC
+                ORDER BY Expense_Date__c DESC NULLS LAST, Transaction_Time__c DESC NULLS LAST, CreatedDate DESC, Id DESC
             ];
             List<Id> actual = new List<Id>();
             Test.startTest();
-            ExpensePageDto page = ExpenseController.getExpensePage(
-                null,
-                pageRequest(null, 7, null)
-            );
+            ExpensePageDto page = ExpenseController.getExpensePage(null, pageRequest(null, 7, null));
             System.assertEquals(30, page.totalCount, 'Count covers all pages');
             System.assertEquals(300, page.totalAmount, 'Amount covers all pages');
             System.assertEquals(7, page.rows.size(), 'Page is bounded');
@@ -56,10 +47,7 @@ private class ExpensePageServiceTest {
                 actual.add(row.Id);
             }
             while (page.hasMore) {
-                page = ExpenseController.getExpensePage(
-                    null,
-                    pageRequest(null, 7, page.nextCursor)
-                );
+                page = ExpenseController.getExpensePage(null, pageRequest(null, 7, page.nextCursor));
                 System.assertEquals(null, page.totalCount, 'Subsequent pages do not rescan totals');
                 for (Expense__c row : page.rows) {
                     actual.add(row.Id);
@@ -67,11 +55,7 @@ private class ExpensePageServiceTest {
             }
             Test.stopTest();
             System.assertEquals(null, page.nextCursor, 'End of data has no cursor');
-            System.assertEquals(
-                expected.size(),
-                new Set<Id>(actual).size(),
-                'No skips or duplicates'
-            );
+            System.assertEquals(expected.size(), new Set<Id>(actual).size(), 'No skips or duplicates');
             for (Integer i = 0; i < expected.size(); i++) {
                 System.assertEquals(expected[i].Id, actual[i], 'Stable order at position ' + i);
             }
@@ -96,30 +80,12 @@ private class ExpensePageServiceTest {
             filters.startDate = Date.today();
             filters.endDate = Date.today();
             Test.startTest();
-            ExpensePageDto literal = ExpenseController.getExpensePage(
-                filters,
-                pageRequest('%_', 20, null)
-            );
-            ExpensePageDto bank = ExpenseController.getExpensePage(
-                filters,
-                pageRequest('bdo', 20, null)
-            );
-            ExpensePageDto typePage = ExpenseController.getExpensePage(
-                filters,
-                pageRequest('credit', 20, null)
-            );
-            ExpensePageDto categoryPage = ExpenseController.getExpensePage(
-                filters,
-                pageRequest('SUPPLIES', 2, null)
-            );
-            ExpensePageDto groupPage = ExpenseController.getExpensePage(
-                filters,
-                pageRequest('household', 2, null)
-            );
-            ExpensePageDto emptyPage = ExpenseController.getExpensePage(
-                filters,
-                pageRequest('absent', null, null)
-            );
+            ExpensePageDto literal = ExpenseController.getExpensePage(filters, pageRequest('%_', 20, null));
+            ExpensePageDto bank = ExpenseController.getExpensePage(filters, pageRequest('bdo', 20, null));
+            ExpensePageDto typePage = ExpenseController.getExpensePage(filters, pageRequest('credit', 20, null));
+            ExpensePageDto categoryPage = ExpenseController.getExpensePage(filters, pageRequest('SUPPLIES', 2, null));
+            ExpensePageDto groupPage = ExpenseController.getExpensePage(filters, pageRequest('household', 2, null));
+            ExpensePageDto emptyPage = ExpenseController.getExpensePage(filters, pageRequest('absent', null, null));
             Test.stopTest();
             System.assertEquals(1, literal.totalCount, 'Percent and underscore are literal');
             System.assertEquals(50, literal.totalAmount, 'Filtered sum');
@@ -154,14 +120,8 @@ private class ExpensePageServiceTest {
                 Bank_Assignment__c = assignment.Id
             );
             Test.startTest();
-            ExpensePageDto canonical = ExpenseController.getExpensePage(
-                null,
-                pageRequest('savings', 20, null)
-            );
-            ExpensePageDto legacy = ExpenseController.getExpensePage(
-                null,
-                pageRequest('bdo', 20, null)
-            );
+            ExpensePageDto canonical = ExpenseController.getExpensePage(null, pageRequest('savings', 20, null));
+            ExpensePageDto legacy = ExpenseController.getExpensePage(null, pageRequest('bdo', 20, null));
             Test.stopTest();
             System.assertEquals(1, canonical.totalCount, 'Canonical bank is searched');
             System.assertEquals(0, legacy.totalCount, 'Hidden legacy bank does not match');
@@ -171,28 +131,13 @@ private class ExpensePageServiceTest {
     @IsTest
     static void deletedAnchorDoesNotBreakNextPageAndBadCursorsFail() {
         System.runAs(new User(Id = UserInfo.getUserId())) {
-            ExpensePageDto first = ExpenseController.getExpensePage(
-                null,
-                pageRequest(null, 1, null)
-            );
+            ExpensePageDto first = ExpenseController.getExpensePage(null, pageRequest(null, 1, null));
             delete first.rows;
             Test.startTest();
-            ExpensePageDto nextPage = ExpenseController.getExpensePage(
-                null,
-                pageRequest(null, 1, first.nextCursor)
-            );
-            System.assertEquals(
-                1,
-                nextPage.rows.size(),
-                'Cursor does not depend on anchor still existing'
-            );
+            ExpensePageDto nextPage = ExpenseController.getExpensePage(null, pageRequest(null, 1, first.nextCursor));
+            System.assertEquals(1, nextPage.rows.size(), 'Cursor does not depend on anchor still existing');
             System.assertNotEquals(first.rows[0].Id, nextPage.rows[0].Id, 'Next row');
-            for (
-                String badCursor : new List<String>{
-                    'not-base64',
-                    EncodingUtil.base64Encode(Blob.valueOf('{}'))
-                }
-            ) {
+            for (String badCursor : new List<String>{ 'not-base64', EncodingUtil.base64Encode(Blob.valueOf('{}')) }) {
                 try {
                     ExpenseController.getExpensePage(null, pageRequest(null, 20, badCursor));
                     System.assert(false, 'Invalid cursor must fail');
@@ -201,10 +146,7 @@ private class ExpensePageServiceTest {
                 }
             }
             try {
-                ExpenseController.getExpensePage(
-                    null,
-                    pageRequest('different', 20, first.nextCursor)
-                );
+                ExpenseController.getExpensePage(null, pageRequest('different', 20, first.nextCursor));
                 System.assert(false, 'Cursor from another filter must fail');
             } catch (AuraHandledException expected) {
                 System.assertNotEquals(null, expected, 'Handled scope mismatch');
@@ -219,33 +161,19 @@ private class ExpensePageServiceTest {
             Id categoryId = [SELECT Id FROM Category__c LIMIT 1].Id;
             List<Expense__c> rows = new List<Expense__c>();
             for (Integer i = 0; i < 2000; i++) {
-                rows.add(
-                    new Expense__c(Name = 'Bulk purchase', Category__c = categoryId, Amount__c = 1)
-                );
+                rows.add(new Expense__c(Name = 'Bulk purchase', Category__c = categoryId, Amount__c = 1));
             }
             insert rows;
             Test.startTest();
-            ExpensePageDto defaultPage = ExpenseController.getExpensePage(
-                null,
-                pageRequest('', null, null)
-            );
-            ExpensePageDto minimum = ExpenseController.getExpensePage(
-                null,
-                pageRequest('', 0, null)
-            );
-            ExpensePageDto page = ExpenseController.getExpensePage(
-                null,
-                pageRequest('', 9999, null)
-            );
+            ExpensePageDto defaultPage = ExpenseController.getExpensePage(null, pageRequest('', null, null));
+            ExpensePageDto minimum = ExpenseController.getExpensePage(null, pageRequest('', 0, null));
+            ExpensePageDto page = ExpenseController.getExpensePage(null, pageRequest('', 9999, null));
             System.assertEquals(20, defaultPage.rows.size(), 'Default size');
             System.assertEquals(1, minimum.rows.size(), 'Minimum size');
             System.assertEquals(200, page.rows.size(), 'Maximum size');
             Set<Id> ids = new Set<Id>(new Map<Id, Expense__c>(page.rows).keySet());
             while (page.hasMore) {
-                page = ExpenseController.getExpensePage(
-                    null,
-                    pageRequest('', 200, page.nextCursor)
-                );
+                page = ExpenseController.getExpensePage(null, pageRequest('', 200, page.nextCursor));
                 ids.addAll(new Map<Id, Expense__c>(page.rows).keySet());
             }
             Test.stopTest();

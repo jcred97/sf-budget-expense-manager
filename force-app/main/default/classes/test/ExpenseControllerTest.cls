@@ -5,6 +5,7 @@ private class ExpenseControllerTest {
     // ----------------------------
     @TestSetup
     static void setupData() {
+        AppTestPermissions.grantAdmin();
         Expense_Group__c eg1 = new Expense_Group__c(Name = 'Food');
         Expense_Group__c eg2 = new Expense_Group__c(Name = 'Transport');
         insert new List<Expense_Group__c>{ eg1, eg2 };
@@ -314,18 +315,20 @@ private class ExpenseControllerTest {
 
     @IsTest
     static void testDeleteExpensesNullListPreservesRecords() {
-        Integer originalCount = [SELECT COUNT() FROM Expense__c];
-        Boolean rejected = false;
-        Test.startTest();
-        try {
-            ExpenseController.deleteExpenses(null);
-        } catch (AuraHandledException error) {
-            rejected = true;
-            System.assertEquals('No expense IDs provided.', error.getMessage(), 'Explain the invalid bulk-delete request.');
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Integer originalCount = [SELECT COUNT() FROM Expense__c];
+            Boolean rejected = false;
+            Test.startTest();
+            try {
+                ExpenseController.deleteExpenses(null);
+            } catch (AuraHandledException error) {
+                rejected = true;
+                System.assertEquals('No expense IDs provided.', error.getMessage(), 'Explain the invalid bulk-delete request.');
+            }
+            Test.stopTest();
+            System.assert(rejected, 'A null selection must fail instead of deleting or reporting success.');
+            System.assertEquals(originalCount, [SELECT COUNT() FROM Expense__c], 'An invalid selection must preserve all expenses.');
         }
-        Test.stopTest();
-        System.assert(rejected, 'A null selection must fail instead of deleting or reporting success.');
-        System.assertEquals(originalCount, [SELECT COUNT() FROM Expense__c], 'An invalid selection must preserve all expenses.');
     }
 
     // getMonthlyTrend() - All expense groups
@@ -478,155 +481,171 @@ private class ExpenseControllerTest {
 
     @IsTest
     static void recurringPagesReachBeyondFiveHundredAndSummariesCoverAllMatches() {
-        Category__c category = [SELECT Id, Expense_Group__c FROM Category__c WHERE Name = 'Groceries'];
-        List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
-        for (Integer i = 0; i < 505; i++) {
-            templates.add(
-                new Recurring_Expense__c(
-                    Name = 'Same recurring name',
-                    Category__c = category.Id,
-                    Active__c = i < 500,
-                    Amount__c = 10,
-                    Frequency__c = 'Monthly',
-                    Start_Date__c = Date.today().addDays(-2),
-                    Next_Run_Date__c = Date.today()
-                )
-            );
-        }
-        insert templates;
-        // A null pointer is valid after an explicit update; insert defaults it to Start Date.
-        List<Recurring_Expense__c> clearPointers = new List<Recurring_Expense__c>();
-        for (Integer i = 490; i < 505; i++) {
-            clearPointers.add(new Recurring_Expense__c(Id = templates[i].Id, Next_Run_Date__c = null));
-        }
-        update clearPointers;
-        List<Recurring_Expense__c> expected = [
-            SELECT Id
-            FROM Recurring_Expense__c
-            WHERE Category__r.Expense_Group__c = :category.Expense_Group__c
-            ORDER BY Active__c DESC, Next_Run_Date__c ASC NULLS LAST, Name ASC, Id ASC
-        ];
-        Test.startTest();
-        RecurringExpenseOverviewDto first = RecurringExpenseController.getRecurringExpenseOverview(category.Expense_Group__c);
-        System.assertEquals(50, first.rows.size(), 'The overview is bounded to a first page');
-        System.assertEquals(507, first.totalCount, 'Count includes templates beyond the old limit');
-        System.assertEquals(502, first.activeCount, 'Active count covers all matches');
-        System.assertEquals(491, first.dueTodayCount, 'Blank pointers and inactive templates are not due');
-        System.assertEquals(5200, first.monthlyTotal, 'Summary includes all active templates');
-        System.assertEquals(category.Expense_Group__c, first.expenseGroupId, 'Response echoes group context');
-        RecurringExpenseOverviewDto page = RecurringExpenseController.getRecurringExpensePage(category.Expense_Group__c, null, 1000);
-        System.assertEquals(200, page.rows.size(), 'Requested size is capped at 200');
-        List<Id> actual = new List<Id>();
-        for (RecurringExpenseRowDto row : page.rows) {
-            actual.add(row.id);
-        }
-        while (page.hasMore) {
-            page = RecurringExpenseController.getRecurringExpensePage(category.Expense_Group__c, page.nextCursor, 50);
-            System.assertEquals(null, page.totalCount, 'Continuations retain the first response summary');
-            System.assertEquals(null, page.monthlyTotal, 'Continuation does not rescan totals');
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Category__c category = [SELECT Id, Expense_Group__c FROM Category__c WHERE Name = 'Groceries'];
+            List<Recurring_Expense__c> templates = new List<Recurring_Expense__c>();
+            for (Integer i = 0; i < 505; i++) {
+                templates.add(
+                    new Recurring_Expense__c(
+                        Name = 'Same recurring name',
+                        Category__c = category.Id,
+                        Active__c = i < 500,
+                        Amount__c = 10,
+                        Frequency__c = 'Monthly',
+                        Start_Date__c = Date.today().addDays(-2),
+                        Next_Run_Date__c = Date.today()
+                    )
+                );
+            }
+            insert templates;
+            // A null pointer is valid after an explicit update; insert defaults it to Start Date.
+            List<Recurring_Expense__c> clearPointers = new List<Recurring_Expense__c>();
+            for (Integer i = 490; i < 505; i++) {
+                clearPointers.add(new Recurring_Expense__c(Id = templates[i].Id, Next_Run_Date__c = null));
+            }
+            update clearPointers;
+            List<Recurring_Expense__c> expected = [
+                SELECT Id
+                FROM Recurring_Expense__c
+                WHERE Category__r.Expense_Group__c = :category.Expense_Group__c
+                ORDER BY Active__c DESC, Next_Run_Date__c ASC NULLS LAST, Name ASC, Id ASC
+            ];
+            Test.startTest();
+            RecurringExpenseOverviewDto first = RecurringExpenseController.getRecurringExpenseOverview(category.Expense_Group__c);
+            System.assertEquals(50, first.rows.size(), 'The overview is bounded to a first page');
+            System.assertEquals(507, first.totalCount, 'Count includes templates beyond the old limit');
+            System.assertEquals(502, first.activeCount, 'Active count covers all matches');
+            System.assertEquals(491, first.dueTodayCount, 'Blank pointers and inactive templates are not due');
+            System.assertEquals(5200, first.monthlyTotal, 'Summary includes all active templates');
+            System.assertEquals(category.Expense_Group__c, first.expenseGroupId, 'Response echoes group context');
+            RecurringExpenseOverviewDto page = RecurringExpenseController.getRecurringExpensePage(category.Expense_Group__c, null, 1000);
+            System.assertEquals(200, page.rows.size(), 'Requested size is capped at 200');
+            List<Id> actual = new List<Id>();
             for (RecurringExpenseRowDto row : page.rows) {
                 actual.add(row.id);
             }
-        }
-        Test.stopTest();
-        System.assertEquals(507, actual.size(), 'Every matching template is reachable');
-        System.assertEquals(507, new Set<Id>(actual).size(), 'No duplicate rows at boundaries');
-        System.assertEquals(null, page.nextCursor, 'Final page has no cursor');
-        for (Integer i = 0; i < expected.size(); i++) {
-            System.assertEquals(expected[i].Id, actual[i], 'Stable order includes ties, nulls and inactive rows');
+            while (page.hasMore) {
+                page = RecurringExpenseController.getRecurringExpensePage(category.Expense_Group__c, page.nextCursor, 50);
+                System.assertEquals(null, page.totalCount, 'Continuations retain the first response summary');
+                System.assertEquals(null, page.monthlyTotal, 'Continuation does not rescan totals');
+                for (RecurringExpenseRowDto row : page.rows) {
+                    actual.add(row.id);
+                }
+            }
+            Test.stopTest();
+            System.assertEquals(507, actual.size(), 'Every matching template is reachable');
+            System.assertEquals(507, new Set<Id>(actual).size(), 'No duplicate rows at boundaries');
+            System.assertEquals(null, page.nextCursor, 'Final page has no cursor');
+            for (Integer i = 0; i < expected.size(); i++) {
+                System.assertEquals(expected[i].Id, actual[i], 'Stable order includes ties, nulls and inactive rows');
+            }
         }
     }
 
     @IsTest
     static void recurringTotalsUseAllFrequenciesAndIncludeEndedCatchUpRuns() {
-        Category__c category = [SELECT Id, Expense_Group__c FROM Category__c WHERE Name = 'Taxi'];
-        Date start = Date.today().addDays(-10);
-        insert new List<Recurring_Expense__c>{
-            new Recurring_Expense__c(
-                Name = 'Daily catchup',
-                Category__c = category.Id,
-                Active__c = true,
-                Amount__c = 1.01,
-                Frequency__c = 'Daily',
-                Start_Date__c = start,
-                Next_Run_Date__c = Date.today().addDays(-3),
-                End_Date__c = Date.today().addDays(-2)
-            ),
-            new Recurring_Expense__c(
-                Name = 'Weekly',
-                Category__c = category.Id,
-                Active__c = true,
-                Amount__c = 12,
-                Frequency__c = 'Weekly',
-                Start_Date__c = start,
-                Next_Run_Date__c = Date.today().addDays(1)
-            ),
-            new Recurring_Expense__c(
-                Name = 'Yearly ended',
-                Category__c = category.Id,
-                Active__c = true,
-                Amount__c = 120,
-                Frequency__c = 'Yearly',
-                Start_Date__c = start,
-                Next_Run_Date__c = Date.today(),
-                End_Date__c = Date.today().addDays(-2)
-            )
-        };
-        Test.startTest();
-        RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(category.Expense_Group__c);
-        Test.stopTest();
-        System.assertEquals(4, result.totalCount, 'Group-filtered totals include inactive fixtures');
-        System.assertEquals(3, result.activeCount, 'All active schedules count, including ended');
-        System.assertEquals(1, result.dueTodayCount, 'An ended schedule with a pending in-window run remains due');
-        System.assertEquals(92.3, result.monthlyTotal, 'Daily, weekly and yearly conversions use aggregate amounts');
-        for (RecurringExpenseRowDto row : result.rows) {
-            System.assertEquals(row.name == 'Daily catchup', row.dueToday, 'Row and aggregate due rules agree');
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Category__c category = [SELECT Id, Expense_Group__c FROM Category__c WHERE Name = 'Taxi'];
+            Date start = Date.today().addDays(-10);
+            insert new List<Recurring_Expense__c>{
+                new Recurring_Expense__c(
+                    Name = 'Daily catchup',
+                    Category__c = category.Id,
+                    Active__c = true,
+                    Amount__c = 1.01,
+                    Frequency__c = 'Daily',
+                    Start_Date__c = start,
+                    Next_Run_Date__c = Date.today().addDays(-3),
+                    End_Date__c = Date.today().addDays(-2)
+                ),
+                new Recurring_Expense__c(
+                    Name = 'Weekly',
+                    Category__c = category.Id,
+                    Active__c = true,
+                    Amount__c = 12,
+                    Frequency__c = 'Weekly',
+                    Start_Date__c = start,
+                    Next_Run_Date__c = Date.today().addDays(1)
+                ),
+                new Recurring_Expense__c(
+                    Name = 'Yearly ended',
+                    Category__c = category.Id,
+                    Active__c = true,
+                    Amount__c = 120,
+                    Frequency__c = 'Yearly',
+                    Start_Date__c = start,
+                    Next_Run_Date__c = Date.today(),
+                    End_Date__c = Date.today().addDays(-2)
+                )
+            };
+            Test.startTest();
+            RecurringExpenseOverviewDto result = RecurringExpenseController.getRecurringExpenseOverview(category.Expense_Group__c);
+            Test.stopTest();
+            System.assertEquals(4, result.totalCount, 'Group-filtered totals include inactive fixtures');
+            System.assertEquals(3, result.activeCount, 'All active schedules count, including ended');
+            System.assertEquals(1, result.dueTodayCount, 'An ended schedule with a pending in-window run remains due');
+            System.assertEquals(92.3, result.monthlyTotal, 'Daily, weekly and yearly conversions use aggregate amounts');
+            for (RecurringExpenseRowDto row : result.rows) {
+                System.assertEquals(row.name == 'Daily catchup', row.dueToday, 'Row and aggregate due rules agree');
+            }
         }
     }
 
     @IsTest
     static void recurringCursorsAreScopedAndValidated() {
-        Expense_Group__c food = [SELECT Id FROM Expense_Group__c WHERE Name = 'Food'];
-        Expense_Group__c transport = [SELECT Id FROM Expense_Group__c WHERE Name = 'Transport'];
-        Test.startTest();
-        RecurringExpenseOverviewDto first = RecurringExpenseController.getRecurringExpensePage(food.Id, null, 0);
-        System.assertEquals(1, first.rows.size(), 'Page size has a minimum of one');
-        System.assertEquals(true, first.hasMore, 'Cursor identifies the remaining row');
-        RecurringExpenseOverviewDto defaultPage = RecurringExpenseController.getRecurringExpensePage(null, null, null);
-        System.assertEquals(3, defaultPage.rows.size(), 'Null group keeps All Groups behavior');
-        System.assertEquals(null, defaultPage.expenseGroupId, 'All Groups context is echoed');
-        List<String> invalid = new List<String>{ 'not a cursor', first.nextCursor };
-        for (String cursor : invalid) {
-            Boolean rejected = false;
-            try {
-                RecurringExpenseController.getRecurringExpensePage(transport.Id, cursor, 1);
-            } catch (AuraHandledException error) {
-                rejected = error.getMessage().contains('Refresh the recurring list');
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Expense_Group__c food = [SELECT Id FROM Expense_Group__c WHERE Name = 'Food'];
+            Expense_Group__c transport = [SELECT Id FROM Expense_Group__c WHERE Name = 'Transport'];
+            Test.startTest();
+            RecurringExpenseOverviewDto first = RecurringExpenseController.getRecurringExpensePage(food.Id, null, 0);
+            System.assertEquals(1, first.rows.size(), 'Page size has a minimum of one');
+            System.assertEquals(true, first.hasMore, 'Cursor identifies the remaining row');
+            RecurringExpenseOverviewDto defaultPage = RecurringExpenseController.getRecurringExpensePage(null, null, null);
+            System.assertEquals(3, defaultPage.rows.size(), 'Null group keeps All Groups behavior');
+            System.assertEquals(null, defaultPage.expenseGroupId, 'All Groups context is echoed');
+            List<String> invalid = new List<String>{ 'not a cursor', first.nextCursor };
+            for (String cursor : invalid) {
+                Boolean rejected = false;
+                try {
+                    RecurringExpenseController.getRecurringExpensePage(transport.Id, cursor, 1);
+                } catch (AuraHandledException error) {
+                    rejected = error.getMessage().contains('Refresh the recurring list');
+                }
+                System.assert(rejected, 'Malformed and different-group cursors are rejected');
             }
-            System.assert(rejected, 'Malformed and different-group cursors are rejected');
+            Map<String, Object> parsed = (Map<String, Object>) JSON.deserializeUntyped(
+                EncodingUtil.base64Decode(first.nextCursor).toString()
+            );
+            parsed.put('recordId', food.Id);
+            Boolean wrongObjectRejected = false;
+            try {
+                RecurringExpenseController.getRecurringExpensePage(
+                    food.Id,
+                    EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(parsed))),
+                    1
+                );
+            } catch (AuraHandledException error) {
+                wrongObjectRejected = true;
+            }
+            System.assert(wrongObjectRejected, 'Cursor IDs must refer to recurring templates');
+            parsed.put(
+                'recordId',
+                ((Map<String, Object>) JSON.deserializeUntyped(EncodingUtil.base64Decode(first.nextCursor).toString())).get('recordId')
+            );
+            parsed.put('unexpectedQuery', 'OR Id != null');
+            Boolean extraFieldRejected = false;
+            try {
+                RecurringExpenseController.getRecurringExpensePage(
+                    food.Id,
+                    EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(parsed))),
+                    1
+                );
+            } catch (AuraHandledException error) {
+                extraFieldRejected = true;
+            }
+            System.assert(extraFieldRejected, 'Strict deserialization rejects unknown cursor fields');
+            Test.stopTest();
         }
-        Map<String, Object> parsed = (Map<String, Object>) JSON.deserializeUntyped(EncodingUtil.base64Decode(first.nextCursor).toString());
-        parsed.put('recordId', food.Id);
-        Boolean wrongObjectRejected = false;
-        try {
-            RecurringExpenseController.getRecurringExpensePage(food.Id, EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(parsed))), 1);
-        } catch (AuraHandledException error) {
-            wrongObjectRejected = true;
-        }
-        System.assert(wrongObjectRejected, 'Cursor IDs must refer to recurring templates');
-        parsed.put(
-            'recordId',
-            ((Map<String, Object>) JSON.deserializeUntyped(EncodingUtil.base64Decode(first.nextCursor).toString())).get('recordId')
-        );
-        parsed.put('unexpectedQuery', 'OR Id != null');
-        Boolean extraFieldRejected = false;
-        try {
-            RecurringExpenseController.getRecurringExpensePage(food.Id, EncodingUtil.base64Encode(Blob.valueOf(JSON.serialize(parsed))), 1);
-        } catch (AuraHandledException error) {
-            extraFieldRejected = true;
-        }
-        System.assert(extraFieldRejected, 'Strict deserialization rejects unknown cursor fields');
-        Test.stopTest();
     }
 
     @IsTest
@@ -648,30 +667,32 @@ private class ExpenseControllerTest {
 
     @IsTest
     static void testDeactivateDeletedRecurringExpensePreservesOtherTemplates() {
-        Recurring_Expense__c deletedTemplate = [SELECT Id FROM Recurring_Expense__c WHERE Active__c = TRUE LIMIT 1];
-        delete deletedTemplate;
-        Integer activeCount = [SELECT COUNT() FROM Recurring_Expense__c WHERE Active__c = TRUE];
-        Integer remainingCount = [SELECT COUNT() FROM Recurring_Expense__c];
-        Boolean rejected = false;
-        Test.startTest();
-        try {
-            RecurringExpenseController.deactivateRecurringExpense(deletedTemplate.Id);
-        } catch (AuraHandledException error) {
-            rejected = true;
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Recurring_Expense__c deletedTemplate = [SELECT Id FROM Recurring_Expense__c WHERE Active__c = TRUE LIMIT 1];
+            delete deletedTemplate;
+            Integer activeCount = [SELECT COUNT() FROM Recurring_Expense__c WHERE Active__c = TRUE];
+            Integer remainingCount = [SELECT COUNT() FROM Recurring_Expense__c];
+            Boolean rejected = false;
+            Test.startTest();
+            try {
+                RecurringExpenseController.deactivateRecurringExpense(deletedTemplate.Id);
+            } catch (AuraHandledException error) {
+                rejected = true;
+                System.assertEquals(
+                    'Recurring Expense not found or already deleted.',
+                    error.getMessage(),
+                    'A stale template selection should explain that the record no longer exists.'
+                );
+            }
+            Test.stopTest();
+            System.assert(rejected, 'A stale template ID must not report successful deactivation.');
+            System.assertEquals(remainingCount, [SELECT COUNT() FROM Recurring_Expense__c], 'Other templates must remain intact.');
             System.assertEquals(
-                'Recurring Expense not found or already deleted.',
-                error.getMessage(),
-                'A stale template selection should explain that the record no longer exists.'
+                activeCount,
+                [SELECT COUNT() FROM Recurring_Expense__c WHERE Active__c = TRUE],
+                'Other active templates must not be deactivated.'
             );
         }
-        Test.stopTest();
-        System.assert(rejected, 'A stale template ID must not report successful deactivation.');
-        System.assertEquals(remainingCount, [SELECT COUNT() FROM Recurring_Expense__c], 'Other templates must remain intact.');
-        System.assertEquals(
-            activeCount,
-            [SELECT COUNT() FROM Recurring_Expense__c WHERE Active__c = TRUE],
-            'Other active templates must not be deactivated.'
-        );
     }
 
     @IsTest

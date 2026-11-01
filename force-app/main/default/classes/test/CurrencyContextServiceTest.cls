@@ -1,5 +1,10 @@
 @IsTest
 private class CurrencyContextServiceTest {
+    @TestSetup
+    static void grantPermissions() {
+        AppTestPermissions.grantAdmin();
+    }
+
     private static final String TEST_BASE_CURRENCY = 'AUD';
     private static final String MISSING_CURRENCY_MESSAGE = 'The app base currency has not been initialized. Open Budget & Expense Manager and ask an app administrator to complete first-time setup.';
     private static final String INVALID_CURRENCY_MESSAGE = 'The app base currency must be a valid three-letter ISO currency code.';

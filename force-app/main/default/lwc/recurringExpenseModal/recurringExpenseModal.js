@@ -7,11 +7,18 @@ import {
     canReadField,
     canWriteField,
     hasWritableFields,
-    filterWritableFields
+    filterWritableFields,
+    canonicalFieldApiName
 } from 'c/appSchemaAccess';
 import { getFieldValue, getRecord, notifyRecordUpdateAvailable } from 'lightning/uiRecordApi';
 
 import RECURRING_EXPENSE_OBJECT from '@salesforce/schema/Recurring_Expense__c';
+import NAME_FIELD from '@salesforce/schema/Recurring_Expense__c.Name';
+import AMOUNT_FIELD from '@salesforce/schema/Recurring_Expense__c.Amount__c';
+import DESCRIPTION_FIELD from '@salesforce/schema/Recurring_Expense__c.Description__c';
+import FREQUENCY_FIELD from '@salesforce/schema/Recurring_Expense__c.Frequency__c';
+import START_DATE_FIELD from '@salesforce/schema/Recurring_Expense__c.Start_Date__c';
+import END_DATE_FIELD from '@salesforce/schema/Recurring_Expense__c.End_Date__c';
 import ACTIVE_FIELD from '@salesforce/schema/Recurring_Expense__c.Active__c';
 import BANK_ASSIGNMENT_FIELD from '@salesforce/schema/Recurring_Expense__c.Bank_Assignment__c';
 import LEGACY_BANK_FIELD from '@salesforce/schema/Recurring_Expense__c.Bank__c';
@@ -78,7 +85,7 @@ export default class RecurringExpenseModal extends LightningElement {
             !this.isEditMode &&
             !hasWritableFields(
                 this.objectInfo,
-                ['Name', 'Amount__c', 'Category__c', 'Frequency__c', 'Start_Date__c'],
+                [NAME_FIELD, AMOUNT_FIELD, CATEGORY_FIELD, FREQUENCY_FIELD, START_DATE_FIELD],
                 'create'
             )
         ) {
@@ -89,30 +96,30 @@ export default class RecurringExpenseModal extends LightningElement {
     get canEditAnyFormField() {
         return (
             [
-                'Name',
-                'Amount__c',
-                'Description__c',
-                'Frequency__c',
-                'Start_Date__c',
-                'End_Date__c',
-                'Active__c',
-                'Category__c',
-                'Transaction_Type__c'
+                NAME_FIELD,
+                AMOUNT_FIELD,
+                DESCRIPTION_FIELD,
+                FREQUENCY_FIELD,
+                START_DATE_FIELD,
+                END_DATE_FIELD,
+                ACTIVE_FIELD,
+                CATEGORY_FIELD,
+                TRANSACTION_TYPE_FIELD
             ].some(field => this.canWrite(field)) || !this.isBankInputDisabled
         );
     }
     get canReadCategory() {
-        return canReadField(this.objectInfo, 'Category__c');
+        return canReadField(this.objectInfo, CATEGORY_FIELD);
     }
     get canReadBank() {
-        return canReadField(this.objectInfo, 'Bank_Assignment__c');
+        return canReadField(this.objectInfo, BANK_ASSIGNMENT_FIELD);
     }
     get canReadTransactionType() {
-        return canReadField(this.objectInfo, 'Transaction_Type__c');
+        return canReadField(this.objectInfo, TRANSACTION_TYPE_FIELD);
     }
     get isTransactionTypeDisabled() {
         return (
-            !this.canWrite('Transaction_Type__c') ||
+            !this.canWrite(TRANSACTION_TYPE_FIELD) ||
             this.isSaving ||
             this.bankOptionsLoading ||
             Boolean(this.bankOptionsError)
@@ -129,6 +136,15 @@ export default class RecurringExpenseModal extends LightningElement {
     @api selectedExpenseGroupName = '';
 
     recurringExpenseObject = RECURRING_EXPENSE_OBJECT;
+    fields = {
+        name: NAME_FIELD,
+        amount: AMOUNT_FIELD,
+        description: DESCRIPTION_FIELD,
+        frequency: FREQUENCY_FIELD,
+        startDate: START_DATE_FIELD,
+        endDate: END_DATE_FIELD,
+        active: ACTIVE_FIELD
+    };
     categoryValue = '';
     transactionTypeValue = CASH;
     originalTransactionType = '';
@@ -243,7 +259,7 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     reconcileTransactionType() {
-        if (!this.canWrite('Transaction_Type__c')) return;
+        if (!this.canWrite(TRANSACTION_TYPE_FIELD)) return;
         if (!this.bankOptionsLoading && !this.bankOptionsError && !this.isRecordContextLoading) {
             this.transactionTypeValue = this.paymentSelection.value;
         }
@@ -255,7 +271,7 @@ export default class RecurringExpenseModal extends LightningElement {
     }
 
     get isTransactionTypeUnavailable() {
-        if (!this.canWrite('Transaction_Type__c')) return false;
+        if (!this.canWrite(TRANSACTION_TYPE_FIELD)) return false;
         return this.paymentSelection.unavailable;
     }
 
@@ -421,11 +437,9 @@ export default class RecurringExpenseModal extends LightningElement {
         }
 
         const fields = filterWritableFields(this.objectInfo, event.detail.fields, this.accessMode);
-        if (
-            fields.Start_Date__c &&
-            fields.End_Date__c &&
-            fields.End_Date__c < fields.Start_Date__c
-        ) {
+        const startDate = fields[canonicalFieldApiName(this.objectInfo, START_DATE_FIELD)];
+        const endDate = fields[canonicalFieldApiName(this.objectInfo, END_DATE_FIELD)];
+        if (startDate && endDate && endDate < startDate) {
             this.dateError = 'End Date cannot be before Start Date.';
             this.focusAfterRender('[data-date-error]');
             return;
@@ -434,7 +448,7 @@ export default class RecurringExpenseModal extends LightningElement {
         if (
             this.isEditMode &&
             !this.originalActive &&
-            fields.Active__c &&
+            fields[canonicalFieldApiName(this.objectInfo, ACTIVE_FIELD)] &&
             this.isSelectedBankInactive
         ) {
             this.formError =
@@ -443,14 +457,19 @@ export default class RecurringExpenseModal extends LightningElement {
             return;
         }
 
-        fields.Category__c = this.categoryValue;
+        fields[canonicalFieldApiName(this.objectInfo, CATEGORY_FIELD)] = this.categoryValue;
         this.reconcileTransactionType();
-        fields.Transaction_Type__c = this.transactionTypeValue || null;
+        fields[canonicalFieldApiName(this.objectInfo, TRANSACTION_TYPE_FIELD)] =
+            this.transactionTypeValue || null;
         const paymentFields = paymentBankFields(fields, {
             assignmentId: this.normalizedBankAssignmentValue,
             legacyBank: this.hasUntouchedLegacyBank,
             touched: this.bankSelectionTouched,
-            disabled: this.isBankInputDisabled
+            disabled: this.isBankInputDisabled,
+            fieldKeys: {
+                assignment: canonicalFieldApiName(this.objectInfo, BANK_ASSIGNMENT_FIELD),
+                legacy: canonicalFieldApiName(this.objectInfo, LEGACY_BANK_FIELD)
+            }
         });
         const writableFields = filterWritableFields(
             this.objectInfo,
@@ -703,13 +722,13 @@ export default class RecurringExpenseModal extends LightningElement {
 
     get isCategoryInputDisabled() {
         return (
-            !this.canWrite('Category__c') ||
+            !this.canWrite(CATEGORY_FIELD) ||
             this.isSaving ||
             Boolean(this.formLoadError) ||
             this.isRecordContextLoading ||
             Boolean(this.recordContextError) ||
             this.categoryOptionsLoading ||
-            (this.canWrite('Category__c') && Boolean(this.categoryOptionsError)) ||
+            (this.canWrite(CATEGORY_FIELD) && Boolean(this.categoryOptionsError)) ||
             this.hasNoCategories
         );
     }
@@ -718,16 +737,16 @@ export default class RecurringExpenseModal extends LightningElement {
         return (
             !hasWritableFields(
                 this.objectInfo,
-                ['Bank_Assignment__c', 'Transaction_Type__c'],
+                [BANK_ASSIGNMENT_FIELD, TRANSACTION_TYPE_FIELD],
                 this.accessMode
             ) ||
-            (this.hasUntouchedLegacyBank && !this.canWrite('Bank__c')) ||
+            (this.hasUntouchedLegacyBank && !this.canWrite(LEGACY_BANK_FIELD)) ||
             this.isSaving ||
             Boolean(this.formLoadError) ||
             this.isRecordContextLoading ||
             Boolean(this.recordContextError) ||
             this.bankOptionsLoading ||
-            (this.canWrite('Bank_Assignment__c') && Boolean(this.bankOptionsError))
+            (this.canWrite(BANK_ASSIGNMENT_FIELD) && Boolean(this.bankOptionsError))
         );
     }
 
@@ -751,10 +770,10 @@ export default class RecurringExpenseModal extends LightningElement {
             this.isRecordContextLoading ||
             Boolean(this.recordContextError) ||
             this.categoryOptionsLoading ||
-            (this.canWrite('Category__c') && Boolean(this.categoryOptionsError)) ||
-            (this.canWrite('Category__c') && this.hasNoCategories) ||
+            (this.canWrite(CATEGORY_FIELD) && Boolean(this.categoryOptionsError)) ||
+            (this.canWrite(CATEGORY_FIELD) && this.hasNoCategories) ||
             this.bankOptionsLoading ||
-            (this.canWrite('Bank_Assignment__c') && Boolean(this.bankOptionsError))
+            (this.canWrite(BANK_ASSIGNMENT_FIELD) && Boolean(this.bankOptionsError))
         );
     }
 

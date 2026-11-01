@@ -12,6 +12,7 @@ private class AppSetupServiceTest {
 
     @TestSetup
     static void users() {
+        AppTestPermissions.grantAdmin();
         Id licenseId = [SELECT Profile.UserLicenseId FROM User WHERE Id = :UserInfo.getUserId()].Profile.UserLicenseId;
         List<Profile> profiles = [
             SELECT Id, Name
@@ -187,23 +188,25 @@ private class AppSetupServiceTest {
             System.assertEquals(existingSchedules, scheduleIds(), 'Setup must preserve any existing schedule identity and count.');
         }
         // Existing Settings reads need platform CronTrigger access; setup itself only needs the app permission.
-        System.assertEquals(
-            settingsId,
-            SettingsController.getSettings().settingsId,
-            'An initialized installation retains Settings access.'
-        );
-        BudgetExpenseSettingsUpdateRequest request = new BudgetExpenseSettingsUpdateRequest();
-        request.recurringExpensesEnabled = 'false';
-        request.globalRecurringRunTime = '08:00';
-        BudgetExpenseSettingsState saved = SettingsController.saveSettings(request);
-        System.assertEquals('PHP', saved.baseCurrencyCode);
-        System.assertEquals(false, saved.recurringExpensesEnabled);
-        System.assertEquals(settingsId, saved.settingsId);
-        System.assertEquals(
-            existingSchedules,
-            scheduleIds(),
-            'Saving disabled unchanged-time settings must not create or cancel schedules.'
-        );
+        System.runAs(AppTestPermissions.adminActor()) {
+            System.assertEquals(
+                settingsId,
+                SettingsController.getSettings().settingsId,
+                'An initialized installation retains Settings access.'
+            );
+            BudgetExpenseSettingsUpdateRequest request = new BudgetExpenseSettingsUpdateRequest();
+            request.recurringExpensesEnabled = 'false';
+            request.globalRecurringRunTime = '08:00';
+            BudgetExpenseSettingsState saved = SettingsController.saveSettings(request);
+            System.assertEquals('PHP', saved.baseCurrencyCode);
+            System.assertEquals(false, saved.recurringExpensesEnabled);
+            System.assertEquals(settingsId, saved.settingsId);
+            System.assertEquals(
+                existingSchedules,
+                scheduleIds(),
+                'Saving disabled unchanged-time settings must not create or cancel schedules.'
+            );
+        }
         System.runAs(actor('SetupUser')) {
             AppSetupStatus status = AppSetupController.getSetupStatus();
             System.assertEquals(true, status.ready, 'Private settings sharing must not make a regular user appear uninitialized.');

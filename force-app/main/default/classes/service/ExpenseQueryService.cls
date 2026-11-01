@@ -1,5 +1,33 @@
 /** Builds and executes user-mode expense and recurring-template queries. */
 public with sharing class ExpenseQueryService {
+    // Schema names include the package namespace in namespaced scratch and subscriber orgs.
+    private static final String EXPENSE_OBJECT = Expense__c.SObjectType.getDescribe().getName();
+    private static final String RECURRING_OBJECT = Recurring_Expense__c.SObjectType.getDescribe().getName();
+    private static final String CATEGORY_RELATIONSHIP = Expense__c.Category__c.getDescribe().getRelationshipName();
+    private static final String GROUP_RELATIONSHIP = Category__c.Expense_Group__c.getDescribe().getRelationshipName();
+    private static final String ASSIGNMENT_RELATIONSHIP = Expense__c.Bank_Assignment__c.getDescribe().getRelationshipName();
+    private static final String BANK_RELATIONSHIP = Expense_Group_Bank__c.Bank__c.getDescribe().getRelationshipName();
+    private static final String EXPENSE_DATE_FIELD = Expense__c.Expense_Date__c.getDescribe().getName();
+    private static final String TRANSACTION_TIME_FIELD = Expense__c.Transaction_Time__c.getDescribe().getName();
+    private static final String DESCRIPTION_FIELD = Expense__c.Description__c.getDescribe().getName();
+    private static final String CATEGORY_FIELD = Expense__c.Category__c.getDescribe().getName();
+    private static final String BANK_FIELD = Expense__c.Bank__c.getDescribe().getName();
+    private static final String BANK_ASSIGNMENT_FIELD = Expense__c.Bank_Assignment__c.getDescribe().getName();
+    private static final String TRANSACTION_TYPE_FIELD = Expense__c.Transaction_Type__c.getDescribe().getName();
+    private static final String AMOUNT_FIELD = Expense__c.Amount__c.getDescribe().getName();
+    private static final String ORIGINAL_AMOUNT_FIELD = Expense__c.Original_Amount__c.getDescribe().getName();
+    private static final String ORIGINAL_CURRENCY_CODE_FIELD = Expense__c.Original_Currency_Code__c.getDescribe().getName();
+    private static final String EXCHANGE_RATE_TO_PHP_FIELD = Expense__c.Exchange_Rate_To_PHP__c.getDescribe().getName();
+    private static final String EXCHANGE_RATE_DATE_FIELD = Expense__c.Exchange_Rate_Date__c.getDescribe().getName();
+    private static final String EXCHANGE_RATE_SOURCE_FIELD = Expense__c.Exchange_Rate_Source__c.getDescribe().getName();
+    private static final String ACTIVE_FIELD = Recurring_Expense__c.Active__c.getDescribe().getName();
+    private static final String FREQUENCY_FIELD = Recurring_Expense__c.Frequency__c.getDescribe().getName();
+    private static final String NEXT_RUN_DATE_FIELD = Recurring_Expense__c.Next_Run_Date__c.getDescribe().getName();
+    private static final String DUE_FOR_GENERATION_FIELD = Recurring_Expense__c.Due_For_Generation__c.getDescribe().getName();
+    private static final String END_DATE_FIELD = Recurring_Expense__c.End_Date__c.getDescribe().getName();
+    private static final String START_DATE_FIELD = Recurring_Expense__c.Start_Date__c.getDescribe().getName();
+    private static final String EXPENSE_GROUP_FIELD = Category__c.Expense_Group__c.getDescribe().getName();
+
     private static final List<String> MONTH_NAMES = new List<String>{
         'Jan',
         'Feb',
@@ -32,16 +60,34 @@ public with sharing class ExpenseQueryService {
         }
 
         String query =
-            'SELECT CALENDAR_YEAR(Expense_Date__c) yr, ' +
-            'CALENDAR_MONTH(Expense_Date__c) mo, ' +
-            'SUM(Amount__c) total ' +
-            'FROM Expense__c ' +
-            'WHERE Expense_Date__c != null ';
+            'SELECT CALENDAR_YEAR(' +
+            EXPENSE_DATE_FIELD +
+            ') yr, ' +
+            'CALENDAR_MONTH(' +
+            EXPENSE_DATE_FIELD +
+            ') mo, ' +
+            'SUM(' +
+            AMOUNT_FIELD +
+            ') total ' +
+            'FROM ' +
+            EXPENSE_OBJECT +
+            ' ' +
+            'WHERE ' +
+            EXPENSE_DATE_FIELD +
+            ' != null ';
         query += getDateFilters(effectiveStartDate, effectiveEndDate, bindValues);
         query += getRecordFilters(safeFilters.expenseGroupId, safeFilters.categoryId, bindValues);
         query +=
-            'GROUP BY CALENDAR_YEAR(Expense_Date__c), CALENDAR_MONTH(Expense_Date__c) ' +
-            'ORDER BY CALENDAR_YEAR(Expense_Date__c) ASC, CALENDAR_MONTH(Expense_Date__c) ASC';
+            'GROUP BY CALENDAR_YEAR(' +
+            EXPENSE_DATE_FIELD +
+            '), CALENDAR_MONTH(' +
+            EXPENSE_DATE_FIELD +
+            ') ' +
+            'ORDER BY CALENDAR_YEAR(' +
+            EXPENSE_DATE_FIELD +
+            ') ASC, CALENDAR_MONTH(' +
+            EXPENSE_DATE_FIELD +
+            ') ASC';
 
         return buildMonthlyTrend(Database.queryWithBinds(query, bindValues, AccessLevel.USER_MODE));
     }
@@ -51,15 +97,64 @@ public with sharing class ExpenseQueryService {
      * @return Fixed expense SELECT clause.
      */
     public static String expenseSelect() {
-        return 'SELECT Id, Name, CreatedDate, Expense_Date__c, Transaction_Time__c, Description__c, ' +
-            'Category__c, Category__r.Name, ' +
-            'Category__r.Expense_Group__c, Category__r.Expense_Group__r.Name, ' +
-            'Bank__c, Bank_Assignment__c, Bank_Assignment__r.Active__c, ' +
-            'Bank_Assignment__r.Bank__c, Bank_Assignment__r.Bank__r.Name, ' +
-            'Bank_Assignment__r.Bank__r.Active__c, Transaction_Type__c, Amount__c, ' +
-            'Original_Amount__c, Original_Currency_Code__c, Exchange_Rate_To_PHP__c, ' +
-            'Exchange_Rate_Date__c, Exchange_Rate_Source__c ' +
-            'FROM Expense__c ';
+        return 'SELECT Id, Name, CreatedDate, ' +
+            EXPENSE_DATE_FIELD +
+            ', ' +
+            TRANSACTION_TIME_FIELD +
+            ', ' +
+            DESCRIPTION_FIELD +
+            ', ' +
+            CATEGORY_FIELD +
+            ', ' +
+            CATEGORY_RELATIONSHIP +
+            '.Name, ' +
+            CATEGORY_RELATIONSHIP +
+            '.' +
+            EXPENSE_GROUP_FIELD +
+            ', ' +
+            CATEGORY_RELATIONSHIP +
+            '.' +
+            GROUP_RELATIONSHIP +
+            '.Name, ' +
+            BANK_FIELD +
+            ', ' +
+            BANK_ASSIGNMENT_FIELD +
+            ', ' +
+            ASSIGNMENT_RELATIONSHIP +
+            '.' +
+            ACTIVE_FIELD +
+            ', ' +
+            ASSIGNMENT_RELATIONSHIP +
+            '.' +
+            BANK_FIELD +
+            ', ' +
+            ASSIGNMENT_RELATIONSHIP +
+            '.' +
+            BANK_RELATIONSHIP +
+            '.Name, ' +
+            ASSIGNMENT_RELATIONSHIP +
+            '.' +
+            BANK_RELATIONSHIP +
+            '.' +
+            ACTIVE_FIELD +
+            ', ' +
+            TRANSACTION_TYPE_FIELD +
+            ', ' +
+            AMOUNT_FIELD +
+            ', ' +
+            ORIGINAL_AMOUNT_FIELD +
+            ', ' +
+            ORIGINAL_CURRENCY_CODE_FIELD +
+            ', ' +
+            EXCHANGE_RATE_TO_PHP_FIELD +
+            ', ' +
+            EXCHANGE_RATE_DATE_FIELD +
+            ', ' +
+            EXCHANGE_RATE_SOURCE_FIELD +
+            ' ' +
+            'FROM ' +
+            EXPENSE_OBJECT +
+            ' ';
     }
 
     /**
@@ -97,10 +192,21 @@ public with sharing class ExpenseQueryService {
         String after = '';
         if (String.isBlank(cursor)) {
             List<AggregateResult> totals = Database.queryWithBinds(
-                'SELECT Active__c active, Frequency__c frequency, COUNT(Id) qty, SUM(Amount__c) amount ' +
-                    'FROM Recurring_Expense__c ' +
+                'SELECT ' +
+                    ACTIVE_FIELD +
+                    ' active, ' +
+                    FREQUENCY_FIELD +
+                    ' frequency, COUNT(Id) qty, SUM(' +
+                    AMOUNT_FIELD +
+                    ') amount ' +
+                    'FROM ' +
+                    RECURRING_OBJECT +
+                    ' ' +
                     predicate +
-                    'GROUP BY Active__c, Frequency__c',
+                    'GROUP BY ' +
+                    ACTIVE_FIELD +
+                    ', ' +
+                    FREQUENCY_FIELD,
                 binds,
                 AccessLevel.USER_MODE
             );
@@ -113,7 +219,7 @@ public with sharing class ExpenseQueryService {
                 }
             }
             List<AggregateResult> due = Database.queryWithBinds(
-                'SELECT COUNT(Id) qty FROM Recurring_Expense__c ' + predicate + 'AND Due_For_Generation__c = true',
+                'SELECT COUNT(Id) qty FROM ' + RECURRING_OBJECT + ' ' + predicate + 'AND ' + DUE_FOR_GENERATION_FIELD + ' = true',
                 binds,
                 AccessLevel.USER_MODE
             );
@@ -130,7 +236,11 @@ public with sharing class ExpenseQueryService {
             recurringSelect() +
                 predicate +
                 after +
-                'ORDER BY Active__c DESC, Next_Run_Date__c ASC NULLS LAST, Name ASC, Id ASC LIMIT :rowLimit',
+                'ORDER BY ' +
+                ACTIVE_FIELD +
+                ' DESC, ' +
+                NEXT_RUN_DATE_FIELD +
+                ' ASC NULLS LAST, Name ASC, Id ASC LIMIT :rowLimit',
             binds,
             AccessLevel.USER_MODE
         );
@@ -185,13 +295,13 @@ public with sharing class ExpenseQueryService {
         binds.put('cursorName', cursor.name);
         binds.put('cursorId', cursor.recordId);
         String after = '(Name > :cursorName OR (Name = :cursorName AND Id > :cursorId))';
-        after = '(Next_Run_Date__c = :cursorDate AND ' + after + ')';
+        after = '(' + NEXT_RUN_DATE_FIELD + ' = :cursorDate AND ' + after + ')';
         if (cursor.nextRunDate != null) {
-            after = '(Next_Run_Date__c > :cursorDate OR Next_Run_Date__c = null OR ' + after + ')';
+            after = '(' + NEXT_RUN_DATE_FIELD + ' > :cursorDate OR ' + NEXT_RUN_DATE_FIELD + ' = null OR ' + after + ')';
         }
-        after = '(Active__c = :cursorActive AND ' + after + ')';
+        after = '(' + ACTIVE_FIELD + ' = :cursorActive AND ' + after + ')';
         if (cursor.active) {
-            after = '(Active__c = false OR ' + after + ')';
+            after = '(' + ACTIVE_FIELD + ' = false OR ' + after + ')';
         }
         return 'AND ' + after + ' ';
     }
@@ -211,11 +321,11 @@ public with sharing class ExpenseQueryService {
     private static String getDateFilters(Date startDate, Date endDate, Map<String, Object> bindValues) {
         String filters = '';
         if (startDate != null) {
-            filters += 'AND Expense_Date__c >= :startDate ';
+            filters += 'AND ' + EXPENSE_DATE_FIELD + ' >= :startDate ';
             bindValues.put('startDate', startDate);
         }
         if (endDate != null) {
-            filters += 'AND Expense_Date__c <= :endDate ';
+            filters += 'AND ' + EXPENSE_DATE_FIELD + ' <= :endDate ';
             bindValues.put('endDate', endDate);
         }
         return filters;
@@ -224,11 +334,11 @@ public with sharing class ExpenseQueryService {
     private static String getRecordFilters(Id expenseGroupRecordId, Id categoryRecordId, Map<String, Object> bindValues) {
         String filters = '';
         if (expenseGroupRecordId != null) {
-            filters += 'AND Category__r.Expense_Group__c = :expenseGroupRecordId ';
+            filters += 'AND ' + CATEGORY_RELATIONSHIP + '.' + EXPENSE_GROUP_FIELD + ' = :expenseGroupRecordId ';
             bindValues.put('expenseGroupRecordId', expenseGroupRecordId);
         }
         if (categoryRecordId != null) {
-            filters += 'AND Category__c = :categoryRecordId ';
+            filters += 'AND ' + CATEGORY_FIELD + ' = :categoryRecordId ';
             bindValues.put('categoryRecordId', categoryRecordId);
         }
         return filters;
@@ -248,13 +358,54 @@ public with sharing class ExpenseQueryService {
     }
 
     private static String recurringSelect() {
-        return 'SELECT Id, Name, Active__c, Amount__c, Bank__c, Bank_Assignment__c, ' +
-            'Bank_Assignment__r.Active__c, Bank_Assignment__r.Bank__c, ' +
-            'Bank_Assignment__r.Bank__r.Name, Bank_Assignment__r.Bank__r.Active__c, ' +
-            'Category__c, Category__r.Name, ' +
-            'Category__r.Expense_Group__r.Name, End_Date__c, Frequency__c, Next_Run_Date__c, ' +
-            'Start_Date__c, Transaction_Type__c ' +
-            'FROM Recurring_Expense__c ';
+        return 'SELECT Id, Name, ' +
+            ACTIVE_FIELD +
+            ', ' +
+            AMOUNT_FIELD +
+            ', ' +
+            BANK_FIELD +
+            ', ' +
+            BANK_ASSIGNMENT_FIELD +
+            ', ' +
+            ASSIGNMENT_RELATIONSHIP +
+            '.' +
+            ACTIVE_FIELD +
+            ', ' +
+            ASSIGNMENT_RELATIONSHIP +
+            '.' +
+            BANK_FIELD +
+            ', ' +
+            ASSIGNMENT_RELATIONSHIP +
+            '.' +
+            BANK_RELATIONSHIP +
+            '.Name, ' +
+            ASSIGNMENT_RELATIONSHIP +
+            '.' +
+            BANK_RELATIONSHIP +
+            '.' +
+            ACTIVE_FIELD +
+            ', ' +
+            CATEGORY_FIELD +
+            ', ' +
+            CATEGORY_RELATIONSHIP +
+            '.Name, ' +
+            CATEGORY_RELATIONSHIP +
+            '.' +
+            GROUP_RELATIONSHIP +
+            '.Name, ' +
+            END_DATE_FIELD +
+            ', ' +
+            FREQUENCY_FIELD +
+            ', ' +
+            NEXT_RUN_DATE_FIELD +
+            ', ' +
+            START_DATE_FIELD +
+            ', ' +
+            TRANSACTION_TYPE_FIELD +
+            ' ' +
+            'FROM ' +
+            RECURRING_OBJECT +
+            ' ';
     }
 
     private static RecurringExpenseRowDto buildRecurringExpenseRow(Recurring_Expense__c recurringExpense, Date today) {

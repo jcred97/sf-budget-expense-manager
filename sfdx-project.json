@@ -2,11 +2,18 @@
     "packageDirectories": [
         {
             "path": "force-app",
-            "default": true
+            "default": true,
+            "package": "Budget Expense Manager",
+            "versionName": "Beta 0.1",
+            "versionNumber": "0.1.0.NEXT"
         }
     ],
     "name": "sf-budget-expense-manager",
     "namespace": "bemgr",
     "sfdcLoginUrl": "https://login.salesforce.com",
-    "sourceApiVersion": "65.0"
+    "sourceApiVersion": "65.0",
+    "packageAliases": {
+        "Budget Expense Manager": "0HoNS00000064c10AA",
+        "Budget Expense Manager@0.1.0-1": "04tNS000000aoEPYAY"
+    }
 }

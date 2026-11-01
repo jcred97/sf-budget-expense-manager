@@ -1,5 +1,93 @@
 # Testing And Tooling
 
+## Beta Managed Package Installation — 2026-10-21
+
+- Enabled second-generation packaging on parent Dev Hub alias `devHub` after
+  successful check-only validation. Created Managed 2GP package
+  `Budget Expense Manager` (`0HoNS00000064c10AA`), namespace `bemgr`.
+- Fully validated beta **0.1.0.1** (`04tNS000000aoEPYAY`) passed package Apex
+  validation with **97% coverage**; validation was not skipped and the version
+  was not promoted. Successful build request: `08cNS00000081GfYAI`.
+- The installed CLI's manifest reconstruction did not escape the ampersand in
+  the settings layout identifier. The isolated build copy uses
+  `Budget Expense Manager Settings Layout` and qualifies the three permission-set
+  External Credential principal references with `bemgr__`. Source layout and
+  development-org permission sets remain unchanged. Reproduce these two build
+  adjustments until the CLI manifest issue and package reference behavior are
+  verified with updated tooling. Installation keys remain in ignored local files.
+- Build validation exposed implicit test-user permissions. Test fixtures now
+  grant app access explicitly and submit asynchronous jobs as a dedicated
+  permissioned test actor. Restricted-user assertions and production permission
+  checks are preserved. `AppTestPermissions` is test-only.
+- Created clean subscriber scratch org **`bemgrBetaTest`**, with no namespace,
+  PHP currency, and no app metadata before installation. It expires 2026-10-28.
+  Installer request `0Hf9H0000006Sb7SAE` succeeded with `AdminsOnly` access;
+  no app source was deployed into this org.
+- Installed-package Apex run `7079H00000Wr7FR` passed **205 distinct methods**
+  with zero failures (225 passing result rows including duplicates). Subscriber
+  coverage was not exposed by this run; 97% is the package-build coverage.
+- User-mode record smoke checks passed Cash/Debit/FX creation, canonical PHP
+  recalculation, sparse FX preservation, rejection of Cash with a Bank, and
+  recurring pointer initialization. UI API creation and sparse editing also
+  passed. Sample records remain; settings remain uninitialized.
+- On 2026-10-22, explicitly approved packaged Admin assignment to the subscriber
+  test user succeeded. The real installed Named Credential callout then passed
+  without manual credential changes. Effective setup/automation custom permissions,
+  settings field access, Expense/Recurring CRUD, and all four checked controller
+  grants (setup, settings, automation, exchange rates) passed live assertions.
+- Permission assignment left settings uninitialized and no recurring schedule
+  exists. Sample records remain for first-time setup inspection. Browser setup,
+  modal interaction, and visual behavior remain unverified because the local
+  automation runtime could not start; package tests cover the internal controller
+  paths. Main Dev Org was unchanged; no commit or push was performed.
+
+## Namespaced Scratch Integration — 2026-10-21
+
+- Created scratch alias `devHub1` from parent alias `devHub`, with namespace `bemgr`,
+  single-currency PHP, and expiration 2026-10-28. Assigned the app Admin permission
+  set after explicit approval. Main Dev Org was unchanged.
+- Full deployment `0AfC200000AoZxhKAF` succeeded for **222/222 components** after
+  check-only validation `0AfC200000AoXnrKAF`. Integration exposed dynamic SOQL
+  identifiers requiring schema-derived names and a Bank query-loop compilation
+  issue; the source fixes preserve existing access checks and query limits.
+- The deployment copy qualifies External Credential principal references as
+  `bemgr__Exchange_Rates_Public-NamedPrincipal`. Source permission sets retain the
+  unqualified development reference. Managed-package build/install resolution
+  remains a separate verification step.
+- Apex run `707C200000THI1B` passed **205 distinct methods across 23 classes**,
+  with **97% test-run coverage**. The CLI emitted 222 passing result rows including
+  duplicates. Frontend regression passed **335 tests across 30 suites**; lint and
+  targeted formatting checks passed.
+- Live smoke checks passed setup, group/category/bank assignment, Cash and Debit
+  expenses, pagination, dashboard aggregates, budgets, FX snapshot preservation,
+  and a real exchange-rate Named Credential callout. Namespaced UI API record
+  creation and sparse updates passed, including preservation of the FX amount.
+- A real recurring batch generated one expense and advanced its template date;
+  a second batch created no duplicate. Automation was then disabled and the
+  test-created schedule removed. Sample records remain for inspection.
+- The app was opened in Chrome. Browser modal interaction and visual behavior,
+  and installation of a built managed package into a subscriber org, remain
+  unverified. No commit or push was performed.
+
+## Namespace Compatibility — 2026-10-21
+
+- Expense SObject mapping uses imported field paths for direct fields and nested
+  Category, Expense Group, Bank assignment, and Bank relationships. Record forms
+  bind schema references, read LDS values through `getFieldValue`, and resolve
+  submitted custom-field keys through shared namespace-aware helpers.
+- Added qualified `bemgr__` schema and record fixtures for mapping, form loading,
+  create/edit payloads, date validation, reactivation, Bank preservation, and
+  atomic read-only FX snapshots. Collision tests keep other-package/subscriber
+  fields distinct and reject stale unqualified aliases in outgoing payloads.
+- Full frontend regression passed **335/335 tests across 30 suites**. ESLint,
+  targeted formatting, and whitespace checks passed.
+- Check-only validation `0AfgK00000X9KMHSA3` against `mainDevOrg` passed for all
+  **5 LWC bundles**. No Apex changed, and `NoTestRun` ran no Apex tests. A clean
+  namespaced package installation remains a separate integration check; these
+  tests model qualified schema references without claiming subscriber runtime
+  verification. Subsequent scratch deployment and runtime checks are recorded
+  above; Main Dev Org has not received these namespace changes.
+
 ## Architecture Cleanup — 2026-10-17
 
 - Both financial dialogs now share payment selection and bank payload preparation

@@ -1,5 +1,7 @@
 /** Queries and mutates optional monthly expense-group budgets in user mode. */
 public inherited sharing class BudgetService {
+    private static final String GROUP_FIELD = Budget__c.Expense_Group__c.getDescribe().getName();
+    private static final String MONTH_FIELD = Budget__c.Budget_Month__c.getDescribe().getName();
     /**
      * Returns the optional budget for an expense group and normalized calendar month.
      *
@@ -11,7 +13,7 @@ public inherited sharing class BudgetService {
         Date normalizedBudgetMonth = normalizeBudgetContext(expenseGroupId, budgetMonth);
         requireBudgetReadAccess();
         List<Budget__c> budgets = Database.queryWithBinds(
-            budgetProjection() + ' WHERE Expense_Group__c = :groupId AND Budget_Month__c = :month LIMIT 1',
+            budgetProjection() + ' WHERE ' + GROUP_FIELD + ' = :groupId AND ' + MONTH_FIELD + ' = :month LIMIT 1',
             new Map<String, Object>{ 'groupId' => expenseGroupId, 'month' => normalizedBudgetMonth },
             AccessLevel.USER_MODE
         );
@@ -34,7 +36,15 @@ public inherited sharing class BudgetService {
         requireBudgetReadAccess();
         List<Budget__c> budgets = Database.queryWithBinds(
             budgetProjection() +
-            ' WHERE Expense_Group__c = :groupId AND Budget_Month__c >= :startMonth AND Budget_Month__c <= :endMonth ORDER BY Budget_Month__c ASC LIMIT 6',
+                ' WHERE ' +
+                GROUP_FIELD +
+                ' = :groupId AND ' +
+                MONTH_FIELD +
+                ' >= :startMonth AND ' +
+                MONTH_FIELD +
+                ' <= :endMonth ORDER BY ' +
+                MONTH_FIELD +
+                ' ASC LIMIT 6',
             new Map<String, Object>{ 'groupId' => expenseGroupId, 'startMonth' => startMonth, 'endMonth' => normalizedEndMonth },
             AccessLevel.USER_MODE
         );
@@ -202,9 +212,15 @@ public inherited sharing class BudgetService {
     }
 
     private static String budgetProjection() {
-        return 'SELECT Id, Expense_Group__c, Budget_Month__c, Amount__c' +
-            (Budget__c.Description__c.getDescribe().isAccessible() ? ', Description__c' : '') +
-            ' FROM Budget__c';
+        return 'SELECT Id, ' +
+            GROUP_FIELD +
+            ', ' +
+            MONTH_FIELD +
+            ', ' +
+            Budget__c.Amount__c.getDescribe().getName() +
+            (Budget__c.Description__c.getDescribe().isAccessible() ? ', ' + Budget__c.Description__c.getDescribe().getName() : '') +
+            ' FROM ' +
+            Budget__c.SObjectType.getDescribe().getName();
     }
 
     private static BudgetDto toDto(Budget__c budget) {

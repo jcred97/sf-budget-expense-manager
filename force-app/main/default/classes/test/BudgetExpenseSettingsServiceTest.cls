@@ -7,6 +7,7 @@ private class BudgetExpenseSettingsServiceTest {
 
     @TestSetup
     static void restrictedUsers() {
+        AppTestPermissions.grantAdmin();
         Profile minimumAccess = [SELECT Id FROM Profile WHERE Name = 'Minimum Access - Salesforce' LIMIT 1];
         List<User> users = new List<User>();
         for (String role : new List<String>{ 'SettingsRestrictedAdmin', 'SettingsRestrictedUser', 'SettingsPartialEditor' }) {
@@ -104,7 +105,7 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testGetSettingsCreatesDefaultRecord() {
         isolateRecurringSchedule();
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             CronTrigger expectedSchedule = getRecurringSchedule();
             CurrencyContextService.currencyProvider = new StubOrganizationCurrencyProvider(INITIAL_BASE_CURRENCY);
 
@@ -165,7 +166,7 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testGetSettingsBackfillsMissingBaseCurrency() {
         isolateRecurringSchedule();
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             insert new Budget_Expense_Manager_Setting__c(
                 Name = 'Existing',
                 Recurring_Expenses_Enabled__c = true,
@@ -200,7 +201,7 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testSaveSettingsKeepsPinnedBaseCurrencyStable() {
         isolateRecurringSchedule();
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             insert new Budget_Expense_Manager_Setting__c(
                 Name = 'Existing',
                 Recurring_Expenses_Enabled__c = true,
@@ -243,7 +244,7 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testSaveSettingsUpdatesExistingRecord() {
         isolateRecurringSchedule();
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             BudgetExpenseSettingsService.getSettings();
             BudgetExpenseSettingsUpdateRequest request = new BudgetExpenseSettingsUpdateRequest();
             request.recurringExpensesEnabled = 'false';
@@ -270,7 +271,7 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testSaveSettingsUpdatesGlobalRunTimeAndSchedule() {
         isolateRecurringSchedule();
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             BudgetExpenseSettingsService.getSettings();
             BudgetExpenseSettingsUpdateRequest request = new BudgetExpenseSettingsUpdateRequest();
             request.recurringExpensesEnabled = 'true';
@@ -316,7 +317,7 @@ private class BudgetExpenseSettingsServiceTest {
 
     @IsTest
     static void testRunStatusUpdates() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Test.startTest();
             BudgetExpenseSettingsService.markRecurringRunQueued();
             BudgetExpenseSettingsService.markRecurringRunCompleted(3, 2);
@@ -339,7 +340,7 @@ private class BudgetExpenseSettingsServiceTest {
 
     @IsTest
     static void testCompletedRunMessageWhenNothingIsDue() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Test.startTest();
             BudgetExpenseSettingsService.markRecurringRunCompleted(0, 0);
             Test.stopTest();
@@ -361,7 +362,7 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testEnabledDefaultSaveCreatesScheduleAndRepeatedSavePreservesIt() {
         isolateRecurringSchedule();
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             BudgetExpenseSettingsService.getSettings();
             BudgetExpenseSettingsState state = BudgetExpenseSettingsService.saveSettings(defaultScheduleRequest(true));
             CronTrigger original = getRecurringSchedule();
@@ -383,7 +384,7 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testSameTimeReenableCreatesMissingSchedule() {
         isolateRecurringSchedule();
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             BudgetExpenseSettingsService.saveSettings(defaultScheduleRequest(false));
             System.assertEquals(null, getRecurringSchedule(), 'A disabled same-time save must not create a schedule.');
             BudgetExpenseSettingsState state = BudgetExpenseSettingsService.saveSettings(defaultScheduleRequest(true));
@@ -395,7 +396,7 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testSameTimeSaveRepairsRemovedSchedule() {
         isolateRecurringSchedule();
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             BudgetExpenseSettingsService.saveSettings(defaultScheduleRequest(true));
             Id removedJobId = getRecurringSchedule().Id;
             System.abortJob(removedJobId);
@@ -547,7 +548,10 @@ private class BudgetExpenseSettingsServiceTest {
     @IsTest
     static void testMinimumAccessAdminPreservesAndReplacesAnotherAdministratorsSchedule() {
         isolateRecurringSchedule();
-        Id originalJobId = System.schedule(RECURRING_SCHEDULE_NAME, '0 0 8 * * ?', new RecurringExpenseScheduler());
+        Id originalJobId;
+        System.runAs(AppTestPermissions.adminActor()) {
+            originalJobId = System.schedule(RECURRING_SCHEDULE_NAME, '0 0 8 * * ?', new RecurringExpenseScheduler());
+        }
         CronTrigger original = getRecurringSchedule();
         CurrencyContextService.currencyProvider = new StubOrganizationCurrencyProvider('PHP');
         System.runAs(restrictedActor('SettingsRestrictedAdmin')) {

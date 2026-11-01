@@ -1,5 +1,17 @@
 import { LightningElement, api, track, wire } from 'lwc';
 import EXPENSE_ID_FIELD from '@salesforce/schema/Expense__c.Id';
+import NAME_FIELD from '@salesforce/schema/Expense__c.Name';
+import AMOUNT_FIELD from '@salesforce/schema/Expense__c.Amount__c';
+import CATEGORY_FIELD from '@salesforce/schema/Expense__c.Category__c';
+import BANK_ASSIGNMENT_FIELD from '@salesforce/schema/Expense__c.Bank_Assignment__c';
+import BANK_FIELD from '@salesforce/schema/Expense__c.Bank__c';
+import TIME_FIELD from '@salesforce/schema/Expense__c.Transaction_Time__c';
+import DATE_FIELD from '@salesforce/schema/Expense__c.Expense_Date__c';
+import ORIGINAL_AMOUNT_FIELD from '@salesforce/schema/Expense__c.Original_Amount__c';
+import ORIGINAL_CURRENCY_FIELD from '@salesforce/schema/Expense__c.Original_Currency_Code__c';
+import RATE_FIELD from '@salesforce/schema/Expense__c.Exchange_Rate_To_PHP__c';
+import RATE_DATE_FIELD from '@salesforce/schema/Expense__c.Exchange_Rate_Date__c';
+import RATE_SOURCE_FIELD from '@salesforce/schema/Expense__c.Exchange_Rate_Source__c';
 import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import {
     canCreateObject,
@@ -7,6 +19,7 @@ import {
     canReadField,
     canWriteField,
     hasWritableFields,
+    canonicalFieldApiName,
     filterWritableFields
 } from 'c/appSchemaAccess';
 import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
@@ -30,6 +43,17 @@ import EXPENSE_OBJECT from '@salesforce/schema/Expense__c';
 const PHP_CURRENCY_CODE = 'PHP';
 
 export default class ExpenseModal extends LightningElement {
+    expenseObject = EXPENSE_OBJECT;
+    fields = {
+        name: NAME_FIELD,
+        amount: AMOUNT_FIELD,
+        date: DATE_FIELD,
+        originalAmount: ORIGINAL_AMOUNT_FIELD,
+        originalCurrency: ORIGINAL_CURRENCY_FIELD,
+        rate: RATE_FIELD,
+        rateDate: RATE_DATE_FIELD,
+        rateSource: RATE_SOURCE_FIELD
+    };
     objectInfo;
     schemaLoadError = '';
 
@@ -411,20 +435,22 @@ export default class ExpenseModal extends LightningElement {
         this.isSubmitting = false;
         if (this.isEditMode && !this.isFormLoaded) {
             const record = event.detail.records?.[this.recordId];
-            this.categoryValue = record?.fields?.Category__c?.value || '';
+            this.categoryValue = getFieldValue(record, CATEGORY_FIELD) || '';
             this.bankAssignmentValue =
-                record?.fields?.Bank_Assignment__c?.value || this.currentBank?.assignmentId || '';
+                getFieldValue(record, BANK_ASSIGNMENT_FIELD) ||
+                this.currentBank?.assignmentId ||
+                '';
             this.bankSelectionTouched = false;
             this.transactionTimeValue = this.normalizeTimeForInput(
-                record?.fields?.Transaction_Time__c?.value
+                getFieldValue(record, TIME_FIELD)
             );
             this.initializeCurrencyState({
-                Expense_Date__c: record?.fields?.Expense_Date__c?.value,
-                Original_Amount__c: record?.fields?.Original_Amount__c?.value,
-                Original_Currency_Code__c: record?.fields?.Original_Currency_Code__c?.value,
-                Exchange_Rate_To_PHP__c: record?.fields?.Exchange_Rate_To_PHP__c?.value,
-                Exchange_Rate_Date__c: record?.fields?.Exchange_Rate_Date__c?.value,
-                Exchange_Rate_Source__c: record?.fields?.Exchange_Rate_Source__c?.value
+                Expense_Date__c: getFieldValue(record, DATE_FIELD),
+                Original_Amount__c: getFieldValue(record, ORIGINAL_AMOUNT_FIELD),
+                Original_Currency_Code__c: getFieldValue(record, ORIGINAL_CURRENCY_FIELD),
+                Exchange_Rate_To_PHP__c: getFieldValue(record, RATE_FIELD),
+                Exchange_Rate_Date__c: getFieldValue(record, RATE_DATE_FIELD),
+                Exchange_Rate_Source__c: getFieldValue(record, RATE_SOURCE_FIELD)
             });
         }
         this.isFormLoaded = true;
@@ -483,23 +509,32 @@ export default class ExpenseModal extends LightningElement {
 
         const fields = filterWritableFields(this.objectInfo, event.detail.fields, this.accessMode);
         this.reconcileTransactionType();
-        fields.Transaction_Type__c = this.transactionTypeValue || null;
-        fields.Category__c = this.categoryValue;
-        fields.Transaction_Time__c = this.normalizeTimeForSubmit(this.transactionTimeValue);
+        fields[canonicalFieldApiName(this.objectInfo, TRANSACTION_TYPE_FIELD)] =
+            this.transactionTypeValue || null;
+        fields[canonicalFieldApiName(this.objectInfo, CATEGORY_FIELD)] = this.categoryValue;
+        fields[canonicalFieldApiName(this.objectInfo, TIME_FIELD)] = this.normalizeTimeForSubmit(
+            this.transactionTimeValue
+        );
 
         if (this.canEditForeignCurrency && this.isForeignCurrency) {
-            fields.Amount__c = this.calculatedPhpAmount;
-            fields.Original_Amount__c = String(this.originalAmountValue).trim();
-            fields.Original_Currency_Code__c = this.normalizedOriginalCurrencyCode;
-            fields.Exchange_Rate_To_PHP__c = String(this.exchangeRateValue).trim();
-            fields.Exchange_Rate_Date__c = this.exchangeRateDate;
-            fields.Exchange_Rate_Source__c = this.exchangeRateSource;
+            fields[canonicalFieldApiName(this.objectInfo, AMOUNT_FIELD)] = this.calculatedPhpAmount;
+            fields[canonicalFieldApiName(this.objectInfo, ORIGINAL_AMOUNT_FIELD)] = String(
+                this.originalAmountValue
+            ).trim();
+            fields[canonicalFieldApiName(this.objectInfo, ORIGINAL_CURRENCY_FIELD)] =
+                this.normalizedOriginalCurrencyCode;
+            fields[canonicalFieldApiName(this.objectInfo, RATE_FIELD)] = String(
+                this.exchangeRateValue
+            ).trim();
+            fields[canonicalFieldApiName(this.objectInfo, RATE_DATE_FIELD)] = this.exchangeRateDate;
+            fields[canonicalFieldApiName(this.objectInfo, RATE_SOURCE_FIELD)] =
+                this.exchangeRateSource;
         } else if (this.canEditForeignCurrency) {
-            fields.Original_Amount__c = null;
-            fields.Original_Currency_Code__c = null;
-            fields.Exchange_Rate_To_PHP__c = null;
-            fields.Exchange_Rate_Date__c = null;
-            fields.Exchange_Rate_Source__c = null;
+            fields[canonicalFieldApiName(this.objectInfo, ORIGINAL_AMOUNT_FIELD)] = null;
+            fields[canonicalFieldApiName(this.objectInfo, ORIGINAL_CURRENCY_FIELD)] = null;
+            fields[canonicalFieldApiName(this.objectInfo, RATE_FIELD)] = null;
+            fields[canonicalFieldApiName(this.objectInfo, RATE_DATE_FIELD)] = null;
+            fields[canonicalFieldApiName(this.objectInfo, RATE_SOURCE_FIELD)] = null;
         }
 
         if (!this.canEditForeignCurrency) {
@@ -510,14 +545,18 @@ export default class ExpenseModal extends LightningElement {
                 'Exchange_Rate_Date__c',
                 'Exchange_Rate_Source__c'
             ])
-                delete fields[name];
+                delete fields[canonicalFieldApiName(this.objectInfo, name)];
             if (this.isCanonicalAmountLocked) {
-                delete fields.Amount__c;
-                delete fields.Expense_Date__c;
+                delete fields[canonicalFieldApiName(this.objectInfo, AMOUNT_FIELD)];
+                delete fields[canonicalFieldApiName(this.objectInfo, DATE_FIELD)];
             }
         }
 
         const paymentFields = paymentBankFields(fields, {
+            fieldKeys: {
+                assignment: canonicalFieldApiName(this.objectInfo, BANK_ASSIGNMENT_FIELD),
+                legacy: canonicalFieldApiName(this.objectInfo, BANK_FIELD)
+            },
             assignmentId: this.normalizedBankAssignmentValue,
             legacyBank: this.hasUntouchedLegacyBank,
             touched: this.bankSelectionTouched,

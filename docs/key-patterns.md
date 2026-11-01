@@ -14,6 +14,29 @@ Native LDS fields still enforce access. Read-only forms must not submit empty su
 Treat FX amount/date/rate details as one snapshot when field permissions are partial. Schema
 capabilities do not replace custom permissions for setup/automation or record sharing enforcement.
 
+## Namespace-Safe UI Data
+
+Use `@salesforce/schema` references for native record-form object and field bindings.
+Read LDS records with `getFieldValue` and schema references. Apex SObject rows use
+`getSObjectFieldValue` with imported field paths, including the namespace on each
+custom relationship segment. Plain DTO/view-model properties remain application
+keys and must not be namespace-prefixed.
+
+Use `canonicalFieldApiName` and `filterWritableFields` when preparing custom save
+payloads. Resolve local aliases against the object's namespace, retain qualified
+field keys, and submit one value per field. A qualified native value takes precedence
+over a stale local alias, including explicit null clears. Never identify fields by
+suffix alone or substitute a subscriber field for an unreadable package field.
+Both financial dialogs pass resolved Bank field keys into `paymentBankFields`;
+read-only Bank and FX fields remain omitted rather than cleared.
+
+Dynamic Apex queries derive custom object, field, and relationship identifiers
+from schema describes so they resolve in both unpackaged and namespaced orgs.
+Prefer static SOQL when the projection is fixed. Keep bind values, aggregate
+aliases, user-mode enforcement, and optional-field access policies unchanged.
+Namespaced metadata deployment also needs qualified External Credential principal
+references in the deployment artifact; verify package installation separately.
+
 ## Guided App Setup
 
 The workspace tab checks initialization through `appSetup` before mounting its screens.

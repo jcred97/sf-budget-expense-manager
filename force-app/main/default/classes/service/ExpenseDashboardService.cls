@@ -1,14 +1,36 @@
 /** User-mode dashboard aggregates; expense details never grow with the matching count. */
 public with sharing class ExpenseDashboardService {
-    private static final String RECENT_ORDER = 'Expense_Date__c DESC, Transaction_Time__c DESC NULLS LAST, CreatedDate DESC, Id DESC ';
+    // Schema names include the package namespace in namespaced scratch and subscriber orgs.
+    private static final String EXPENSE_OBJECT = Expense__c.SObjectType.getDescribe().getName();
+    private static final String CATEGORY_RELATIONSHIP = Expense__c.Category__c.getDescribe().getRelationshipName();
+    private static final String ASSIGNMENT_RELATIONSHIP = Expense__c.Bank_Assignment__c.getDescribe().getRelationshipName();
+    private static final String BANK_RELATIONSHIP = Expense_Group_Bank__c.Bank__c.getDescribe().getRelationshipName();
+    private static final String EXPENSE_DATE_FIELD = Expense__c.Expense_Date__c.getDescribe().getName();
+    private static final String TRANSACTION_TIME_FIELD = Expense__c.Transaction_Time__c.getDescribe().getName();
+    private static final String BANK_FIELD = Expense__c.Bank__c.getDescribe().getName();
+    private static final String AMOUNT_FIELD = Expense__c.Amount__c.getDescribe().getName();
+
+    private static final String RECENT_ORDER =
+        EXPENSE_DATE_FIELD +
+        ' DESC, ' +
+        TRANSACTION_TIME_FIELD +
+        ' DESC NULLS LAST, CreatedDate DESC, Id DESC ';
 
     public static ExpenseDashboardSummary getSummary(ExpenseFilterRequest filters) {
         ExpenseDashboardSummary summary = new ExpenseDashboardSummary();
         Map<String, Object> binds = new Map<String, Object>();
         String predicate = ExpenseQueryService.expenseWhere(filters, binds);
         List<AggregateResult> totals = Database.queryWithBinds(
-            'SELECT SUM(Amount__c) amount, COUNT(Id) qty, COUNT(Expense_Date__c) dated, ' +
-                'COUNT_DISTINCT(Expense_Date__c) days FROM Expense__c ' +
+            'SELECT SUM(' +
+                AMOUNT_FIELD +
+                ') amount, COUNT(Id) qty, COUNT(' +
+                EXPENSE_DATE_FIELD +
+                ') dated, ' +
+                'COUNT_DISTINCT(' +
+                EXPENSE_DATE_FIELD +
+                ') days FROM ' +
+                EXPENSE_OBJECT +
+                ' ' +
                 predicate,
             binds,
             AccessLevel.USER_MODE
@@ -28,10 +50,18 @@ public with sharing class ExpenseDashboardService {
         }
         // Group by display name, rather than record ID: equally named categories share a chart bar.
         List<AggregateResult> categories = Database.queryWithBinds(
-            'SELECT Category__r.Name label, SUM(Amount__c) amount, COUNT(Id) qty ' +
-                'FROM Expense__c ' +
+            'SELECT ' +
+                CATEGORY_RELATIONSHIP +
+                '.Name label, SUM(' +
+                AMOUNT_FIELD +
+                ') amount, COUNT(Id) qty ' +
+                'FROM ' +
+                EXPENSE_OBJECT +
+                ' ' +
                 predicate +
-                'GROUP BY Category__r.Name',
+                'GROUP BY ' +
+                CATEGORY_RELATIONSHIP +
+                '.Name',
             binds,
             AccessLevel.USER_MODE
         );
@@ -45,20 +75,47 @@ public with sharing class ExpenseDashboardService {
         // Separate assigned and legacy paths avoid grouping by every assignment/legacy combination.
         // No group limit: an excessive chart cardinality fails rather than returning partial totals.
         List<AggregateResult> assigned = Database.queryWithBinds(
-            'SELECT Bank_Assignment__r.Bank__r.Name label, SUM(Amount__c) amount, COUNT(Id) qty ' +
-                'FROM Expense__c ' +
+            'SELECT ' +
+                ASSIGNMENT_RELATIONSHIP +
+                '.' +
+                BANK_RELATIONSHIP +
+                '.Name label, SUM(' +
+                AMOUNT_FIELD +
+                ') amount, COUNT(Id) qty ' +
+                'FROM ' +
+                EXPENSE_OBJECT +
+                ' ' +
                 predicate +
-                'AND Bank_Assignment__r.Bank__r.Name != null ' +
-                'GROUP BY Bank_Assignment__r.Bank__r.Name',
+                'AND ' +
+                ASSIGNMENT_RELATIONSHIP +
+                '.' +
+                BANK_RELATIONSHIP +
+                '.Name != null ' +
+                'GROUP BY ' +
+                ASSIGNMENT_RELATIONSHIP +
+                '.' +
+                BANK_RELATIONSHIP +
+                '.Name',
             binds,
             AccessLevel.USER_MODE
         );
         List<AggregateResult> legacy = Database.queryWithBinds(
-            'SELECT Bank__c label, SUM(Amount__c) amount, COUNT(Id) qty ' +
-                'FROM Expense__c ' +
+            'SELECT ' +
+                BANK_FIELD +
+                ' label, SUM(' +
+                AMOUNT_FIELD +
+                ') amount, COUNT(Id) qty ' +
+                'FROM ' +
+                EXPENSE_OBJECT +
+                ' ' +
                 predicate +
-                'AND Bank_Assignment__r.Bank__r.Name = null ' +
-                'GROUP BY Bank__c',
+                'AND ' +
+                ASSIGNMENT_RELATIONSHIP +
+                '.' +
+                BANK_RELATIONSHIP +
+                '.Name = null ' +
+                'GROUP BY ' +
+                BANK_FIELD,
             binds,
             AccessLevel.USER_MODE
         );
@@ -73,10 +130,20 @@ public with sharing class ExpenseDashboardService {
             }
         }
         List<AggregateResult> days = Database.queryWithBinds(
-            'SELECT Expense_Date__c day, SUM(Amount__c) amount, COUNT(Id) qty ' +
-                'FROM Expense__c ' +
+            'SELECT ' +
+                EXPENSE_DATE_FIELD +
+                ' day, SUM(' +
+                AMOUNT_FIELD +
+                ') amount, COUNT(Id) qty ' +
+                'FROM ' +
+                EXPENSE_OBJECT +
+                ' ' +
                 predicate +
-                'GROUP BY Expense_Date__c ORDER BY Expense_Date__c DESC',
+                'GROUP BY ' +
+                EXPENSE_DATE_FIELD +
+                ' ORDER BY ' +
+                EXPENSE_DATE_FIELD +
+                ' DESC',
             binds,
             AccessLevel.USER_MODE
         );
@@ -96,12 +163,20 @@ public with sharing class ExpenseDashboardService {
             AccessLevel.USER_MODE
         );
         List<Expense__c> largest = Database.queryWithBinds(
-            ExpenseQueryService.expenseSelect() + predicate + 'AND Amount__c != null ORDER BY Amount__c DESC, ' + RECENT_ORDER + 'LIMIT 1',
+            ExpenseQueryService.expenseSelect() +
+                predicate +
+                'AND ' +
+                AMOUNT_FIELD +
+                ' != null ORDER BY ' +
+                AMOUNT_FIELD +
+                ' DESC, ' +
+                RECENT_ORDER +
+                'LIMIT 1',
             binds,
             AccessLevel.USER_MODE
         );
         List<Expense__c> blankAmounts = Database.queryWithBinds(
-            ExpenseQueryService.expenseSelect() + predicate + 'AND Amount__c = null ORDER BY ' + RECENT_ORDER + 'LIMIT 1',
+            ExpenseQueryService.expenseSelect() + predicate + 'AND ' + AMOUNT_FIELD + ' = null ORDER BY ' + RECENT_ORDER + 'LIMIT 1',
             binds,
             AccessLevel.USER_MODE
         );

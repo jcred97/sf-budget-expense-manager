@@ -29,6 +29,7 @@ Foreign-currency entry is optional per Expense. When enabled, the record retains
 The record-based Bank migration is additive. `Expense__c.Bank_Assignment__c` and `Recurring_Expense__c.Bank_Assignment__c` are optional during the compatibility window, while the original shared-picklist `Bank__c` fields remain as temporary read-only fallback data until a separately approved cleanup.
 
 The latest screen-ownership refactors are source changes; deployment and obsolete-org-metadata
-cleanup remain deferred. Review findings in `key-patterns.md` describe current limitations,
-including settings writes before initial loading completes and the ungated manual Run control.
-They are not assertions that those issues have already been repaired.
+cleanup remain deferred. Settings load/save protection and missing-schedule recovery are fixed
+in source; schedule recovery passed check-only Apex validation. The remaining findings are
+manual Run permission visibility, batch-completion feedback, and recurring summaries beyond
+500 templates. See [review findings](review-findings.md) for status and validation evidence.

@@ -55,13 +55,20 @@ export function paymentSelection({
 
 // Preserve untouched legacy/read-only bank values; an explicit change clears the
 // old text bank. The caller still filters the result against field permissions.
-export function paymentBankFields(fields, { assignmentId, legacyBank, touched, disabled }) {
+export function paymentBankFields(
+    fields,
+    { assignmentId, legacyBank, touched, disabled, fieldKeys = {} }
+) {
     const result = { ...fields };
-    if (!legacyBank) result.Bank_Assignment__c = assignmentId;
-    if (touched) result.Bank__c = null;
+    const assignment = fieldKeys.assignment || 'Bank_Assignment__c';
+    const legacy = fieldKeys.legacy || 'Bank__c';
+    if (assignment !== 'Bank_Assignment__c') delete result.Bank_Assignment__c;
+    if (legacy !== 'Bank__c') delete result.Bank__c;
+    if (!legacyBank) result[assignment] = assignmentId;
+    if (touched) result[legacy] = null;
     if (disabled && !touched) {
-        delete result.Bank_Assignment__c;
-        delete result.Bank__c;
+        delete result[assignment];
+        delete result[legacy];
     }
     return result;
 }

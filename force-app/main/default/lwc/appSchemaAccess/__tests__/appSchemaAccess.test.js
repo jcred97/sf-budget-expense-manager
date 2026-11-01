@@ -7,7 +7,9 @@ import {
     canWriteField,
     hasReadableFields,
     hasWritableFields,
-    filterWritableFields
+    filterWritableFields,
+    canonicalFieldApiName,
+    getSObjectFieldValue
 } from 'c/appSchemaAccess';
 
 const info = {
@@ -74,7 +76,59 @@ it('resolves local custom field names against namespaced object metadata', () =>
         true
     );
     expect(filterWritableFields(packagedInfo, { Description__c: null }, 'update')).toEqual({
-        Description__c: null
+        bemgr__Description__c: null
     });
     expect(canReadField(packagedInfo, 'Hidden__c')).toBe(false);
+});
+
+it('submits one canonical field while preserving native values and authorized null clears', () => {
+    const packagedInfo = {
+        ...info,
+        apiName: 'bemgr__Expense__c',
+        fields: {
+            Name: info.fields.Name,
+            bemgr__Description__c: info.fields.Description__c,
+            bemgr__Amount__c: info.fields.Amount__c
+        }
+    };
+    const draft = {
+        Name: 'Lunch',
+        bemgr__Description__c: null,
+        Description__c: 'Stale alias',
+        Amount__c: 125,
+        other__Description__c: 'Another package'
+    };
+    expect(filterWritableFields(packagedInfo, draft, 'update')).toEqual({
+        Name: 'Lunch',
+        bemgr__Description__c: null
+    });
+    expect(canonicalFieldApiName(packagedInfo, 'Amount__c')).toBe('bemgr__Amount__c');
+    expect(canonicalFieldApiName(packagedInfo, 'other__Amount__c')).toBe('other__Amount__c');
+    expect(draft.Description__c).toBe('Stale alias');
+});
+
+it('does not substitute subscriber fields for unreadable package fields', () => {
+    const packagedInfo = {
+        ...info,
+        apiName: 'bemgr__Expense__c',
+        fields: { Description__c: info.fields.Description__c }
+    };
+    expect(canWriteField(packagedInfo, 'Description__c', 'update')).toBe(false);
+    expect(filterWritableFields(packagedInfo, { Description__c: 'Blocked' }, 'update')).toEqual({});
+});
+
+it('reads exact schema paths without crossing namespace boundaries', () => {
+    const row = {
+        bemgr__Amount__c: 125,
+        other__Amount__c: 999,
+        bemgr__Category__r: { bemgr__Expense_Group__r: { Name: 'Personal' } }
+    };
+    expect(getSObjectFieldValue(row, { fieldApiName: 'bemgr__Amount__c' })).toBe(125);
+    expect(
+        getSObjectFieldValue(row, {
+            fieldApiName: 'bemgr__Category__r.bemgr__Expense_Group__r.Name'
+        })
+    ).toBe('Personal');
+    expect(getSObjectFieldValue(row, { fieldApiName: 'Amount__c' })).toBeUndefined();
+    expect(getSObjectFieldValue(null, { fieldApiName: 'bemgr__Amount__c' })).toBeUndefined();
 });

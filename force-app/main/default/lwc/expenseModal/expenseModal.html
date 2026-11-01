@@ -27,7 +27,7 @@
                 </header>
 
                 <lightning-record-edit-form
-                    object-api-name="Expense__c"
+                    object-api-name={expenseObject}
                     record-id={recordId}
                     onload={handleLoad}
                     onsubmit={handleSubmit}
@@ -101,7 +101,7 @@
                             <lightning-messages></lightning-messages>
                             <lightning-input-field
                                 data-initial-focus
-                                field-name="Name"
+                                field-name={fields.name}
                                 value={fieldValue.Name}
                                 disabled={isSubmitting}
                             ></lightning-input-field>
@@ -121,7 +121,7 @@
                             <div class={phpAmountClass}>
                                 <lightning-input-field
                                     data-field="phpAmount"
-                                    field-name="Amount__c"
+                                    field-name={fields.amount}
                                     value={fieldValue.Amount__c}
                                     disabled={isPhpAmountDisabled}
                                 >
@@ -271,27 +271,27 @@
                                 aria-hidden="true"
                             >
                                 <lightning-input-field
-                                    field-name="Original_Amount__c"
+                                    field-name={fields.originalAmount}
                                     value={fieldValue.Original_Amount__c}
                                     disabled={isSubmitting}
                                 ></lightning-input-field>
                                 <lightning-input-field
-                                    field-name="Original_Currency_Code__c"
+                                    field-name={fields.originalCurrency}
                                     value={fieldValue.Original_Currency_Code__c}
                                     disabled={isSubmitting}
                                 ></lightning-input-field>
                                 <lightning-input-field
-                                    field-name="Exchange_Rate_To_PHP__c"
+                                    field-name={fields.rate}
                                     value={fieldValue.Exchange_Rate_To_PHP__c}
                                     disabled={isSubmitting}
                                 ></lightning-input-field>
                                 <lightning-input-field
-                                    field-name="Exchange_Rate_Date__c"
+                                    field-name={fields.rateDate}
                                     value={fieldValue.Exchange_Rate_Date__c}
                                     disabled={isSubmitting}
                                 ></lightning-input-field>
                                 <lightning-input-field
-                                    field-name="Exchange_Rate_Source__c"
+                                    field-name={fields.rateSource}
                                     value={fieldValue.Exchange_Rate_Source__c}
                                     disabled={isSubmitting}
                                 ></lightning-input-field>
@@ -346,7 +346,7 @@
                                 <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
                                     <lightning-input-field
                                         class="date-format-hide"
-                                        field-name="Expense_Date__c"
+                                        field-name={fields.date}
                                         value={fieldValue.Expense_Date__c}
                                         disabled={isExpenseDateDisabled}
                                         onchange={handleExpenseDateChange}

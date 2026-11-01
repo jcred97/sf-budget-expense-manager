@@ -1,9 +1,14 @@
 @IsTest
 private class RecurringExpenseSchedulerTest {
+    @TestSetup
+    static void permissions() {
+        AppTestPermissions.grantAdmin();
+    }
+
     @IsTest
     static void testScheduledRunStartsBatch() {
         insert new Budget_Expense_Manager_Setting__c(Name = 'Default', Recurring_Expenses_Enabled__c = true, Base_Currency_Code__c = 'PHP');
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Date dueDate = Date.today();
             Recurring_Expense__c recurringExpense = createDueRecurringExpense(dueDate);
 
@@ -44,7 +49,7 @@ private class RecurringExpenseSchedulerTest {
 
     @IsTest
     static void testScheduledRunSkipsWhenDisabled() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Date dueDate = Date.today();
             createDueRecurringExpense(dueDate);
 

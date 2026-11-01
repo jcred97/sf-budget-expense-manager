@@ -1,6 +1,8 @@
 {
     "orgName": "Budget & Expense Manager Development",
     "edition": "Developer",
+    "country": "PH",
+    "language": "en_US",
     "features": ["EnableSetPasswordInApi"],
     "settings": {
         "lightningExperienceSettings": {

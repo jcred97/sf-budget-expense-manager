@@ -4,6 +4,8 @@ Shared documentation for contributors and agents. Source was reviewed on 2026-09
 
 ## Current Guidance
 
+- [Getting started](getting-started.md): source deployment, permissions, and a synthetic demo workflow.
+
 - [Project overview](project-overview.md): purpose and capabilities.
 - [Architecture](architecture.md) and [architecture image](assets/architecture.svg): model, runtime flows, security, and limits.
 - [Components](components.md): LWC and Apex responsibilities.

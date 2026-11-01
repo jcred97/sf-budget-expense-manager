@@ -156,7 +156,7 @@
                                 <lightning-input-field
                                     class="slds-var-m-bottom_small"
                                     data-initial-focus
-                                    field-name="Name"
+                                    field-name={fields.name}
                                     required
                                     disabled={areRecordFieldsDisabled}
                                 ></lightning-input-field>
@@ -223,14 +223,14 @@
 
                                 <lightning-input-field
                                     class="slds-var-m-bottom_small"
-                                    field-name="Amount__c"
+                                    field-name={fields.amount}
                                     required
                                     disabled={areRecordFieldsDisabled}
                                 ></lightning-input-field>
 
                                 <lightning-input-field
                                     class="slds-var-m-bottom_small"
-                                    field-name="Description__c"
+                                    field-name={fields.description}
                                     disabled={areRecordFieldsDisabled}
                                 ></lightning-input-field>
 
@@ -325,7 +325,7 @@
                             <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
                                 <lightning-input-field
                                     class="slds-var-m-bottom_small"
-                                    field-name="Frequency__c"
+                                    field-name={fields.frequency}
                                     required
                                     disabled={areRecordFieldsDisabled}
                                 ></lightning-input-field>
@@ -333,7 +333,7 @@
                                 <lightning-input-field
                                     class="slds-var-m-bottom_small"
                                     data-field="start-date"
-                                    field-name="Start_Date__c"
+                                    field-name={fields.startDate}
                                     required
                                     disabled={areRecordFieldsDisabled}
                                     onchange={handleDateChange}
@@ -341,7 +341,7 @@
 
                                 <lightning-input-field
                                     class="slds-var-m-bottom_small"
-                                    field-name="End_Date__c"
+                                    field-name={fields.endDate}
                                     disabled={areRecordFieldsDisabled}
                                     onchange={handleDateChange}
                                 ></lightning-input-field>
@@ -360,7 +360,7 @@
 
                                 <lightning-input-field
                                     class="slds-var-m-bottom_small"
-                                    field-name="Active__c"
+                                    field-name={fields.active}
                                     disabled={areRecordFieldsDisabled}
                                 ></lightning-input-field>
 

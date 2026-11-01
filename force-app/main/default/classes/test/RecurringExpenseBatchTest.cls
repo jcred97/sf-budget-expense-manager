@@ -2,122 +2,111 @@
 private class RecurringExpenseBatchTest {
     @TestSetup
     static void automationPermission() {
-        PermissionSet adminPermission = [
-            SELECT Id
-            FROM PermissionSet
-            WHERE Name = 'Budget_Expense_Manager_Admin' AND (NamespacePrefix = 'bemgr' OR NamespacePrefix = NULL)
-            ORDER BY NamespacePrefix DESC NULLS LAST
-            LIMIT 1
-        ];
-        if (
-            [
-                SELECT COUNT()
-                FROM PermissionSetAssignment
-                WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :adminPermission.Id
-            ] == 0
-        ) {
-            insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = adminPermission.Id);
-        }
+        AppTestPermissions.grantAdmin();
     }
 
     @IsTest
     static void testCappedExecutePreservesCatchUpAndResumesWithoutDuplicates() {
-        Date runDate = Date.newInstance(2026, 5, 3);
-        Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Catch up');
-        insert expenseGroup;
-        Category__c category = new Category__c(Name = 'Daily', Expense_Group__c = expenseGroup.Id);
-        insert category;
-        Recurring_Expense__c template = new Recurring_Expense__c(
-            Name = 'Catch up',
-            Active__c = true,
-            Amount__c = 10,
-            Category__c = category.Id,
-            Frequency__c = 'Daily',
-            Start_Date__c = runDate.addDays(-2),
-            Next_Run_Date__c = runDate.addDays(-2),
-            Transaction_Type__c = 'Cash'
-        );
-        insert template;
-        // This empty job supplies a real platform identity; the production execute path below uses a small cap.
-        Test.startTest();
-        Id jobId = Database.executeBatch(new RecurringExpenseBatch(runDate.addDays(-3)), 1);
-        Test.stopTest();
-        RecurringExpenseBatch firstRun = new RecurringExpenseBatch(runDate);
-        firstRun.generationLimit = 2;
-        firstRun.execute(null, new List<SObject>{ template });
-        System.assertEquals(true, firstRun.hasCatchUpRemaining);
-        System.assertEquals(2, firstRun.totalExpensesCreated);
-        System.assertEquals(runDate, [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id].Next_Run_Date__c);
-        firstRun.execute(null, new List<SObject>());
-        System.assertEquals(true, firstRun.hasCatchUpRemaining, 'A later empty chunk cannot clear the cap flag.');
-        firstRun.finishWithJob(failedJobSnapshot(jobId, 0));
-        Budget_Expense_Manager_Setting__c settings = [
-            SELECT Last_Recurring_Run_Status__c, Last_Recurring_Run_Message__c
-            FROM Budget_Expense_Manager_Setting__c
-            LIMIT 1
-        ];
-        System.assertEquals('Completed; catch-up may remain', settings.Last_Recurring_Run_Status__c);
-        System.assert(settings.Last_Recurring_Run_Message__c.contains('Generation limit reached'));
-        RecurringExpenseRunStatus status = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
-        System.assertEquals(true, status.outcomeAvailable);
-        System.assertEquals(true, status.hasCatchUpRemaining);
+        System.runAs(AppTestPermissions.adminActor()) {
+            Date runDate = Date.newInstance(2026, 5, 3);
+            Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Catch up');
+            insert expenseGroup;
+            Category__c category = new Category__c(Name = 'Daily', Expense_Group__c = expenseGroup.Id);
+            insert category;
+            Recurring_Expense__c template = new Recurring_Expense__c(
+                Name = 'Catch up',
+                Active__c = true,
+                Amount__c = 10,
+                Category__c = category.Id,
+                Frequency__c = 'Daily',
+                Start_Date__c = runDate.addDays(-2),
+                Next_Run_Date__c = runDate.addDays(-2),
+                Transaction_Type__c = 'Cash'
+            );
+            insert template;
+            // This empty job supplies a real platform identity; the production execute path below uses a small cap.
+            Test.startTest();
+            Id jobId = Database.executeBatch(new RecurringExpenseBatch(runDate.addDays(-3)), 1);
+            Test.stopTest();
+            RecurringExpenseBatch firstRun = new RecurringExpenseBatch(runDate);
+            firstRun.generationLimit = 2;
+            firstRun.execute(null, new List<SObject>{ template });
+            System.assertEquals(true, firstRun.hasCatchUpRemaining);
+            System.assertEquals(2, firstRun.totalExpensesCreated);
+            System.assertEquals(runDate, [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id].Next_Run_Date__c);
+            firstRun.execute(null, new List<SObject>());
+            System.assertEquals(true, firstRun.hasCatchUpRemaining, 'A later empty chunk cannot clear the cap flag.');
+            firstRun.finishWithJob(failedJobSnapshot(jobId, 0));
+            Budget_Expense_Manager_Setting__c settings = [
+                SELECT Last_Recurring_Run_Status__c, Last_Recurring_Run_Message__c
+                FROM Budget_Expense_Manager_Setting__c
+                LIMIT 1
+            ];
+            System.assertEquals('Completed; catch-up may remain', settings.Last_Recurring_Run_Status__c);
+            System.assert(settings.Last_Recurring_Run_Message__c.contains('Generation limit reached'));
+            RecurringExpenseRunStatus status = RecurringExpenseAutomationController.getRecurringRunStatus(jobId);
+            System.assertEquals(true, status.outcomeAvailable);
+            System.assertEquals(true, status.hasCatchUpRemaining);
 
-        RecurringExpenseBatch secondRun = new RecurringExpenseBatch(runDate);
-        secondRun.generationLimit = 2;
-        // Deliberately reuse the stale candidate: the generator must reload its committed pointer.
-        secondRun.execute(null, new List<SObject>{ template });
-        System.assertEquals(false, secondRun.hasCatchUpRemaining);
-        System.assertEquals(1, secondRun.totalExpensesCreated);
-        System.assertEquals(
-            runDate.addDays(1),
-            [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id].Next_Run_Date__c
-        );
-        List<AggregateResult> dates = [
-            SELECT Expense_Date__c, COUNT(Id) occurrences
-            FROM Expense__c
-            WHERE Recurring_Expense__c = :template.Id
-            GROUP BY Expense_Date__c
-        ];
-        System.assertEquals(3, dates.size());
-        for (AggregateResult occurrence : dates) {
-            System.assertEquals(1, (Integer) occurrence.get('occurrences'), 'Catch-up must never replay a generated date.');
+            RecurringExpenseBatch secondRun = new RecurringExpenseBatch(runDate);
+            secondRun.generationLimit = 2;
+            // Deliberately reuse the stale candidate: the generator must reload its committed pointer.
+            secondRun.execute(null, new List<SObject>{ template });
+            System.assertEquals(false, secondRun.hasCatchUpRemaining);
+            System.assertEquals(1, secondRun.totalExpensesCreated);
+            System.assertEquals(
+                runDate.addDays(1),
+                [SELECT Next_Run_Date__c FROM Recurring_Expense__c WHERE Id = :template.Id].Next_Run_Date__c
+            );
+            List<AggregateResult> dates = [
+                SELECT Expense_Date__c, COUNT(Id) occurrences
+                FROM Expense__c
+                WHERE Recurring_Expense__c = :template.Id
+                GROUP BY Expense_Date__c
+            ];
+            System.assertEquals(3, dates.size());
+            for (AggregateResult occurrence : dates) {
+                System.assertEquals(1, (Integer) occurrence.get('occurrences'), 'Catch-up must never replay a generated date.');
+            }
+            firstRun.finishWithJob(failedJobSnapshot(jobId, 1));
+            System.assertEquals(
+                'Completed with errors',
+                [SELECT Last_Recurring_Run_Status__c FROM Budget_Expense_Manager_Setting__c LIMIT 1].Last_Recurring_Run_Status__c,
+                'Errors take precedence over the cap warning.'
+            );
         }
-        firstRun.finishWithJob(failedJobSnapshot(jobId, 1));
-        System.assertEquals(
-            'Completed with errors',
-            [SELECT Last_Recurring_Run_Status__c FROM Budget_Expense_Manager_Setting__c LIMIT 1].Last_Recurring_Run_Status__c,
-            'Errors take precedence over the cap warning.'
-        );
     }
 
     @IsTest
     static void testExactCapIsCompleteWhenNoDueOccurrenceRemains() {
-        Date runDate = Date.newInstance(2026, 5, 3);
-        Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Exact cap');
-        insert expenseGroup;
-        Category__c category = new Category__c(Name = 'Daily', Expense_Group__c = expenseGroup.Id);
-        insert category;
-        Recurring_Expense__c template = new Recurring_Expense__c(
-            Name = 'Exact',
-            Active__c = true,
-            Amount__c = 10,
-            Category__c = category.Id,
-            Frequency__c = 'Daily',
-            Start_Date__c = runDate.addDays(-1),
-            Next_Run_Date__c = runDate.addDays(-1),
-            Transaction_Type__c = 'Cash'
-        );
-        insert template;
-        RecurringExpenseBatch batch = new RecurringExpenseBatch(runDate);
-        batch.generationLimit = 2;
-        batch.execute(null, new List<SObject>{ template });
-        System.assertEquals(2, batch.totalExpensesCreated);
-        System.assertEquals(false, batch.hasCatchUpRemaining, 'Reaching the cap exactly is not incomplete by itself.');
+        System.runAs(AppTestPermissions.adminActor()) {
+            Date runDate = Date.newInstance(2026, 5, 3);
+            Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Exact cap');
+            insert expenseGroup;
+            Category__c category = new Category__c(Name = 'Daily', Expense_Group__c = expenseGroup.Id);
+            insert category;
+            Recurring_Expense__c template = new Recurring_Expense__c(
+                Name = 'Exact',
+                Active__c = true,
+                Amount__c = 10,
+                Category__c = category.Id,
+                Frequency__c = 'Daily',
+                Start_Date__c = runDate.addDays(-1),
+                Next_Run_Date__c = runDate.addDays(-1),
+                Transaction_Type__c = 'Cash'
+            );
+            insert template;
+            RecurringExpenseBatch batch = new RecurringExpenseBatch(runDate);
+            batch.generationLimit = 2;
+            batch.execute(null, new List<SObject>{ template });
+            System.assertEquals(2, batch.totalExpensesCreated);
+            System.assertEquals(false, batch.hasCatchUpRemaining, 'Reaching the cap exactly is not incomplete by itself.');
+        }
     }
 
     @IsTest
     static void testFinishReportsFailureInsteadOfNothingDue() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Test.startTest();
             Id jobId = Database.executeBatch(new RecurringExpenseBatch(), 1);
             Test.stopTest();
@@ -139,7 +128,7 @@ private class RecurringExpenseBatchTest {
 
     @IsTest
     static void testFinishPreservesPartialSuccessCount() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Test.startTest();
             Id jobId = Database.executeBatch(new RecurringExpenseBatch(), 1);
             Test.stopTest();
@@ -166,7 +155,7 @@ private class RecurringExpenseBatchTest {
 
     @IsTest
     static void testBatchProcessesMoreThanManualRunCap() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Health');
             insert expenseGroup;
 
@@ -241,7 +230,7 @@ private class RecurringExpenseBatchTest {
 
     @IsTest
     static void testDefaultConstructorRunsForToday() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Test.startTest();
             Id jobId = Database.executeBatch(new RecurringExpenseBatch(), 1);
             Test.stopTest();
@@ -252,7 +241,7 @@ private class RecurringExpenseBatchTest {
 
     @IsTest
     static void testBatchSkipsAlreadyEndedPointer() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Expense_Group__c expenseGroup = new Expense_Group__c(Name = 'Ended Group');
             insert expenseGroup;
             Category__c category = new Category__c(Name = 'Ended Category', Expense_Group__c = expenseGroup.Id);
@@ -311,7 +300,7 @@ private class RecurringExpenseBatchTest {
 
     @IsTest
     static void testConstructorRejectsNullRunDate() {
-        System.runAs(new User(Id = UserInfo.getUserId())) {
+        System.runAs(AppTestPermissions.adminActor()) {
             Boolean exceptionThrown = false;
 
             try {

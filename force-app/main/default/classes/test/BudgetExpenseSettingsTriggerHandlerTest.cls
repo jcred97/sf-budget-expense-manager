@@ -1,5 +1,10 @@
 @IsTest
 private class BudgetExpenseSettingsTriggerHandlerTest {
+    @TestSetup
+    static void setupPermissions() {
+        AppTestPermissions.grantAdmin();
+    }
+
     private static final String SINGLETON_ERROR_MESSAGE = 'Only one Budget & Expense Manager settings record can exist.';
     private static final String INVALID_CURRENCY_ERROR_MESSAGE = 'Base Currency Code must be a three-letter uppercase ISO currency code.';
     private static final String IMMUTABLE_CURRENCY_ERROR_MESSAGE = 'Base Currency Code is fixed after initialization.';

@@ -1,167 +1,82 @@
 # Budget & Expense Manager
 
-Budget & Expense Manager is a Salesforce Lightning Web Components application for organizing expenses, optional monthly budgets, recurring entries, foreign-currency purchases, and spending insights in Salesforce.
+Track spending, compare monthly budgets, and automate recurring expenses inside Salesforce.
 
-```text
-Expense_Group__c
-|- Budget__c (optional, one per month)
-|- Expense_Group_Bank__c -> Bank__c (global institution)
-`- Category__c -> Expense__c
-```
+Expense records should help answer practical questions: Where did the money go? How much of this month's budget remains? Which regular payments are due? Budget & Expense Manager brings those workflows into one Lightning workspace.
 
-The project is being prepared as a second-generation managed package with the registered namespace `bemgr`. Local source remains namespace-neutral; Salesforce applies `bemgr` when source is deployed to a namespaced scratch org or built into the managed package.
+Built for Salesforce users who want to organize spending by expense group and category, with PHP as the reporting currency.
 
-## Features
+**Lightning Web Components · Apex · Batch Apex · SLDS · Jest**
 
-- Manage expenses under expense groups and categories.
-- Optionally record a foreign-currency purchase with its original amount, historical PHP rate, effective date, and source while keeping reporting in PHP.
-- Reuse global Bank records while each expense group controls which Banks are available.
-- Filter and search expenses by group, category, date, name, bank, and transaction type.
-- Review total spending, averages, leading categories and banks, recent expenses, and monthly trends.
-- Optionally set monthly budgets for an expense group, track spent/remaining/over amounts, and compare the last six months on the Dashboard.
-- Add, edit, duplicate, delete, and bulk-delete expenses.
-- Add and edit recurring-expense templates in the workspace, then generate due expenses through Batch Apex.
-- Configure global recurring automation.
-- Export filtered expenses to CSV and open a print/PDF-friendly report.
-- Use responsive, accessible modal and workspace interactions built with Lightning and SLDS patterns.
+[Try it in a development org](docs/getting-started.md) · [Architecture](docs/architecture.md) · [Verification](docs/testing-and-tooling.md) · [Known limitations](docs/review-findings.md)
 
-Reporting remains PHP-focused and is centralized in `expenseFormatters`. Foreign-currency details are optional audit data on an expense; `Expense__c.Amount__c` remains the converted PHP amount used by budgets, totals, charts, CSV, and print output.
+## What you can do
 
-## Data Model
+- **Understand monthly spending.** Review category and bank breakdowns, trends, and recent purchases. Add an optional monthly budget without changing how expenses are recorded.
+- **Manage daily expenses.** Add, edit, duplicate, filter, and delete entries; export filtered records to CSV or a print/PDF view.
+- **Keep foreign purchases explainable.** Store the original amount and historical exchange-rate details alongside the PHP amount used in reports.
+- **Reduce repeated entry.** Create recurring templates and generate due expenses through scheduled or manually queued Batch Apex.
 
-- `Expense_Group__c` — top-level expense workspace.
-- `Bank__c` — global, reusable financial-institution record.
-- `Expense_Group_Bank__c` — active/inactive assignment of one global Bank to one expense group.
-- `Budget__c` — optional monthly spending target for an expense group; absence of a record means budgeting is off for that month.
-- `Category__c` — master-detail child of an expense group.
-- `Expense__c` — master-detail child of a category and optionally to its recurring template; it can also retain an original amount/currency and the historical rate used to calculate its canonical PHP amount.
-- `Recurring_Expense__c` — recurring template with frequency, active state, and next-run pointer.
-- `Budget_Expense_Manager_Setting__c` — singleton global automation settings, stable base-currency code, and last-run state.
+## A quick walkthrough
 
-## Architecture
+In a development org with synthetic data:
 
-Source reviewed on **2026-09-30**, at application commit `6d0e13d`. The diagram describes the repository, not the live org. The latest simplifications are pushed; deployment and obsolete-metadata cleanup remain deferred.
+1. Create a **Demo Household** expense group with **Food** and **Bills** categories.
+2. Add an expense for PHP 250 and set a PHP 5,000 monthly budget. The Dashboard shows spending against the target.
+3. Filter the Expenses screen to Food, inspect the entry, and export the matching records.
+4. Add a monthly recurring bill and inspect its next-run date. An admin can configure the daily run in Settings.
 
-![Current Salesforce application architecture](docs/assets/architecture.svg)
+The [setup guide](docs/getting-started.md) takes you from a checkout to this workflow. Screenshots and a recorded walkthrough are not included yet.
 
-[Documentation index](docs/README.md) · [Detailed architecture](docs/architecture.md) · [Component inventory](docs/components.md) · [Open review findings](docs/review-findings.md) · [Testing notes](docs/testing-and-tooling.md)
+## Engineering decisions
 
-### Apex
+### Preserve the financial record
 
-- `BankController`, `BudgetController`, `CurrencyContextController`, `ExchangeRateController`, `ExpenseController`, `RecurringExpenseController`, `RecurringExpenseAutomationController`, and `SettingsController` — the only Lightning-facing Apex entry points.
-- Top-level classes under `classes/dto` define stable LWC request and response contracts; DTOs contain data and mapping only, not validation or persistence logic.
-- `ExpenseController` owns its simple Expense Group and Category lookups; `BankController` owns its group-scoped Bank lookup and DTO mapping. All three lookups use user-mode queries.
-- Extract services for substantial business logic or actual reuse; simple endpoint-specific queries do not need a separate service or selector class.
-- `BudgetService` — user-mode lookup, validation, and mutation of optional monthly expense-group budgets.
-- `ExpenseQueryService`, `ExpensePageService`, and `ExpenseCommandService` — scoped user-mode reads, keyset pagination, and deletion.
-- `ExchangeRateService`, `FrankfurterExchangeRateProvider`, and `ExpenseCurrencyService` — validated ECB reference-rate lookup plus bulk-safe foreign-currency snapshot validation and PHP calculation.
-- `CurrencyContextService` and `SalesforceOrganizationCurrencyProvider` — read-only access to the pinned app reporting currency plus Salesforce single-/multi-currency initialization.
-- `RecurringExpenseCalculator`, `RecurringExpenseGenerator`, and `RecurringExpenseService` — recurring-expense calculation and generation services; Batch and Schedulable entry points live under `classes/async`.
-- `BudgetExpenseSettingsService` — singleton settings, one-time base-currency initialization, pinned-code validation rules, and scheduler coordination.
-- Bank assignment, budget, recurring-expense, and settings trigger handlers keep generated keys and cross-object invariants outside thin triggers.
+Foreign-currency expenses retain the original amount, currency, rate, effective date, and source. Reports use a canonical PHP amount instead of recalculating old purchases at today's rate. Apex trigger validation checks the snapshot for UI, import, and API writes; a manual settled-rate option supports cases where a reference estimate is unsuitable.
 
-### Lightning Web Components
+See [currency validation](force-app/main/default/classes/service/ExpenseCurrencyService.cls) and its [regression tests](force-app/main/default/classes/test/ExpenseCurrencyServiceTest.cls).
 
-- `budgetExpenseManager` — group selection, navigation, shared Category/Bank lookups, and cross-screen refresh coordination. The three screen components remain mounted across navigation and own their workflows.
-- `expenseWorkspaceData` — imperative workspace read gateway for expenses, dashboard trend and budget-history data, and group-scoped Bank options.
-- `expenseWorkspaceViewModels` — per-owner memoization for the Dashboard and Expenses builders. Recurring builds its display model directly.
-- `expenseMonthNavigator` and `expensePrintReport` — reusable month navigation and isolated print/PDF presentation.
-- `expenseDashboard` and `expenseDashboardViewModel` — independent month selection, dashboard data loading/errors, budget refresh, and pure derived presentation.
-- `budgetPanel`, `budgetModal`, and `budgetHistory` — optional monthly budget status and mutations plus a six-month budget-versus-spending comparison.
-- The Salesforce app navigation includes a standard **Budgets** tab for list-view and record-level administration.
-- `expenseList` and `expenseListViewModel` — filters, cursor pagination, selection, deletion/rollback, modal ownership, CSV/print orchestration, and derived list presentation.
-- `recurringExpenses` and `recurringExpenseViewModel` — recurring overview loading, Add/Edit modal ownership, deactivation, batch launch, and derived summaries.
-- `recurringExpenseModal` — accessible Add/Edit workflow with group-scoped Category and Bank choices and a system-managed next-run pointer.
-- `expenseModal` — add, edit, and duplicate workflow.
-- `expenseCurrencyMath` and `expenseExchangeRateData` — exact decimal HALF_UP conversion plus the imperative, nonvisual gateway from the expense modal to the exchange-rate controller.
-- `budgetExpenseSettings` — global recurring-automation controls.
-- `expenseBarChart`, `expenseTrendChart`, and `expenseSummaryCards` — reusable visualization components.
-- `recurringExpenseViewModel` — recurring row display values and summary cards, built together from the server overview.
-- `expenseTransforms`, `expenseFormatters`, `expenseWorkspaceConfig`, `expenseErrorUtils`, `modalFocusUtils`, and `expenseCsvExport` — focused mapping, formatting, workspace-configuration, error, modal-accessibility, and export modules.
+### Treat recurring dates as business rules
 
-Public component properties, event contracts, Apex DTO fields, and the existing neutral business-object APIs were preserved during the API rebrand.
+Monthly and yearly recurrence preserve the original date anchor across short months and leap years. The generator tracks the next unprocessed date so later runs can continue catching up. Settings saves repair a missing schedule when automation is enabled, while unchanged valid schedules keep their owner and timezone.
 
-## Package Identity
+See [recurrence calculation](force-app/main/default/classes/service/RecurringExpenseCalculator.cls), [date tests](force-app/main/default/classes/test/RecurringExpenseCalculatorTest.cls), and [schedule recovery tests](force-app/main/default/classes/test/BudgetExpenseSettingsServiceTest.cls).
 
-| Concern                    | Value                                                                                              |
-| -------------------------- | -------------------------------------------------------------------------------------------------- |
-| Product/package label      | Budget & Expense Manager                                                                           |
-| Namespace                  | `bemgr`                                                                                            |
-| Salesforce application API | `Budget_Expense_Manager`                                                                           |
-| Main LWC                   | `budgetExpenseManager`                                                                             |
-| Settings object            | `Budget_Expense_Manager_Setting__c`                                                                |
-| Permission sets            | `Budget_Expense_Manager_User`, `Budget_Expense_Manager_Admin`, `Budget_Expense_Manager_All_Access` |
-| Source API version         | `65.0`                                                                                             |
+### Give each screen clear ownership
 
-The GitHub repository is `jcred97/sf-budget-expense-manager`, `origin` uses `https://github.com/jcred97/sf-budget-expense-manager.git`, and the local checkout is `F:\Software Development\Salesforce\Personal\sf-budget-expense-manager`. The completed repository-identity work is recorded in `docs/history/repository-rename.md`.
+Dashboard, Expenses, and Recurring own their loading state, data, and actions. The app shell coordinates navigation, shared lookups, and refreshes. Recent refactoring moved workflows back to their screens and removed unnecessary indirection. The lesson: extract abstractions when substantial logic or actual reuse warrants them.
 
-## Project Structure
+The central data hierarchy is Expense Group → Category → Expense, with optional monthly budgets per group. Generated expenses reference their recurring template through an optional lookup.
 
-```text
-sf-budget-expense-manager/
-|- AGENTS.md
-|- README.md
-|- docs/  # current project documentation
-|  |- assets/  # architecture diagram
-|  `- history/  # earlier verification and migration records
-|- config/
-|- manifest/
-|- force-app/main/default/
-|  |- applications/
-|  |- classes/{async,controller,dto,handler,service,test}/
-|  |- contentassets/
-|  |- flexipages/
-|  |- layouts/
-|  |- lwc/
-|  |- objects/
-|  |- permissionsets/
-|  |- tabs/
-|  `- triggers/
-|- package.json
-`- sfdx-project.json
-```
+[View the architecture diagram](docs/assets/architecture.svg) · [Component responsibilities](docs/components.md)
 
-## Local Development
+## Run and test
 
-Requirements:
-
-- Salesforce CLI
-- Node.js and npm
-- A Dev Hub linked to the `bemgr` namespace
-- Namespaced scratch orgs for development and package validation
-
-Useful commands:
+You need Salesforce CLI, Node.js/npm, and a Salesforce development org with administrative access. A namespace-linked Dev Hub is needed for the future namespaced packaging workflow, not for the unpackaged demo route.
 
 ```bash
-npm install
+git clone https://github.com/jcred97/sf-budget-expense-manager.git
+cd sf-budget-expense-manager
+npm ci
 npm run lint
-npm run test:unit
-npm run prettier:verify
-sf code-analyzer run --workspace force-app --view detail
+npm run test:unit -- -- --runInBand
 ```
 
-The repository-wide `prettier:verify` command currently reports legacy formatting debt outside the rebrand-owned files. Use targeted Prettier checks for changed files until that broader cleanup is handled separately.
+The frontend runs in Salesforce; there is no standalone npm start server. Follow [Getting started](docs/getting-started.md) for validation, source deployment, permissions, and first records.
 
-`mainDevOrg` is currently the interim unpackaged development target while feature work and violation cleanup continue. Direct source deployments there remain unprefixed. Keep `bemgr` in `sfdx-project.json`; when package work begins, use a Dev Hub linked to that namespace and validate the same source in a namespaced scratch org before creating 2GP metadata.
+Recorded verification on 2026-09-30:
 
-## Testing
+- Frontend baseline: 66 tests across 9 suites and lint passed; a later settings suite added 5 passing regression tests.
+- Schedule-recovery check-only validation: 19/19 Apex tests passed across settings, batch, and scheduler suites; the changed settings service had 93.14% coverage.
 
-Eighteen Apex test classes cover global Bank assignments, expense queries and commands, optional monthly budgets, exchange-rate callouts, foreign-currency integrity, recurring calculation and generation, batch and scheduler behavior, trigger handlers, singleton settings, and run-status tracking.
+These are scoped results, not a claim that every component or live-org workflow was tested. See [verification details and remaining coverage gaps](docs/testing-and-tooling.md).
 
-The 2026-09-30 source review passed **66 Jest tests across 9 suites** and `npm run lint`. Suites cover the workspace integration, three screens, expense modal, recurring view model, transforms, workspace data, and CSV export. Screen tests mount their owning component directly; integration tests remain with the manager.
+## Scope and next improvements
 
-Apex tests were not rerun and the live org was not inspected during that review. Direct settings, budget-panel/dialog, recurring-dialog and FX-interaction coverage remains incomplete; Jest does not verify browser print layout. See [testing notes](docs/testing-and-tooling.md) for current checks and historical deployment evidence.
+Reporting and recurring templates remain PHP-focused. Expense groups and recurring templates use shared internal access rather than private per-user budgeting.
 
-## Open Review Findings
+The next improvements are clearer batch-completion feedback, permission-aware visibility for Run Recurring, and complete recurring summaries beyond 500 templates. Dashboard and full-report memory usage also need consideration for larger datasets. [Tracked findings](docs/review-findings.md) explain the triggers and proposed fixes.
 
-Settings now require successful loading before editing or saving, with Retry after failure and guards against overlapping requests. Missing-schedule recovery on enabled saves passed check-only validation with 19/19 Apex tests and 93.14% service coverage. Neither fix is deployed. Three issues remain open: Run Recurring exposed to the regular User role, refreshing on batch enqueue rather than completion, and incomplete recurring summaries above 500 templates. [Reproduction conditions and proposed fixes](docs/review-findings.md).
+The latest settings fixes and screen refactors are in source; deployment to the existing development org and obsolete-metadata cleanup remain deferred. A fresh source deployment and the existing org may therefore differ. Managed-package creation under the configured bemgr namespace is pending.
 
-Groups and recurring templates use internal Public Read/Write sharing; this is not private-per-user budgeting by default. Admin and All Access currently grant equivalent object/controller capabilities. Permission sets remain additive to other org permissions.
-
-## Historical Rebrand and Existing Data
-
-The following is the recorded rebrand outcome, not a fresh live-org assertion as of 2026-09-30. It does not imply the later refactors or their cleanup have been deployed.
-
-The unpackaged API rebrand and its approved legacy cleanup are deployed to `mainDevOrg`. The existing expense-group, category, expense, and recurring-template APIs were deliberately left unchanged, so their records and IDs remain in place. The settings record, all-access assignment, and recurring schedule were mapped to the rebranded identities and verified.
-
-The recorded inventory found no live Spendly-named metadata after cleanup deployment `0AfgK00000QSI4fSAH`. The old settings row was exported first, the legacy custom object was not purged, and post-cleanup reconciliation retained 3 expense groups, 18 categories, 11 recurring templates, 504 expenses, and 23 recurring links. See `docs/history/api-rebrand.md` and `manifest/legacy-spendly-destructive.xml` for the rename matrix, deployment evidence, and cleanup boundary. The one-off migration scripts were removed after the verified cutovers. The rebrand is committed and pushed as `50e1eeb`, and the GitHub repository and local checkout now use `sf-budget-expense-manager`; managed-package creation remains pending.
+For deeper detail, start with the [documentation index](docs/README.md). Implementation inventories, conventions, and migration history live there.
