@@ -6,7 +6,7 @@
 <rect width="1440" height="1460" fill="#f4f7fb"/>
 <text x="48" y="58" class="title">Budget &amp; Expense Manager</text>
 <text x="48" y="91" class="body">Current source architecture · Salesforce API 65.0 · namespace bemgr</text>
-<text x="48" y="119" class="small">Reviewed 30 September 2026 · latest refactor deployment and org cleanup remain deferred</text>
+<text x="48" y="119" class="small">Source architecture · see testing notes for later deployments and package verification</text>
 <text x="48" y="163" class="section">01  LIGHTNING ENTRY POINTS</text>
 <rect x="48" y="180" width="870" height="119" rx="14" fill="#e9f1ff" stroke="#ccd7e5"/>
 <text x="68" y="213" class="head">budgetExpenseManager · workspace shell</text>

@@ -1,6 +1,6 @@
 # Project Structure
 
-Source inventory verified on 2026-09-30. Paths below describe the checkout; deployment and removal of retired org metadata are deferred. Salesforce companion `*-meta.xml` files are omitted from the class and bundle listings for readability.
+The inventory below originated with the 2026-09-30 source review and is a guide to repository organization, not an exhaustive generated listing. The November cleanup removed unused assets and completed migration manifests. See [testing and tooling](testing-and-tooling.md) for subsequent deployment and beta-package verification. Salesforce companion `*-meta.xml` files are omitted from the class and bundle listings for readability.
 
 ```text
 sf-budget-expense-manager/
@@ -24,7 +24,6 @@ sf-budget-expense-manager/
       api-rebrand.md
       repository-rename.md
       verification-log.md
-      feature-power-dialer-ui.md
   package.json
   sfdx-project.json
   jest.config.js
@@ -32,10 +31,7 @@ sf-budget-expense-manager/
   config/
     project-scratch-def.json
   manifest/
-    empty-package.xml
-    legacy-spendly-destructive.xml
     package.xml
-    rebrand-deploy.xml
   force-app/main/default/
     applications/
       Budget_Expense_Manager.app-meta.xml
@@ -111,8 +107,6 @@ sf-budget-expense-manager/
         RecurringExpenseServiceTest.cls
         BudgetExpenseSettingsServiceTest.cls
         BudgetExpenseSettingsTriggerHandlerTest.cls
-    contentassets/
-      budgetExpenseManagerLogo.asset
     flexipages/
       Budget_Expense_Manager_UtilityBar.flexipage-meta.xml
       Expense_Record_Page.flexipage-meta.xml
@@ -206,7 +200,5 @@ The checkout directory, GitHub repository, Git remote, and Salesforce DX project
 ## Documentation And Deployment State
 
 `docs/` is the shared project documentation home. Current guidance stays at its root, images in `docs/assets/`, and dated records in `docs/history/`. Root `AGENTS.md` contains operating instructions and links. See the [documentation index](README.md). See [architecture](architecture.md) for relationships, security, runtime flows, and the current open issues.
-
-`manifest/package.xml` describes current deployable source. Rebrand/destructive manifests are historical migration artifacts. The repository-identity record documents earlier completed rename work; it does not mean the latest screen refactors or retired metadata have been deployed/removed. Removing a class or bundle from Git does not remove it from Salesforce. Verify the live org and the exact destructive manifest before the deferred cleanup.
-
+`manifest/package.xml` describes current deployable source. Completed rebrand/destructive manifests were removed from the checkout; their exact contents remain in Git history at `d7c749d`. Completion evidence remains in the historical records and testing notes. Removing a class, bundle, or asset from Git does not remove it from Salesforce or an installed package. Inspect the target before planning any separate destructive deployment.
 `destructive/` is Git-ignored. Do not infer either successful deployment or successful metadata removal from the presence or absence of a local directory. Scheduled jobs, settings records, credential access, and permission-set assignments are runtime state outside this source inventory.

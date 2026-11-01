@@ -75,8 +75,8 @@ These are scoped results, not a claim that every component or live-org workflow 
 
 Reporting and recurring templates remain PHP-focused. Expense groups and recurring templates use shared internal access rather than private per-user budgeting.
 
-The next improvements are clearer batch-completion feedback, permission-aware visibility for Run Recurring, and complete recurring summaries beyond 500 templates. Dashboard and full-report memory usage also need consideration for larger datasets. [Tracked findings](docs/review-findings.md) explain the triggers and proposed fixes.
+Remaining release work includes browser verification of the packaged app and review of large-report limits. [Tracked findings](docs/review-findings.md) preserves the original review and subsequent status updates; [testing notes](docs/testing-and-tooling.md) record implemented fixes and their validation scope.
 
-The latest settings fixes and screen refactors are in source; deployment to the existing development org and obsolete-metadata cleanup remain deferred. A fresh source deployment and the existing org may therefore differ. Managed-package creation under the configured bemgr namespace is pending.
+October deployment records include the settings/refactor rollout and obsolete-metadata cleanup. The `bemgr` managed beta 0.1.0.1 was created and installed in a clean test org; it is not promoted. See [testing and tooling](docs/testing-and-tooling.md) for exact scope, test results, and remaining browser verification. Repository cleanup does not remove metadata from existing orgs or installed packages.
 
 For deeper detail, start with the [documentation index](docs/README.md). Implementation inventories, conventions, and migration history live there.

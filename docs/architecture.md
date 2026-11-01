@@ -204,7 +204,7 @@ entry points live under `classes/async` without changing their Salesforce metada
 
 ## Custom Application
 
-`Budget_Expense_Manager.app-meta.xml` supports Small and Large form factors. Its tabs are `Budget_Expense_Manager`, `Expense_Group__c`, `Bank__c`, `Budget__c`, `Expense__c`, `Recurring_Expense__c`, and `Category__c`; its utility bar is `Budget_Expense_Manager_UtilityBar`. Global Automation Settings is inside the main workspace's App Management view. The renamed `budgetExpenseManagerLogo` content asset is retained in source but is not currently referenced by the application metadata.
+`Budget_Expense_Manager.app-meta.xml` supports Small and Large form factors. Its tabs are `Budget_Expense_Manager`, `Expense_Group__c`, `Bank__c`, `Budget__c`, `Expense__c`, `Recurring_Expense__c`, and `Category__c`; its utility bar is `Budget_Expense_Manager_UtilityBar`. Global Automation Settings is inside the main workspace's App Management view. The unused logo content asset was removed from source during the November repository cleanup; this does not remove assets from existing orgs or installed packages.
 
 ## Permission Sets
 
@@ -326,4 +326,4 @@ Settings saves repair missing/unusable schedules when enabled, even with an unch
 
 API version is `65.0`; the project namespace is `bemgr` and `force-app` is the default package directory. This does not establish managed-package installation status. Current source has no active Flow implementation or populated Aura bundle. Eight controllers, seventeen service/interface classes, nineteen DTOs, six handlers, six triggers, two async classes, and twenty Apex test classes implement the backend.
 
-`manifest/package.xml` is the current deployment set. Historical rebrand/destructive manifests are migration records, not an instruction to replay cleanup. Retired lookup selectors/services and presentation bundles have been removed from source; deleting files in Git does not delete their deployed counterparts. Live scheduled jobs, settings records, permission assignments, credential access, and removed metadata must be checked before the deferred deployment and cleanup. The 2026-09-30 source review passed 66 Jest tests in nine suites and lint; that review did not rerun Apex tests or inspect the live org.
+`manifest/package.xml` is the current deployment set. Completed rebrand/destructive manifests remain available in Git history at `d7c749d`; they are not instructions to replay cleanup. Retired lookup selectors/services and presentation bundles have been removed from source, and October testing notes record the relevant deployment and cleanup results. Deleting files in Git does not delete their deployed counterparts. Inspect live scheduled jobs, settings records, permission assignments, credential access, and metadata before any new deployment or cleanup. See [testing and tooling](testing-and-tooling.md) for the latest scoped verification, including the installed beta package.

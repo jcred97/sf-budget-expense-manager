@@ -1,6 +1,6 @@
 # Project Overview - Budget & Expense Manager
 
-Budget & Expense Manager is a Salesforce Lightning Web Components expense-management app being prepared for a `bemgr` second-generation managed package.
+Budget & Expense Manager is a Salesforce Lightning Web Components expense-management app with a validated `bemgr` second-generation managed beta package.
 
 Users log expenses under a two-level hierarchy and can optionally add one budget per expense group and calendar month:
 
@@ -28,8 +28,8 @@ Foreign-currency entry is optional per Expense. When enabled, the record retains
 
 The record-based Bank migration is additive. `Expense__c.Bank_Assignment__c` and `Recurring_Expense__c.Bank_Assignment__c` are optional during the compatibility window, while the original shared-picklist `Bank__c` fields remain as temporary read-only fallback data until a separately approved cleanup.
 
-The latest screen-ownership refactors are source changes; deployment and obsolete-org-metadata
-cleanup remain deferred. Settings load/save protection and missing-schedule recovery are fixed
-in source; schedule recovery passed check-only Apex validation. The remaining findings are
-manual Run permission visibility, batch-completion feedback, and recurring summaries beyond
-500 templates. See [review findings](review-findings.md) for status and validation evidence.
+The October verification records cover settings recovery, permission-aware manual runs,
+batch completion, complete recurring summaries, and deployed cleanup. Managed beta 0.1.0.1
+was installed in a clean org. See [testing and tooling](testing-and-tooling.md) for exact
+deployment boundaries and remaining verification, and [review findings](review-findings.md)
+for the original review and subsequent status updates.

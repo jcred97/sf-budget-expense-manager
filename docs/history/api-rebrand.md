@@ -82,7 +82,7 @@ Component public properties, custom events, controller method signatures, and se
 
 The settings fields retain their existing APIs. The neutral business APIs `Expense_Group__c`, `Category__c`, `Expense__c`, `Recurring_Expense__c`, and legacy global value set `Bank` also remain unchanged. `Budget__c` was added after the rebrand as the optional monthly expense-group budget object. The later additive Bank work adds `Bank__c`, `Expense_Group_Bank__c`, and optional assignment lookups without removing or converting the legacy `Bank__c` picklist fields; that cleanup remains a separate migration boundary.
 
-The org also contained an older, unreferenced `spendly` content asset that was no longer in the current source tree. Cleanup removed both `spendly` and `spendly1`; `budgetExpenseManagerLogo` remains.
+The org also contained an older, unreferenced `spendly` content asset that was no longer in the current source tree. At that migration, cleanup removed both `spendly` and `spendly1` and retained `budgetExpenseManagerLogo`. The unused replacement asset was later removed from repository source in the November 2026 cleanup; that source removal did not delete deployed org assets.
 
 ## Data-Safe Deployment Requirements
 

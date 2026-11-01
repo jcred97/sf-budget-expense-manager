@@ -96,10 +96,6 @@
         <name>ApexTrigger</name>
     </types>
     <types>
-        <members>budgetExpenseManagerLogo</members>
-        <name>ContentAsset</name>
-    </types>
-    <types>
         <members>Budget_Expense_Manager</members>
         <name>CustomApplication</name>
     </types>

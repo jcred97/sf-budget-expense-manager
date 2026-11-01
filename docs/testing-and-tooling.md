@@ -1,5 +1,23 @@
 # Testing And Tooling
 
+## Repository Cleanup — 2026-11-01
+
+- Removed seven reviewed tracked files: the unused logo asset and metadata,
+  four completed migration manifests, and the unrelated Power Dialer branch note.
+  Updated deployment inventories and documentation references. Completed migration
+  manifests remain recoverable from Git history at `d7c749d`.
+- Removed **80.75 MiB** of disposable local caches and styling research, including
+  three downloaded research archives. Package keys, build/install evidence,
+  rollback/readback records, and Salesforce CLI state were preserved.
+- First-time setup was confirmed through user-provided browser screenshots on
+  2026-10-22, including successful completion and persistence after refresh.
+  Broader modal and recurring UI behavior remains unverified. The two October
+  test scratch orgs expired on 2026-10-28.
+- Targeted Markdown formatting, repository link checks, XML parsing, and whitespace
+  checks passed. Runtime tests were not rerun because no executable code changed.
+- This is repository/local-cache cleanup only; no org metadata was deployed or
+  deleted, and no commit or push was performed.
+
 ## Beta Managed Package Installation — 2026-10-21
 
 - Enabled second-generation packaging on parent Dev Hub alias `devHub` after
@@ -36,10 +54,10 @@
   settings field access, Expense/Recurring CRUD, and all four checked controller
   grants (setup, settings, automation, exchange rates) passed live assertions.
 - Permission assignment left settings uninitialized and no recurring schedule
-  exists. Sample records remain for first-time setup inspection. Browser setup,
-  modal interaction, and visual behavior remain unverified because the local
-  automation runtime could not start; package tests cover the internal controller
-  paths. Main Dev Org was unchanged; no commit or push was performed.
+  exists. Sample records remain for first-time setup inspection. User screenshots subsequently confirmed browser setup and refresh persistence.
+  Broader modal, recurring, and visual browser behavior remains unverified because
+  the local automation runtime could not start; package tests cover internal
+  controller paths. Main Dev Org was unchanged; no commit or push was performed.
 
 ## Namespaced Scratch Integration — 2026-10-21
 
@@ -227,9 +245,9 @@
   `CategorySelector`, and `ExpenseGroupSelector` Apex classes. Read-back confirmed their absence
   and retained `budgetExpenseSettings`. The app and Admin/All Access tab references were removed.
 - Historical source removals, deployed imports, and dependency/reference inspection informed the
-  cleanup. Exact backups remain in ignored `.localdevserver` files. The post-destructive manifest
-  `manifest/obsolete-settings-cleanup.xml` records this one-time cleanup; inspect the target before
-  reusing it. Business-object metadata was outside the cleanup scope.
+  cleanup. Exact backups remain in ignored `.localdevserver` files. The one-time post-destructive manifest is preserved in Git history at `d7c749d`.
+  It was removed from the checkout after completion; inspect the target before planning
+  any new cleanup. Business-object metadata was outside the cleanup scope.
 - The existing daily job retained its identity, owner, timezone, and cron; no temporary Deployment
   Settings change was needed. Live browser testing remains unavailable because the automation
   runtime drive is BitLocker-locked. Actual subscriber installation/layout checks remain separate.
@@ -491,7 +509,7 @@ The Git-ignored `destructive/` directory can be used for temporary destructive m
 sf project deploy start --dry-run --manifest destructive/package.xml --post-destructive-changes destructive/destructiveChanges.xml --target-org your-org-alias
 ```
 
-Run the same command without `--dry-run` only after the validation succeeds. Historically, a destructive deployment removed the legacy `spendlyDataTransforms` bundle after its then-replacement was deployed. The completed API-rebrand cleanup used the reviewed `manifest/legacy-spendly-destructive.xml` file with `manifest/empty-package.xml`; neither validation nor deployment used purge-on-delete.
+Run the same command without `--dry-run` only after the validation succeeds. Historically, a destructive deployment removed the legacy `spendlyDataTransforms` bundle after its then-replacement was deployed. The completed API-rebrand cleanup used a reviewed destructive manifest and an empty companion package; neither validation nor deployment used purge-on-delete. Those completed migration files were removed from the checkout and remain recoverable from Git history at `d7c749d`.
 
 The completed same-org migration scripts were intentionally removed from this app repository after verification. A future unpackaged-to-`bemgr` managed-package data migration is a separate workstream and must use separately reviewed tooling and rollback artifacts.
 

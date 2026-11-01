@@ -1,6 +1,6 @@
 # Project Documentation
 
-Shared documentation for contributors and agents. Source was reviewed on 2026-09-30 at application commit `6d0e13d`. Deployment of later simplifications and obsolete-org-metadata cleanup remain deferred.
+Shared documentation for contributors and agents. The October deployment and beta-package verification records in [testing and tooling](testing-and-tooling.md) supersede the original September source-review baseline. Historical records preserve the state at their recorded dates.
 
 ## Current Guidance
 
@@ -23,6 +23,5 @@ These preserve earlier decisions and evidence. Old pending-work statements, depl
 - [API rebrand](history/api-rebrand.md)
 - [Repository rename](history/repository-rename.md)
 - [Earlier handover](history/handover.md)
-- [Power Dialer branch note](history/feature-power-dialer-ui.md)
 
 Keep current guidance here, images in `assets/`, and dated records in `history/`. Root [AGENTS.md](../AGENTS.md) holds agent instructions. Update the relevant current document when behavior changes instead of maintaining duplicate notes.
